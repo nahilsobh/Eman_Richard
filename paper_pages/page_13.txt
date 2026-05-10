@@ -1,0 +1,49 @@
+which can introduce blurring near tissue interfaces and attenuate fine wavefield features. 
+For instance, in the HCC examples, TSM enhanced visualization of stiffness increases in 
+the peritumoral regions compared with conventional inversion. However, some intratumoral 
+details of two heterogeneous HCCs were lost, which could be valuable for assessing 
+tumor heterogeneity and overall characterization. Therefore, while this study establishes 
+TSM as a proof of concept, future work should focus on optimizing filter design and 
+parameterization for specific anatomical contexts and lesion geometries to improve the 
+accuracy and robustness of the technique in clinical applications.
+It should also be noted that the conventional DF-based processing uses an amplitude-
+weighted average across directions to produce a stable stiffness estimate intended for 
+quantitative tissue characterization. In contrast, TSM is not proposed as an alternative 
+stiffness inversion for absolute quantification, but uses a max-type operator (MIP) to 
+preserve direction-specific stiffness “anomalies” that occur near an actively expanding lesion 
+under strain. As a result, TSM is intended as a strain-sensitive contrast mechanism rather 
+than a replacement for conventional stiffness quantification. Furthermore, TSM is expected 
+to be most sensitive to lesions that produce appreciable mass effect through relatively rapid, 
+mass-forming expansion. When the expansion rate exceeds the mechanical equivalent of 
+creep in the surrounding tissue, it results in strain hardening due to active tension.
+Some limitations of the study should be acknowledged. First, although the study focused 
+on detecting strain-induced perilesional stiffness changes in expanding lesions, it did not 
+establish a direct quantitative relationship between the observed stiffness pattern and the 
+actual lesion expansion rate. Nevertheless, the method holds promise as a strain-sensitive 
+contrast mechanism that, in future longitudinal studies, could be evaluated for its ability 
+to relate perilesional mechanical signatures to lesion growth behavior. Second, because the 
+phantom protocol was not designed to ensure full mechanical equilibrium at each inflation 
+level, viscoelastic relaxation may influence the magnitude of the observed TSM contrast. 
+In addition, although Phantom 3 serves an important negative control, showing that a large, 
+static inclusion does not reproduce the circumferential stiffening ring seen during active 
+expansion, embedding a pre-inflated balloon may not represent a true static equilibrium. 
+A dedicated equilibrium-hold study (e.g., repeated scans after longer hold times at each 
+inflation level) would be useful as an additional phantom-based characterization of the time 
+dependence of the TSM signal under controlled conditions. Third, although no visible gel 
+damage was observed and the return-to-baseline state remained qualitatively similar to the 
+initial baseline, repeated inflation/deflation cycling could still introduce subtle irreversible 
+changes (e.g., microstructural rearrangement) that may influence the stiffness-volume 
+relationship. Dedicated mechanical testing after repeated cycling would help quantify any 
+cycle-dependent effects. Fourth, the limited number of in vivo cases with extreme growth 
+rates or pre-existing pressure, which was already identified by anatomical MRI, may not 
+be representative of the broader patient population. These initial cases primarily serve 
+as a starting point to demonstrate the potential of TSM in clinical applications. Further 
+research and optimization of the TSM method are necessary to enhance its sensitivity and 
+applicability in vivo.
+Yin et al.
+Page 13
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

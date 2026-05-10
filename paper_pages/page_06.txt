@@ -1,0 +1,53 @@
+direction set) using a 3D spatial-temporal DF with a spatial frequency cutoff of 4.17–166.67 
+m−1 (corresponding to 1–40 cycles/FOV) (27). A six-direction DF set (±x, ±y, ±z) was 
+evaluated only as a sensitivity comparison (Supplementary materials). For each direction n, a 
+direction-specific elastogram was calculated using a 3D direct inversion (DI) algorithm with 
+3 × 3 × 3 Laplacian 6 nearest neighbor kernel (28).
+Two different combinations of the direction-specific elastograms were then formed. For the 
+conventional elastogram, μconv, the direction-specific elastograms were combined using an 
+amplitude-weighted average, where the weight for each direction was proportional to the 
+squared amplitude in the corresponding filtered curl wave field. The resulting elastogram 
+(μconv) was smoothed using a 3 × 3 × 3 cubic spatial median filter to improve regional 
+homogeneity of stiffness estimates. In contrast, the TSM elastogram, μTSM, was computed 
+using a maximum-intensity projection (MIP) across directions on a voxelwise basis to 
+preserve the strongest directional response, subject to amplitude-based masking described 
+below.
+Because directional filtering can yield low-amplitude regions that produce unstable inversion 
+artifacts, an amplitude cutoff was applied prior to MIP to exclude these unreliable regions. 
+To implement this, the phantom was semi-automatically segmented from the magnitude 
+images, and a phantom mask was created by excluding the background and balloon interior. 
+Within this mask, the amplitude of each directionally filtered curl field was calculated 
+as An =
+Axn
+2 + Ayn
+2 + Azn
+2 , where A represents the amplitude of each curl component, and n 
+= 1, 2, …, N and N is the number of directional filters applied. The threshold was set 
+to 10% of the global maximum amplitude across all directions. The number of eligible 
+DF directions per voxel was quantified by counting how many directionally filtered curl 
+amplitudes exceeded the cutoff (i.e., the number of directions that contribute to the MIP at 
+that voxel). Direction-specific elastograms were smoothed using the spatial median filter and 
+combined via MIP using only eligible directions, resulting in μTSM. Supplementary Figure 
+S1 displays example directionally filtered wave amplitudes and stiffness maps, with low-
+amplitude regions indicated. Unless otherwise noted, both μTSM and μconv were reported as 
+the magnitude of the complex shear modulus.
+TSM assumes that strain-/prestress-dependent nonlinear mechanics near an actively 
+expanding interface can produce elevated apparent stiffness for wave components 
+propagating approximately parallel to the lesion-host boundary. To evaluate whether the MIP 
+preferentially selects surface-parallel (tangential) propagation directions as hypothesized, the 
+DF direction index (out of 20 directions) that produces the maximum stiffness contributing 
+to the MIP was recorded for each voxel, subject to the same amplitude-threshold masking 
+used above. Using the segmented balloon mask, the local surface-normal field along the 
+balloon-gel interface was calculated and the angle θ between the MIP-selected DF direction 
+vector and the balloon’s local surface normal was computed. Under the surface-parallel 
+(tangential) hypothesis, tangential propagation corresponds to θ near 90° (i.e., the selected 
+direction is approximately orthogonal to the surface normal). Angle maps were generated for 
+the phantom states, and a 3×3×3 averaging filter was applied to reduce isolated undefined 
+pixels.
+Yin et al.
+Page 6
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

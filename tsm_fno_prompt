@@ -1,0 +1,729 @@
+You are extending a Fourier Neural Operator (FNO) pipeline to solve the
+Tissue Strain Mapping (TSM) problem from MR Elastography. This is a
+classical acoustoelasticity problem: an expanding mass creates a
+pre-stress field in surrounding tissue that modifies local shear wave
+speed. The FNO must recover both the isotropic stiffness field G(x,y)
+AND the perilesional latent strain field ε_latent(x,y) from measured
+displacement data u(x,y).
+
+The physics: G_measured(x,y) = G₀(x,y) + A · ε_latent(x,y)
+where A is the acoustoelastic constant (~-3G₀ to -10G₀ for soft tissue).
+The stiffening ring around an expanding lesion is the signature of
+ε_latent ≠ 0 in the perilesional zone.
+
+Do not assume any existing code. Build everything from scratch.
+Verify each module before proceeding to the next.
+
+---
+
+## Project structure to create
+
+tsm_fno/
+├── README.md
+├── environment.yml
+├── src/
+│   ├── __init__.py
+│   ├── phantom/
+│   │   ├── __init__.py
+│   │   ├── geometry.py          # lesion geometry + Lamé pre-stress field
+│   │   ├── acoustoelastic.py    # nonlinear stiffness from pre-strain
+│   │   └── generator.py         # full phantom + wave solver pipeline
+│   ├── solver/
+│   │   ├── __init__.py
+│   │   ├── helmholtz_fd.py      # 2D Helmholtz FD solver (reuse Phase 0)
+│   │   └── hodge.py             # Helmholtz-Hodge decomposition
+│   ├── model/
+│   │   ├── __init__.py
+│   │   ├── spectral_conv.py     # 2D spectral convolution layer
+│   │   ├── fourier_block.py     # Fourier block = spectral + bypass + act
+│   │   ├── fno_tsm.py           # dual-head FNO: G + ε_latent
+│   │   └── losses.py            # all loss functions
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── dataset.py           # HDF5 dataset + augmentation
+│   │   └── generate_tsm.py      # entry point: generate TSM training pairs
+│   └── eval/
+│       ├── __init__.py
+│       ├── metrics.py           # RL², SSIM, ring detection, τ estimation
+│       └── visualize.py         # 4-panel benchmark figure
+├── slurm/
+│   ├── gen_tsm.sbatch           # array job: generate TSM dataset
+│   ├── train_tsm.sbatch         # GPU job: train TSM FNO
+│   └── eval_tsm.sbatch          # GPU job: evaluation + figures
+├── scripts/
+│   ├── generate_chunk.py        # SLURM array task entry point
+│   ├── merge_chunks.py          # merge HDF5 chunks
+│   ├── train.py                 # training entry point
+│   ├── evaluate.py              # evaluation entry point
+│   └── submit_all.sh            # dependency-chained submission
+└── tests/
+    ├── test_geometry.py
+    ├── test_acoustoelastic.py
+    ├── test_hodge.py
+    ├── test_fno_tsm.py
+    └── test_losses.py
+
+---
+
+## MODULE 1: Phantom geometry (src/phantom/geometry.py)
+
+### 1a. Lesion geometry
+Generate a random lesion (expanding inclusion) embedded in background tissue.
+
+class LesionGeometry:
+    Parameters (all randomized per sample):
+      center:     (cx, cy) — random in [N/3, 2N/3]
+      semi_axes:  (a, b) — major a ~ Uniform(6, N/5), minor b ~ Uniform(0.6a, a)
+      angle:      rotation ~ Uniform(0, π)
+      pressure:   p ~ Uniform(500, 8000) Pa  (expansion pressure)
+                  p=0 reserved for non-expanding control cases (20% probability)
+
+    Methods:
+      .mask(N):       returns bool (N,N) array — True inside lesion
+      .boundary_normals(N): returns (N,N,2) array of outward unit normals
+                            at each point, computed from distance transform
+                            (zero inside lesion)
+      .distance_field(N):   returns (N,N) array of distance from lesion
+                            surface in metres (zero inside lesion)
+
+### 1b. Lamé pre-stress field
+Analytical pre-stress field around an elliptical pressurized inclusion.
+Use the Eshelby solution for ellipsoidal inclusions in an isotropic matrix.
+
+For a circular inclusion of equivalent radius a_eq = sqrt(a*b) at pressure p:
+
+    σ_rr(r)  = -p · (a_eq/r)²     [radial, compressive]
+    σ_θθ(r)  = +p · (a_eq/r)²     [circumferential, tensile]
+
+    Δσ_acoustic(r) = σ_θθ - σ_rr = 2p · (a_eq/r)²
+
+For points inside the lesion: Δσ_acoustic = p (uniform pressure, Lamé)
+For points outside: decay as (a_eq/r)²
+
+Function: compute_lame_field(geometry: LesionGeometry, N: int, dx: float)
+Returns: (N,N) float64 array of Δσ_acoustic in Pa
+         Normalised by G_background so units are dimensionless strain.
+
+### 1c. Shell mask
+Generate perilesional annular shell mask for evaluation:
+
+Function: perilesional_shell(lesion_mask, shell_mm, dx)
+  shell_mm: shell thickness in mm (default 5mm = 2.5 voxels at 2mm)
+  Returns: bool (N,N) — True in annular ring immediately outside lesion
+
+---
+
+## MODULE 2: Acoustoelastic phantom (src/phantom/acoustoelastic.py)
+
+This is the core physics module. It generates the spatially varying
+effective stiffness field G_eff(x,y) that the wave solver sees.
+
+### 2a. Background stiffness map
+G_bg: float — uniform background, ~ Uniform(800, 3000) Pa
+G_lesion: float — lesion core stiffness ~ Uniform(3000, 15000) Pa
+          (lesion core is stiffer than background — tumor mechanical property)
+
+### 2b. Acoustoelastic stiffness perturbation
+The pre-stress field perturbs the local shear modulus via:
+
+    G_eff(x,y) = G_bg(x,y) + A_coeff · Δσ_acoustic(x,y)
+
+where:
+    A_coeff ~ Uniform(-8.0, -2.0)   [acoustoelastic constant, dimensionless]
+                                     negative because compression softens,
+                                     tension stiffens (for tissue convention)
+    Δσ_acoustic from Lamé field above
+
+IMPORTANT: The stiffening ring lives in the perilesional zone where
+Δσ_acoustic > 0 (circumferential tension). G_eff > G_bg there.
+Inside the lesion: different mechanics, handled separately.
+
+### 2c. Full effective stiffness map
+def make_effective_G(N, dx, geometry, G_bg, G_lesion, A_coeff):
+    G = np.full((N,N), G_bg)                    # background
+    G[geometry.mask(N)] = G_lesion              # lesion core
+    lame = compute_lame_field(geometry, N, dx)  # pre-stress field
+    G += A_coeff * lame * G_bg                  # acoustoelastic perturbation
+    G = np.clip(G, 200, 80000)                  # physical bounds [Pa]
+    return G
+
+### 2d. Ground truth strain field (training label)
+The latent strain label is:
+
+    ε_latent(x,y) = Δσ_acoustic(x,y) / G_bg   [dimensionless]
+
+This is what the second FNO output head must predict.
+It is nonzero ONLY in the perilesional shell for expanding lesions (p>0).
+It is identically zero everywhere for control cases (p=0).
+
+---
+
+## MODULE 3: Helmholtz-Hodge decomposition (src/solver/hodge.py)
+
+Decompose the measured displacement field into its divergence-free
+(shear wave) and curl-free (compressional wave) components.
+
+### 3a. 2D Hodge decomposition
+For a 2D vector displacement field u = (u_x, u_y):
+
+    u = ∇φ (curl-free) + ∇⊥ψ (div-free)
+
+In Fourier space:
+    k = (kx, ky),  k² = kx²+ky²
+    φ̂(k) = (kx·Ûx + ky·Ûy) / k²          [scalar potential]
+    ψ̂(k) = (kx·Ûy - ky·Ûx) / k²          [stream function]
+
+    Divergence-free component:
+    Ûx_df = Ûx - kx·φ̂  =  ky²·Ûx/k² - kx·ky·Ûy/k²
+    Ûy_df = Ûy - ky·φ̂  =  kx²·Ûy/k² - kx·ky·Ûx/k²
+
+    Curl-free component:
+    Ûx_cf = kx·φ̂
+    Ûy_cf = ky·φ̂
+
+Function: hodge_decompose_2d(ux, uy, dx)
+  Inputs:  ux, uy — complex (N,N) displacement components
+  Returns: dict with keys:
+           'div_free': (ux_df, uy_df) — shear wave component
+           'curl_free': (ux_cf, uy_cf) — compressional component
+           'phi': scalar potential field
+           'psi': stream function field
+
+### 3b. Directional filter (TSM directional decomposition)
+This is the key TSM operation: select wave components propagating
+parallel to the lesion surface (perpendicular to outward normal n̂).
+
+Function: directional_filter_tsm(ux_df, uy_df, boundary_normals, dx,
+                                  n_angles=36, delta_threshold=0.3)
+  For each propagation direction θ in linspace(0, π, n_angles):
+    k̂ = (cos θ, sin θ)
+    filter_weight = max(0, 1 - |k̂ · n̂(x,y)| / delta_threshold)
+    Apply directional bandpass in Fourier space
+
+  Returns: u_tsm — displacement field retaining only tangentially
+                    propagating shear waves (the TSM signal)
+           G_tsm_map — local stiffness from TSM-filtered waves (MIP)
+
+---
+
+## MODULE 4: Wave solver (src/solver/helmholtz_fd.py)
+
+2D time-harmonic Helmholtz equation with spatially varying G:
+    ∇·(G*(x,y) ∇u) + ρω²u = 0
+
+IDENTICAL to Phase 0 solver. Reproduce exactly:
+
+Parameters:
+    rho    = 1000.0   kg/m³
+    dx     = 0.002    m
+    freq1  = 60.0     Hz  (primary)
+    freq2  = 120.0    Hz  (second harmonic — improves ε_latent recovery)
+    damping = 0.05    (loss tangent)
+
+Boundary conditions:
+    Left column j=0: u = exp(i·φ_source) where φ_source ~ Uniform(0, 2π)
+                     (random source phase — augmentation, prevents
+                      model learning boundary artifacts)
+    All other edges: u = 0
+
+Add noise at SNR ~ Uniform(15, 30) dB to output displacement.
+
+Solve at BOTH frequencies. Return 4-channel complex displacement:
+    [Re(u_60Hz), Im(u_60Hz), Re(u_120Hz), Im(u_120Hz)]
+
+---
+
+## MODULE 5: Training data generation (src/data/generate_tsm.py)
+
+### 5a. Full training pair
+def make_tsm_pair(N=64, dx=0.002, rng=None):
+    Generates ONE complete training sample.
+
+    Returns:
+      X: float32 (6, N, N) — 6 input channels:
+         Ch 0-3: displacement [Re(u₆₀), Im(u₆₀), Re(u₁₂₀), Im(u₁₂₀)]
+         Ch 4:   Lamé pre-stress field Δσ (analytical prior)
+         Ch 5:   Distance from lesion surface (normalised 0-1)
+
+         IMPORTANT: Channels 4 and 5 are the physics-informed inputs.
+         They tell the FNO WHERE the lesion is and what the analytical
+         pre-stress field looks like. This dramatically reduces the
+         learning problem and enforces the Lamé geometry.
+
+      Y: dict with two labels:
+         'G':       float32 (N,N) — effective stiffness G_eff [Pa]
+         'epsilon':  float32 (N,N) — latent strain ε_latent [dimensionless]
+                     zero everywhere for control (p=0) cases
+
+      meta: dict with:
+         'p': expansion pressure [Pa] (0 for control)
+         'A': acoustoelastic constant
+         'G_bg': background stiffness
+         'G_lesion': lesion core stiffness
+         'a_eq': equivalent lesion radius [m]
+         'is_expanding': bool
+
+### 5b. Dataset composition
+Target: 50,000 total samples with the following distribution:
+    60%  — actively expanding lesions (p > 0, clear stiffening ring)
+    20%  — non-expanding lesions (p = 0, no ring — control)
+    10%  — high-contrast inclusions (G_lesion/G_bg > 10, hard cases)
+    10%  — near-isotropic (a ≈ b, circular — easier geometry)
+
+This composition ensures the model learns to DISTINGUISH expanding
+from non-expanding lesions — the core clinical question.
+
+### 5c. HDF5 format
+Each chunk file: data/chunks/tsm_chunk_{task_id:04d}.h5
+    /X          float32 (chunk_size, 6, N, N)
+    /Y_G        float32 (chunk_size, N, N)
+    /Y_epsilon  float32 (chunk_size, N, N)
+    /meta/p              float32 (chunk_size,)
+    /meta/A              float32 (chunk_size,)
+    /meta/G_bg           float32 (chunk_size,)
+    /meta/is_expanding   bool    (chunk_size,)
+
+Merged file: data/tsm_50000.h5 — same layout, all 50k samples.
+
+---
+
+## MODULE 6: FNO-TSM Architecture (src/model/fno_tsm.py)
+
+### 6a. Spectral convolution (src/model/spectral_conv.py)
+IDENTICAL to Phase 0 SpectralConv2d. Reproduce exactly.
+modes1=modes2=12, dtype=torch.cfloat.
+
+### 6b. Fourier block (src/model/fourier_block.py)
+IDENTICAL to Phase 0 FourierLayer. Reproduce exactly.
+spectral conv + 1×1 bypass conv + GeLU.
+
+### 6c. Dual-head FNO-TSM (src/model/fno_tsm.py)
+
+class FNO_TSM(nn.Module):
+    """
+    Dual-output FNO for Tissue Strain Mapping.
+
+    Recovers simultaneously:
+      1. G(x,y)        — isotropic shear modulus field [Pa]
+      2. ε_latent(x,y) — perilesional latent strain [dimensionless]
+
+    Architecture:
+      Shared trunk: Lift → 4 Fourier blocks
+      Head 1 (stiffness): Project → sigmoid → [G_min, G_max]
+      Head 2 (strain):    Project → softplus → [0, ε_max]
+    """
+
+    def __init__(self,
+                 modes1=12, modes2=12, width=48,
+                 n_layers=4, in_channels=6,
+                 G_min=200.0, G_max=80000.0,
+                 eps_max=0.15):
+        """
+        Key differences from Phase 0:
+          width=48 (vs 32) — extra capacity for dual-output task
+          in_channels=6 (vs 4) — includes Lamé field + distance channels
+          eps_max=0.15 — maximum expected latent strain (dimensionless)
+        """
+
+    Layers:
+      self.fc_in = nn.Linear(in_channels + 2, width)  # +2 for grid coords
+
+      self.fourier_blocks = nn.ModuleList([
+          FourierBlock(width, modes1, modes2, activation=(i < n_layers-1))
+          for i in range(n_layers)
+      ])
+
+      # Head 1: stiffness G
+      self.G_fc1 = nn.Linear(width, 128)
+      self.G_fc2 = nn.Linear(128, 1)
+
+      # Head 2: latent strain ε_latent
+      self.eps_fc1 = nn.Linear(width, 64)
+      self.eps_fc2 = nn.Linear(64, 1)
+
+    Forward pass:
+      1. Concatenate spatial grid (x,y) to input → (B, H, W, in_ch+2)
+      2. Lift with fc_in → (B, H, W, width)
+      3. Permute → (B, width, H, W)
+      4. Pass through all Fourier blocks (shared trunk)
+      5. Permute → (B, H, W, width)
+      6. Head 1: G_fc1 → GeLU → G_fc2 → sigmoid → scale to [G_min, G_max]
+      7. Head 2: eps_fc1 → GeLU → eps_fc2 → softplus → scale to [0, eps_max]
+      8. Return G.squeeze(-1), eps.squeeze(-1)   both (B, H, W)
+
+    CRITICAL architectural choice:
+      The shared trunk forces the model to learn a common latent
+      representation that is useful for BOTH tasks. The stiffness head
+      and strain head then specialise from this shared representation.
+      This enforces the physical coupling G_eff = G₀ + A·ε_latent.
+
+### 6d. Coordinate grid
+Identical to Phase 0: concatenate normalised (x,y) ∈ [0,1]² to input.
+
+---
+
+## MODULE 7: Loss functions (src/model/losses.py)
+
+### 7a. Stiffness loss (identical to Phase 0)
+L_G = relative L² loss on G prediction:
+    L_G = mean(||G_pred - G_true||₂ / ||G_true||₂)   over batch
+
+### 7b. Latent strain loss
+L_eps = weighted relative L² on ε_latent:
+    L_eps = mean(||ε_pred - ε_true||₂ / (||ε_true||₂ + ε_floor))
+
+where ε_floor = 0.001 prevents division by zero for control cases (p=0).
+
+IMPORTANT: Weight the perilesional shell MORE than background:
+    shell_mask = perilesional_shell(lesion_mask, shell_mm=5.0, dx=0.002)
+    L_eps_ring = relative_l2(ε_pred[shell_mask], ε_true[shell_mask])
+    L_eps_bg   = relative_l2(ε_pred[~shell_mask], ε_true[~shell_mask])
+    L_eps      = 0.7 * L_eps_ring + 0.3 * L_eps_bg
+
+This forces the model to get the stiffening ring right even if the
+background ε≈0 everywhere would give a low overall loss.
+
+### 7c. Acoustoelastic consistency loss
+Enforces the physical coupling G_eff = G₀ + A · ε_latent:
+
+    G_bg_pred = G_pred * (1 - lesion_mask)   (background only)
+    G_ring    = G_bg_pred * shell_mask
+
+    G_reconstructed = G_bg_mean + A_pred · eps_pred
+    L_acoustic = MSE(G_reconstructed[shell_mask], G_pred[shell_mask])
+
+where A_pred is an additional scalar output (learned per-sample
+acoustoelastic constant). Add a third micro-head for A_pred:
+    self.A_fc = nn.Linear(width, 1)   (single scalar, global pooling)
+    A_pred = -softplus(global_avg_pool(trunk_features) → A_fc) - 2.0
+    (negative, bounded below -2.0 per tissue physics)
+
+### 7d. Helmholtz PDE residual loss (from Phase 0)
+    L_pde = Helmholtz residual on G_pred and u_input
+    (reuse HelmholtzResidual class from Phase 0)
+
+### 7e. Expansion detection loss
+Binary classification: is this an expanding lesion?
+
+    expansion_score = max(eps_pred[shell_mask])
+    expanding_true  = (p > 0).float()
+    L_expand = BCE(sigmoid(expansion_score / ε_threshold), expanding_true)
+
+where ε_threshold = 0.01 (detection floor).
+
+This forces the model to produce ε≈0 for control cases even if the
+wave field looks similar to an expanding case.
+
+### 7f. Total loss
+    L_total = L_G
+            + λ_eps    · L_eps         (λ_eps    = 1.0)
+            + λ_ring   · L_eps_ring    (λ_ring   = 0.5, extra weight on ring)
+            + λ_acoustic · L_acoustic  (λ_acoustic = 0.1)
+            + λ_pde    · L_pde         (λ_pde    = 0.05)
+            + λ_expand · L_expand      (λ_expand  = 0.2)
+
+Return all components as a dict for logging.
+
+---
+
+## MODULE 8: Training (scripts/train.py)
+
+### 8a. Dataset split
+    Train: 45,000 samples (90%)
+    Val:   5,000 samples  (10%)
+    Stratified: preserve is_expanding ratio in both splits
+
+### 8b. Augmentation (applied during training only)
+    1. Random 90° rotation (k ∈ {0,1,2,3}) — also rotate normal field
+    2. Random horizontal flip — also flip normal field
+    3. Random source phase shift on u channels only (not Lamé/distance ch)
+    4. Random global G scale ±15% — also scale G labels
+    5. Random noise level resample (re-add noise at different SNR)
+
+CRITICAL: When rotating/flipping the displacement field, the vector
+components must be rotated consistently:
+    For 90° CCW rotation: u'_x = -u_y, u'_y = u_x
+    For horizontal flip:  u'_x = -u_x, u'_y = u_y
+    Failure to do this will corrupt the wave direction information.
+
+### 8c. Optimizer
+    AdamW, lr=1e-3, weight_decay=1e-4
+    CosineAnnealingLR, T_max=100, eta_min=1e-5
+
+### 8d. Training loop
+    Epochs: 100
+    Batch size: 24 (reduced from 32 due to dual output memory overhead)
+    Gradient clipping: max_norm=1.0
+
+    Log every epoch:
+      train_loss (total + all components)
+      val_L_G, val_L_eps, val_SSIM_G, val_SSIM_eps
+      val_ring_RL2 (RL² evaluated only in perilesional shell)
+      val_expansion_AUC (AUC of expanding vs non-expanding classification)
+
+    Save best checkpoint on val_ring_RL2 (NOT overall val_L_G).
+    This ensures the checkpoint is optimised for clinical utility.
+
+### 8e. CLI arguments
+    --data_path        path to tsm_50000.h5
+    --pretrained       optional: path to Phase 0/2 best.pt
+                       (if provided, initialise shared trunk from Phase 0
+                        and train only new heads for first 10 epochs)
+    --run_dir          output directory
+    --epochs           default 100
+    --batch_size       default 24
+    --lr               default 1e-3
+    --modes            default 12
+    --width            default 48
+    --lambda_eps       default 1.0
+    --lambda_ring      default 0.5
+    --lambda_acoustic  default 0.1
+    --lambda_pde       default 0.05
+    --lambda_expand    default 0.2
+    --freeze_trunk     int: number of epochs to freeze trunk when using
+                       pretrained weights (default 10)
+
+---
+
+## MODULE 9: Evaluation metrics (src/eval/metrics.py)
+
+### 9a. Standard metrics
+    relative_l2(pred, true)       — overall RL²
+    ssim(pred, true)              — structural similarity
+    ring_rl2(eps_pred, eps_true, shell_mask)   — RL² in perilesional shell only
+
+### 9b. Expansion detection AUC
+    For each sample: expansion_score = max(eps_pred[shell_mask])
+    Compare to is_expanding ground truth
+    Report AUC-ROC across test set
+    Target: AUC > 0.90
+
+### 9c. Relaxation time estimation
+def estimate_tau(G_t0, G_t1, eps_t0, eps_t1,
+                 delta_t_days, shell_mask):
+    """
+    From two serial FNO predictions, estimate tissue relaxation time τ.
+    Assumes single-exponential: ε(t) = ε₀ · exp(-t/τ)
+
+    Returns τ in days. Returns None if signal too weak to estimate.
+    """
+    eps_ring_t0 = eps_t0[shell_mask].mean()
+    eps_ring_t1 = eps_t1[shell_mask].mean()
+
+    if eps_ring_t0 < 1e-4 or eps_ring_t1 < 1e-4:
+        return None
+
+    tau = -delta_t_days / np.log(eps_ring_t1 / eps_ring_t0 + 1e-10)
+    return max(tau, 0)
+
+### 9d. Acoustoelastic constant recovery
+def recover_acoustoelastic_constant(G_pred, eps_pred,
+                                     G_bg_mean, shell_mask):
+    """
+    Recover A from: G_eff = G_bg + A · ε_latent
+    Fit by least squares in the perilesional shell.
+    Target: recovered A within 20% of ground truth A.
+    """
+    eps_ring = eps_pred[shell_mask]
+    dG_ring  = G_pred[shell_mask] - G_bg_mean
+    A_fit    = np.linalg.lstsq(
+                   eps_ring[:,None], dG_ring, rcond=None)[0][0]
+    return A_fit
+
+### 9e. Stratified evaluation table
+Evaluate all metrics split by:
+    - Expansion pressure bin: [0], [500-2000], [2000-5000], [5000-8000] Pa
+    - Contrast ratio: G_lesion/G_bg in [1-3], [3-7], [7-15]
+    - Lesion size: a_eq in [small <10mm], [medium 10-20mm], [large >20mm]
+
+Print as a formatted table. This is the main results table for the paper.
+
+---
+
+## MODULE 10: Visualisation (src/eval/visualize.py)
+
+### 10a. Main benchmark figure (6 panels per sample)
+def benchmark_figure(model, dataset, n_samples=6, save_path=None):
+    For each sample, show 6 panels:
+      Panel 1: Re(u₆₀Hz) — input displacement wave field
+      Panel 2: Lamé prior field (Channel 4 input) — analytical prediction
+      Panel 3: G_pred — predicted stiffness map
+      Panel 4: G_true — ground truth stiffness
+      Panel 5: ε_pred — predicted latent strain (THE KEY OUTPUT)
+      Panel 6: ε_true — ground truth latent strain
+
+    Overlay lesion boundary contour on panels 3-6.
+    Annotate Panel 5 with: ring_RL2, max ε_pred, is_expanding prediction.
+
+    This is the figure for the Ehman meeting and the MRM paper.
+
+### 10b. Expansion detection ROC curve
+    Plot AUC-ROC for expanding vs non-expanding classification.
+    Show three curves: eps_pred, G_gradient (classical baseline),
+    TSM_directional (from hodge.py — classical TSM baseline).
+
+### 10c. Relaxation time figure (for serial data)
+    If serial data available: plot ε_ring vs time with
+    exponential fit and τ annotation.
+
+---
+
+## MODULE 11: SLURM scripts
+
+### slurm/gen_tsm.sbatch
+    --partition=cpu
+    --account=YOUR_ACCOUNT
+    --array=0-99              (100 tasks × 500 samples = 50,000)
+    --cpus-per-task=4
+    --mem=16G
+    --time=01:30:00           (TSM pairs take longer due to Lamé computation)
+    --output=logs/gen_%A_%a.out
+
+    Each task: python scripts/generate_chunk.py \
+                 --task_id $SLURM_ARRAY_TASK_ID \
+                 --chunk_size 500 \
+                 --grid_size 64 \
+                 --output_dir data/chunks
+
+### slurm/train_tsm.sbatch
+    --partition=gpuA100x4
+    --account=YOUR_ACCOUNT
+    --gpus-per-node=1
+    --cpus-per-task=8
+    --mem=80G
+    --time=02:30:00
+    --output=logs/train_%j.out
+
+    python scripts/train.py \
+        --data_path data/tsm_50000.h5 \
+        --pretrained runs/phase2/best.pt \   (use Phase 2 weights if available)
+        --run_dir runs/tsm \
+        --epochs 100 \
+        --batch_size 24 \
+        --width 48
+
+### slurm/eval_tsm.sbatch
+    --partition=gpuA100x4
+    --account=YOUR_ACCOUNT
+    --gpus-per-node=1
+    --cpus-per-task=4
+    --mem=40G
+    --time=00:30:00
+
+    python scripts/evaluate.py \
+        --checkpoint runs/tsm/best.pt \
+        --data_path data/tsm_50000.h5 \
+        --save_dir results/tsm
+
+---
+
+## MODULE 12: Tests (all in tests/)
+
+### test_geometry.py
+    - test_mask_shape: LesionGeometry.mask(64) returns (64,64) bool
+    - test_normals_zero_inside: boundary_normals = 0 inside lesion mask
+    - test_lame_decay: Δσ at 2a_eq is 0.25 × Δσ at a_eq (r⁻² decay)
+    - test_lame_zero_pressure: Δσ = 0 everywhere when p=0
+
+### test_acoustoelastic.py
+    - test_ring_present: G_eff > G_bg in shell when p > 0
+    - test_no_ring_control: G_eff ≈ G_bg in shell when p = 0
+    - test_epsilon_bounds: ε_latent ∈ [0, 0.15] for valid inputs
+    - test_acoustic_coupling: G_eff - G_bg = A · ε_latent · G_bg in shell
+
+### test_hodge.py
+    - test_decomposition_complete: u_df + u_cf ≈ u_original (< 1e-10 error)
+    - test_div_free_is_divergence_free: div(u_df) < 1e-8 everywhere
+    - test_curl_free_is_curl_free: curl(u_cf) < 1e-8 everywhere
+    - test_directional_filter_shape: output same shape as input
+
+### test_fno_tsm.py
+    - test_output_shapes: G (B,N,N) and eps (B,N,N) for batch of 4
+    - test_G_range: G_pred ∈ [G_min, G_max] always
+    - test_eps_nonneg: eps_pred ≥ 0 always (softplus enforces this)
+    - test_A_negative: A_pred < 0 always (tissue physics)
+    - test_gradient_flows: loss.backward() completes without NaN
+
+### test_losses.py
+    - test_ring_loss_weighted: ring loss > background loss for same RL²
+    - test_expansion_loss_control: L_expand low when eps_pred≈0, p=0
+    - test_expansion_loss_active: L_expand low when eps_pred>0, p>0
+    - test_acoustic_consistency: L_acoustic = 0 when G=G_bg+A·eps exactly
+    - test_total_loss_finite: total loss finite for random inputs
+
+---
+
+## Implementation order
+
+1.  Create all directories and environment.yml
+2.  Write and test src/phantom/geometry.py
+    → Quick check: plot mask and Lamé field for a sample geometry
+3.  Write and test src/phantom/acoustoelastic.py
+    → Quick check: verify G_eff > G_bg in shell for p>0 case
+4.  Write src/solver/helmholtz_fd.py (copy from Phase 0, add random source phase)
+5.  Write and test src/solver/hodge.py
+    → Verify decomposition completeness on a synthetic wave field
+6.  Write src/data/generate_tsm.py — test with n=5 samples
+    → Plot one complete pair (all 6 channels + both labels)
+7.  Write src/model/spectral_conv.py + fourier_block.py (copy from Phase 0)
+8.  Write src/model/fno_tsm.py
+    → Test forward pass: input (2,6,64,64) → G (2,64,64), eps (2,64,64)
+9.  Write src/model/losses.py
+    → Test each loss component individually with known inputs
+10. Run all tests: pytest tests/ -v
+    → All must pass before writing SLURM scripts
+11. Write scripts/generate_chunk.py
+12. Write scripts/merge_chunks.py
+13. Write scripts/train.py
+14. Write scripts/evaluate.py
+15. Write all SLURM sbatch files
+16. Write scripts/submit_all.sh
+17. Write src/eval/metrics.py + src/eval/visualize.py
+18. Write README.md
+19. FINAL INTEGRATION TEST:
+    python scripts/generate_chunk.py --task_id 0 --chunk_size 10
+    python scripts/train.py --data_path data/chunks/tsm_chunk_0000.h5
+                            --epochs 3 --batch_size 4
+    python scripts/evaluate.py --checkpoint runs/tsm/best.pt
+    → Verify end-to-end pipeline completes without errors
+20. Print directory tree.
+
+---
+
+## Critical correctness checks before submitting any SLURM job
+
+Run these four checks after step 19:
+
+CHECK 1 — Physics check
+    import numpy as np, h5py
+    f = h5py.File("data/chunks/tsm_chunk_0000.h5")
+    expanding = f["meta/is_expanding"][:]
+    eps_max_per_sample = f["Y_epsilon"][:].max(axis=(-2,-1))
+    # Expanding cases must have eps_max > 0.005
+    assert eps_max_per_sample[expanding].mean() > 0.005
+    # Control cases must have eps_max < 0.001
+    assert eps_max_per_sample[~expanding].max() < 0.001
+    print("Physics check PASS")
+
+CHECK 2 — Lamé channel check
+    X = f["X"][:]
+    lame_channel = X[:, 4]   # Channel 4 = Lamé field
+    # Must be nonzero for expanding, near-zero for control
+    assert lame_channel[expanding].std() > 0.01
+    assert lame_channel[~expanding].max() < 0.001
+    print("Lamé channel check PASS")
+
+CHECK 3 — Hodge check
+    from src.solver.hodge import hodge_decompose_2d
+    # Decompose a sample displacement field
+    # Verify ||u_df + u_cf - u_original|| < 1e-8
+    print("Hodge decomposition check PASS")
+
+CHECK 4 — Model sanity check
+    # Forward pass must produce:
+    # G in [200, 80000] Pa for all pixels
+    # eps >= 0 for all pixels
+    # A < 0 (acoustoelastic constant is negative for tissue)
+    print("Model output range check PASS")
+
+Only submit SLURM jobs after all 4 checks pass.

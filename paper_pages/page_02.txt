@@ -1,0 +1,50 @@
+Introduction
+When an imaging examination reveals an abnormal mass, one of the important and 
+challenging tasks for radiologists is determining whether the lesion is aggressively 
+expanding in size. Lesion growth dynamics are highly variable, with reported growth rates 
+spanning orders of magnitude: some tumors expand rapidly and behave as mass-forming 
+lesions, whereas others grow slowly or spread predominantly by infiltration along existing 
+tissue planes (1–3). In the absence of sequential imaging over time, evidence of active 
+expansion might include signs of invasiveness at the lesion boundaries and evidence of 
+injury caused by pressure and deformation in surrounding tissues (4). Recognizing signs 
+of active lesion expansion is an important consideration when diagnosing unknown masses 
+and when managing known neoplastic lesions. Rapid tumor growth is often associated with 
+a more aggressive form of the disease, characterized by increased neoangiogenesis and 
+alterations in the immune microenvironment (5). Previous studies have found correlations 
+between tumor growth rate and treatment response or clinical outcomes in patients 
+with hepatocellular carcinoma, neuroendocrine carcinoma, or renal cell carcinoma (6–8). 
+Furthermore, monitoring tumor growth is vital in assessing cancer therapeutics, as clinical 
+trial endpoints typically involve measuring tumor shrinkage using systems such as RECIST 
+(Response Evaluation Criteria In Solid Tumors), which tracks changes in the sum of the 
+longest diameters of target lesions over time (9). These considerations provide motivation 
+for developing technology to probe the expansile nature of mass lesions from a single 
+examination, as a complement to sequential imaging when follow-up is unavailable.
+From a mechanical standpoint, when a lesion behaves as an expanding mass, it can exert 
+pressure on the adjacent tissues. If the adjacent tissues are constrained by surrounding 
+structures and cannot be displaced freely, this will lead to localized deformation, known 
+in engineering terms as strain. Figure 1 illustrates that compression of a material in one 
+direction results in stretching of the tissue perpendicular to the direction of compression. 
+Biological soft tissues are inherently nonlinear materials whose mechanical response 
+depends not only on the magnitude but also on the direction of applied stress (10,11). 
+Because of this nonlinearity, when tissue is stretched, its effective stiffness increases along 
+the direction of stretch, rather than remaining constant as in a linear elastic material. Under 
+continued deformation, however, tissues can partially compensate for this increased tension 
+by lengthening or remodeling to restore mechanical equilibrium (12). Consequently, the 
+apparent stiffness near an expanding lesion reflects a dynamic balance between the rate 
+of imposed strain due to expansion and the tissue’s intrinsic ability to adapt and relax. 
+Rapid volumetric expansion is therefore more likely to generate sustained deformation, 
+whereas slow-growing or predominantly infiltrative lesions may allow tissue remodeling and 
+relaxation that reduce sustained perilesional strain. Regions that stiffen disproportionately 
+may represent areas where mechanical strain exceeds the rate of tissue accommodation, 
+providing a potential mechanical signature of active expansion.
+Conventional MRI and other cross-sectional imaging techniques lack the capability to 
+depict the mechanical state of strain or the tissue’s dynamic response to deformation. 
+This limitation motivates the development of alternative approaches that can probe tissue 
+mechanics in vivo. Magnetic resonance elastography (MRE) is suited for this purpose, as 
+Yin et al.
+Page 2
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

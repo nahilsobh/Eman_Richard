@@ -1,0 +1,49 @@
+hepatic veins. Conventional MRE showed elevated peri-tumoral stiffness despite the absence 
+of radiologic or laboratory evidence of cirrhosis. This finding suggests that the elevated 
+stiffness in the peri-tumoral region could be due to the large deformation and stretching 
+caused by the mass-forming HCC. The TSM results further supported this interpretation. In 
+the shell-based analysis, this tumor exhibited a large TSM-conventional difference that was 
+maximal near the tumor boundary and decayed with distance (45% in the innermost shell, 
+decreasing to 26% in the outer shells), supporting a prominent localized peri-tumoral effect.
+In contrast, Figure 9B displays another large, stiff, and heterogeneous HCC located in the 
+posterior segment of the right hepatic lobe in a different patient. MRI/MRE was performed 
+approximately one week after an outside contrast-enhanced MRI used for diagnostic 
+evaluation. The tumor was again described as very large (approximately 10 × 14 × 20 cm), 
+and the report did not describe a definitive interval size change over the short comparison 
+interval. The patient proceeded to definitive management shortly after MRI/MRE as part 
+of surgical planning. In this case, only minimal mass effect was observed. Peri-tumoral 
+stiffness measurements were within the normal range for both TSM and conventional 
+inversion. Consistent with this qualitative impression, the shell-based analysis showed a 
+much smaller TSM-conventional difference (12% near the boundary, decreasing to 5% 
+distally), indicating a potentially stable lesion with limited expansile loading at the time of 
+imaging.
+Discussion
+In this study, we introduced tissue strain mapping (TSM), a new MRE-based method 
+developed to evaluate strain-induced perilesional stiffness changes associated with 
+expanding lesions. The technique is grounded in the hypothesis that actively expanding 
+lesions result in significant stretching and high strain in the perilesional area. This leads to a 
+dependency of the probed shear stiffness variations in the perilesional tissue on the direction 
+of shear wave propagation, considering the nonlinear elastic behavior of biological tissues. 
+By applying spatial-temporal DF to decompose complex wave fields following the contour 
+of the lesion-host boundary, TSM enables selective inversion and reconstruction of stiffness 
+maps that reveal localized stiffening patterns indicative of abnormal strain near an expanding 
+mass.
+MRE has been well established as a noninvasive technique for quantifying tissue 
+biomechanical properties across multiple organs, including the characterization of tumor 
+stiffness. Many studies have demonstrated the clinical potential of MRE in assessing cancer 
+severity, evaluating treatment response, and predicting patient outcomes (14,32–34). In 
+addition to conventional stiffness characterization, recent research has sought to quantify 
+tissue deformation responses to external or internal mechanical forces, thereby accounting 
+for the nonlinear behavior of soft tissues (17,19,20,35–37). A recent MRE study developed 
+an analytical framework to model heterogeneous shear modulus distributions around 
+pressurized tumors and validated the approach using phantom experiments (19,20). This 
+framework directly motivated and underpinned our current work. In their study, MRE was 
+performed on gelatin phantoms containing spherical balloon inclusions subjected to varying 
+levels of compression, with results compared to finite element simulations. The findings 
+Yin et al.
+Page 10
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

@@ -1,0 +1,38 @@
+8 
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+Fig. 4. ILI more clearly depicts stiff inclusions in a brain-simulating phantom. Top left: Photograph of the PVC phantom. Inclusion diameters, proceeding counter clock- 
+wise from the inclusion labeled with the asterisk, are 1.75, 2, 2.25, 2.5, 2.75, and 3 cm. Top Middle: MRE magnitude image. Bottom left: Direct inversion after 3 × 3 × 3 
+median ﬁltering. Bottom middle: HLI. Bottom right: ILI. The measured stiffness of the background and inclusions was 3.42 and 7.09 kPa, respectively. 
+Fig. 5. ILI provides higher contrast to noise ratio (CNR) in the phantom. Calcu- 
+lated CNRs for the inversions shown in Fig. 4 . The size of the circles represents the 
+driver power (3, 5 or 7 percent). 
+inclusions of 1.75 to 3 cm in diameter ( Fig. 5 and Supplemental Fig. 
+1). Further, ILI provided sharper boundaries at the edges of inclu- 
+sions ( Fig. 6 and Supplemental Fig. 3). As would be expected due 
+to the assumption of local homogeneity, DI and HLI blur inclusion 
+boundaries more with larger spatial footprints ( Fig. 5 versus Sup- 
+plemental Fig. 1). 
+In the meningioma cases shown ( Fig. 7 ), ILI more sharply de- 
+marcated tumor boundaries. ILI also shows focal areas of increased 
+stiffness in presumably normal brain when compared to the HLI 
+and DI stiffness maps. While this study is not designed to assess 
+the accuracy of these regions, we note that the general areas where 
+ILI shows a stiffness increase also show stiffness increases with 
+the other two inversions, just less clearly deﬁned and with lower 
+stiffness estimates. Further studies are needed to assess the per- 
+formance of ILI in normal brain. The large stiffness training range 
+used in this study was chosen expressly for analysis of focal in- 
+clusions and tumors, and more accurate estimates in normal brain 
+would likely be achieved using a smaller training range. 
+In the cross-subject in vivo experiment, ILI produced a higher 
+Dice coeﬃcient, labeling more of each tumor as stiff, than DI, but 
+not HLI ( Fig. 8 ). This equivalency of HLI and DI may be due to the 
+methodology used to set a threshold for what qualiﬁes as stiffer 
+than normal brain. We chose to use the 95 th percentile of nor- 
+mal brain values, and as can be seen in Fig. 7 , HLI produces softer 
+and more homogeneous estimates in normal brain than DI and ILI. 
+As such the threshold was lower for HLI than the other two algo- 
+rithms. Additionally, to perform these analyses we assume that the 
+tumor is homogeneously stiffer than normal brain. While this may 
+have been the surgeon’s qualitative impression at resection, it is 
+likely that there is some heterogeneity in stiffness within the tu- 

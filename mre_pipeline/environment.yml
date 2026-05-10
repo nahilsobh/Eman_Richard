@@ -1,0 +1,13 @@
+name: mre_pipeline
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - h5py
+  - tqdm
+  - matplotlib
+  - pip:
+    - torch

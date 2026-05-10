@@ -1,0 +1,33 @@
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+9 
+Fig. 6. ILI provides sharper transitions at inclusion boundaries. Negative values 
+on the x -axis represent distance from the boundary into the background while pos- 
+itive values show distance into the inclusion. Dashed lines connect median values 
+at each position while solid lines show the 2.5 th and 97.5 th percentiles for each in- 
+version. 
+mor. This threshold effect likely contributes to the relatively low 
+Dice coeﬃcients seen with all three inversions, and would have 
+the biggest impact on ILI. HLI and DI would be expected to blur 
+out regions of heterogeneity within the tumor, while ILI may de- 
+tect them. As expected, ILI provided sharper transitions in stiffness 
+between the normal brain and tumor than DI and HLI ( Fig. 9 ). 
+This study suggests that ILI potentially possesses advantages 
+over previously described inversion algorithms. LFE techniques es- 
+timate instantaneous spatial frequency by applying a set of ﬁlters 
+Fig. 8. Dice coeﬃcient results in 17 meningioma cases. ILI produces a signiﬁcantly 
+higher Dice coeﬃcient than DI with 9 × 9 × 9 quartic smoothing. There is no sig- 
+niﬁcant difference between HLI and ILI Dice coeﬃcients ( p = 0.15). Dashed lines 
+connect the individual cases across the inversions. ∗p < 0.001, ns = nonsigniﬁcant, 
+two-tailed paired t -tests. 
+to the displacement data and developing an estimate based on the 
+energy in each ﬁlter band ( Clayton et al., 2013 ; Knutsson et al., 
+1994 ). It also assumes local homogeneity and has limited spatial 
+resolution ( Manduca et al., 2001 ). Most DI techniques, which solve 
+the equations of motion in a viscoelastic medium ( Oliphant et al., 
+20 01 ; Papazoglou et al., 20 08 ; Romano et al., 1998 ), assume ho- 
+mogeneity ( Manduca et al., 2001 ). As they rely on second deriva- 
+tives, their major drawback is voxel-level numerical instability, es- 
+pecially in the presence of noise, which requires additional ﬁlter- 
+Fig. 7. T1-weighted image and inversion results in two meningioma cases. For Case 1, the superior tumor was described as stiff throughout and the posterior tumor 
+was described as having heterogeneous stiffness on resection (only the superior tumor was included in group analysis). In Case 2, the tumor was described as very stiff
+throughout at resection. Regions of interest outline the tumor extent as manually traced on the T1-weighted image. 

@@ -1,0 +1,25 @@
+6 
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+Fig. 2. ILI is more accurate than HLI and DI in its test set. DI, top row, HLI, middle row, and ILI, bottom row, results in a test set of 30,0 0 0 patches. Results for noise-free 
+patches (ﬁrst column) and noise added patches (second column) are shown. The spatial footprint that maximized the correlation coeﬃcient in the noisy case is shown for 
+each inversion (11 × 11 × 11 for DI, 9 × 9 × 9 for HLI, and 9 × 9 × 9 for ILI). 
+no signiﬁcant difference between ILI and HLI ( p = 0.15). ILI also 
+offered sharper transition from background brain into the tumors 
+than HLI and DI ( Fig. 9 ). 
+4. Discussion 
+This study builds upon recently reported work showing the fea- 
+sibility of using artiﬁcial neural networks for inversion in MRE 
+( Murphy et al., 2018 ) by increasing the complexity of the training 
+data using a coupled harmonic oscillator simulation ( Sack et al., 
+2002 ) of shear wave propagation in a medium with inhomoge- 
+neous stiffness, thereby more closely simulating true tissue me- 
+chanical properties. This advance in the training data improves the 
+accuracy of stiffness estimation in the presence of material inho- 
+mogeneity. 
+Experiments in small patches of simulated wave data showed 
+that ILI was more accurate than DI and HLI at estimating the stiff- 
+ness of voxels in areas of spatially varying stiffness ( Fig. 2 ). This 
+result is expected as DI is known to break down at boundaries 
+( McGrath et al., 2016 ; Murphy et al., 2013b ). ILI accuracy decreased 
+with decreasing SNR, but there does not appear to be any consis- 
+tent bias in estimates of noisy data except at the top of the training 

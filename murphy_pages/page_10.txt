@@ -1,0 +1,107 @@
+10 
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+Fig. 9. ILI provides sharper transitions at boundaries of stiff tumors in vivo . Nega- 
+tive values on the x -axis represent distance from the boundary into normal brain 
+while positive values show distance into the tumor. The zero position is the ﬁrst 
+voxel labeled as tumor. Dashed lines connect median values at each position while 
+solid lines show the 2.5th and 97.5th percentiles for each inversion. 
+ing of the displacement data that negatively impacts spatial res- 
+olution. One recent approach has removed the local homogeneity 
+assumption, but at the cost of requiring MRE data at multiple fre- 
+quencies, which would increase scan time ( Barnhill et al., 2018 ). 
+Another approach uses a ﬁnite element based inversion technique 
+that does not assume homogeneity but needs further evaluation 
+in vivo ( Honarvar et al., 2013 ). Nonlinear inversion is an iterative 
+technique that uses ﬁnite element models to jointly estimate dis- 
+placements and tissue mechanical parameters within subzones of 
+the displacement image ( McGarry et al., 2012 ; Van Houten et al., 
+2001 ). It does not assume local homogeneity. An adaptation to 
+NLI adds soft prior regularization, which incorporates spatial in- 
+formation into the inversion by penalizing heterogeneity within 
+speciﬁed subregions ( McGarry et al., 2013 ). The spatial information 
+comes from a segmentation that is provided to the algorithm. This 
+method can produce sharp stiffness gradients at boundaries and 
+decrease measurement uncertainty in small ROIs ( Johnson et al., 
+2016 ; McGarry et al., 2013 ), but is sensitive to the underlying seg- 
+mentation and favors homogeneity within some region of interest. 
+Due to its iterative approach that requires solving many small ﬁ- 
+nite element simulations, NLI reconstruction time is on the order 
+of hours. The ILI network presented in this study took approxi- 
+mately 3 days to train (1 day to generate training data, and two 
+days to train the ANN), but could reconstruct the included phan- 
+tom and brain MRE studies in under 10 minutes. GPU acceleration 
+would markedly reduce the time to invert images, and may accel- 
+erate generation of training data. 
+Neural network inversions (NNIs, including both HLI and ILI) 
+could easily be implemented into a clinical workﬂow. Each NNI is 
+limited to processing data at the resolution, frequency, and stiff- 
+ness range at which it was trained. While it takes days to generate 
+an NNI, it can then be used to invert any MRE data at its trained 
+resolution and frequency when its stiffness range is appropriate. 
+Training an NNI for a particular resolution, frequency, and stiffness 
+range is simply accomplished by adapting the parameters in the 
+CHO simulations used to generate training data. Further, as was 
+done in this study for the in vivo data, MRE data acquired at a dif- 
+ferent resolution could be resampled to the resolution of the NNI 
+before inversion. In practice, acquisition parameters of MRE proto- 
+cols for speciﬁc applications remain mostly constant over time, and 
+after an initial set of NNIs has been trained for regularly acquired 
+frequencies and resolutions, the need to train new NNIs should be 
+infrequent. 
+The primary limitation of this study is in the CHO simulation 
+used to generate training data. The CHO simulation has important 
+limitations, and it is possible that training an ANN on simulated 
+wave data from a model obeying the full Navier equations of mo- 
+tion in linear elastic materials would offer improved results. Partic- 
+ularly pertinent to this study, the CHO simulation does not contain 
+longitudinal waves, and as such cannot accurately simulate mode 
+conversion at interfaces. We selected the CHO model because it 
+can be solved more rapidly, providing a suﬃciently sized train- 
+ing set in a reasonable period of time. Despite its simplicity, our 
+results indicate that the CHO model is accurate enough to offer 
+an improvement over existing inversion algorithms, and the incor- 
+poration of a model obeying the Navier equations for linear elas- 
+tic materials that provides the full vector displacement ﬁeld is a 
+planned future direction. 
+We also note that ANNs are inherently good at interpolation 
+and bad at extrapolation. This is potentially beneﬁcial in MRE, as 
+it produces a stable inversion, but it does limit accurate param- 
+eter estimation to the range used to train the ANN. This makes 
+NNI-based stiffness estimates sensitive to parameter selection. The 
+distribution of parameters in the training set must be suﬃciently 
+wide to capture the clinical information of interest, though a pa- 
+rameter range that is too wide will sacriﬁce accuracy within the 
+range of interest. In this study, we chose to have a maximum stiff- 
+ness cutoff of 15 kPa, as the clinical utility of an estimate higher 
+than 15 kPa is unclear in the applications presented here. 
+In conclusion, the results of this study conﬁrm that neural 
+network-based inversion algorithms for MRE can improve stiffness 
+estimates in materials with spatially varying stiffness. These results 
+provide motivation for further development of neural network- 
+based inversion algorithms. 
+Declaration of Competing Interest 
+The authors declare the following ﬁnancial interests/personal 
+relationships which may be considered as potential competing in- 
+terests. A.M., K.P.M., J.D.T., J.H., R.L.E., M.C.M. and Mayo Clinic have 
+a ﬁnancial conﬂict of interest related to this research. This research 
+has been reviewed by the Mayo Clinic Conﬂict of Interest Review 
+Board and is being conducted in compliance with Mayo Clinic Con- 
+ﬂict of Interest policies. 
+CRediT authorship contribution statement 
+Jonathan M. Scott: Conceptualization, Methodology, Software, 
+Formal analysis, Investigation, Writing - original draft. Arvin Arani: 
+Methodology, Software, Writing - review & editing. Armando Man- 
+duca: Methodology, Writing - review & editing. Kiaran P. McGee: 
+Resources, Writing - review & editing. Joshua D. Trzasko: Method- 
+ology, Writing - review & editing. John Huston III: Resources, 
+Project administration, Writing - review & editing. Richard L. 
+Ehman: Conceptualization, Writing - review & editing, Supervision, 
+Project administration, Funding acquisition. Matthew C. Murphy: 
+Conceptualization, Methodology, Software, Formal analysis, Writing 
+- review & editing, Supervision, Project administration, Funding ac- 
+quisition. 
+Acknowledgments 
+Research reported in this publication was supported by the 
+N ational Institute of Biomedical Imaging and Bioengineering of 
+the National Institutes of Health under award numbers EB001981 , 
+EB024450 , EB027064 . 

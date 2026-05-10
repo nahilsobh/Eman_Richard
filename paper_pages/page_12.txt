@@ -1,0 +1,50 @@
+more challenging due to compromised input data quality. To mitigate this, we calculated 
+the amplitude of each directionally filtered wave and applied an empirical threshold to 
+exclude low-amplitude regions from the MIP combination. Moreover, the performance of 
+the directional filter depends on the selection of appropriate filter parameters, such as 
+bandwidth and orientation. In this proof-of-concept study, we adopted commonly used filter 
+parameters from previous MRE work, although they are not yet optimized.
+The sensitivity of the phantom findings to the angular sampling density of the DF set was 
+evaluated by comparing a 6-direction orthogonal DF configuration with the 20-direction 
+dodecahedral configuration. In this phantom setting, the key observations were qualitatively 
+similar across the two DF sets (Supplementary Fig. S8), suggesting that the dominant 
+strain-sensitive propagation components are captured even with sparse directional sampling 
+under relatively clean and reproducible excitation conditions. Nevertheless, the 20-direction 
+DF set provides more uniform orientation coverage for curved interfaces and is preferable, 
+particularly for in vivo applications where wavefields are more complex and the dominant 
+propagation directions may vary spatially.
+Despite the use of non-optimized directional filtering parameters and the empirical wave 
+amplitude cutoff, the results from both phantom experiments and in vivo examples 
+are consistent with the underlying hypothesis of TSM. Phantoms 1 and 2 exhibited a 
+nonlinear stiffening ring surrounding the rapidly expanding balloon, an effect that was 
+absent in control Phantom 3. The in vivo applications further demonstrate the clinical 
+relevance and feasibility of TSM. In the case of an acute intracranial hematoma, TSM 
+demonstrated stronger peri-lesional stiffness elevations than the conventional elastogram. 
+Similarly, the HCC cases demonstrated the potential of TSM in characterizing stiffness 
+alterations associated with different pressure states, which may reflect varying tumor growth 
+dynamics. However, longitudinal imaging of these proof-of-concept in vivo examples was 
+not available because patients proceeded to definitive clinical management shortly after 
+diagnosis, precluding research follow-up of tumor growth dynamics. Furthermore, although 
+the observed peri-lesional stiffness elevations were interpreted as consistent with strain-/
+prestress-related effects from expansile loading, the current data cannot distinguish this 
+mechanism from other contributors such as edema, inflammation, fibrosis, or longer-term 
+tissue remodeling. Therefore, the cases should be interpreted as demonstrating feasibility 
+rather than confirming ongoing growth. Longitudinal studies will be required to relate TSM 
+patterns to lesion growth rate and to validate TSM as an imaging biomarker for assessing the 
+expansile nature of mass lesions.
+It is important to emphasize, however, that the implementation of TSM in vivo can be 
+technically complex. In brain MRE, for example, directional filtering can be influenced 
+by waveguide effects, particularly in regions with large white matter tracts such as the 
+corpus callosum. The performance of directional filtering under these conditions depends 
+on the filter orientation relative to the underlying fiber architecture, making the selection 
+of optimal filter orientations challenging. One potential extension is to combine TSM-style 
+directional contrast with advanced inversions that incorporate structural anisotropy and/or 
+initial stress and boundary (waveguide) effects (38), which may improve specificity in 
+selected applications. In addition, directional filters inherently have a large spatial footprint, 
+Yin et al.
+Page 12
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

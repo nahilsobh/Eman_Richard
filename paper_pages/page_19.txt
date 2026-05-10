@@ -1,0 +1,16 @@
+Figure 2. 
+Concept of tissue strain mapping (TSM) for detecting strain-induced stiffness changes 
+in tissues adjacent to a rapidly expanding lesion. (A) Rapid lesion growth stretches the 
+surrounding perilesional tissue. (B) Transmission of a planar shear wave through the lesion-
+host tissue allows for the detection of increased circumferential shear stiffness in regions 
+stretched parallel to the wave propagation direction. (C) Rotation of the wave propagation 
+vector along the lesion-host boundary alters the apparent local shear stiffness. Combining 
+shear stiffness estimates across all propagation directions could reveal local strain effects 
+around the expanding lesion.
+Yin et al.
+Page 19
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

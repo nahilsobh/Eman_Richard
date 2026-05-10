@@ -1,0 +1,47 @@
+Mean stiffness values were measured and reported from annular regions of interest (ROIs) 
+on the central slice at the equatorial section of the balloon, where the expansion effect was 
+greatest. The annular ROI had a width of seven pixels, with the inner boundary positioned 
+three pixels away from the balloon edge to minimize edge effects.
+In vivo examples
+This retrospective analysis was conducted under an institutional review board (IRB) waiver 
+of informed consent. These in vivo cases are presented as feasibility demonstrations of the 
+processing pipeline and contrast mechanism.
+Acute hematoma: TSM was retrospectively applied to a patient with an acute 
+intraparenchymal hematoma to demonstrate the feasibility of TSM in a case with recently 
+documented hematoma expansion and mass effect on surrounding brain parenchyma. Brain 
+MRE/MRI scans were performed using previously described acquisition methods (29), and 
+detailed MRE acquisition parameters are provided in the Supplementary Materials. For 
+the conventional comparison, the curl wave field was decomposed using the same 3D 
+20-direction DF as in the phantom experiments, elastograms were computed for each DF 
+direction using 3D direct inversion, and the resulting stiffness maps were combined using a 
+weighted average across directions. For TSM, the same 3D 20-direction DF configuration 
+was applied to the reconstructed coronal slices, combined using MIP following the same 
+post-processing procedures as in the phantom study.
+Peri-lesional behavior was then assessed by constructing a radial (distance-from-hematoma) 
+profile of the TSM-conventional difference using concentric shells derived from a 3D 
+hematoma mask. The hematoma was segmented as a 3D binary mask on the T1-weighted 
+image after registration to the MRE space. From this mask, a peri-hematoma shell stack 
+consisting of five concentric layers was generated, each ~6 mm thick, using iterative 
+morphological dilation followed by shell subtraction. For each shell, the mean and 95% 
+confidence interval of the percent-difference between μTSM and μconv were calculated, and 
+this value was plotted versus distance from the hematoma boundary. To assess robustness 
+to hematoma delineation, two independent readers repeated the hematoma segmentation 
+and shell generation workflow. The resulting distance-dependent profiles were compared 
+qualitatively to evaluate inter-reader consistency.
+Hepatocellular carcinoma (HCC): TSM was also retrospectively applied to two 
+patients with pathologically confirmed HCCs to demonstrate the feasibility of TSM in 
+two patients with large HCCs exhibiting varying degrees of mass effect on surrounding 
+liver parenchyma. Liver MRE/MRI scans were performed as previously described (30). 
+Conventional liver MRE processing used a 3D DF with 20 propagation directions, followed 
+by weighted averaging of the resulting stiffness maps, as implemented in this study 
+(31). Correspondingly, TSM reconstruction for the liver used the same 20-direction DF 
+configuration and the same post-processing procedures as in the phantom study.
+Similar to the brain example, a shell-based (radial) analysis was performed for the two HCC 
+cases. For each case, the tumor was segmented to generate a 3D tumor mask. Concentric 
+Yin et al.
+Page 7
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

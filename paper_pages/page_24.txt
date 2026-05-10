@@ -1,0 +1,15 @@
+Figure 7. 
+Stiffness maps obtained using conventional inversion and TSM for Phantoms 2 and 3. 
+Phantom 2 is shown at peak inflation (250 mL), while control Phantom 3 represents 
+the baseline state with the same total volume but without active inflation. TSM clearly 
+revealed a circumferential stiffening ring surrounding the expanding balloon in Phantom 2. 
+In contrast, Phantom 3 exhibited no stiffening ring, confirming that it did not exert pressure 
+on the surrounding gel. The analysis was performed using a 20-direction 3D directional filter 
+(DF).
+Yin et al.
+Page 24
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

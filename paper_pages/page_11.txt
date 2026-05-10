@@ -1,0 +1,50 @@
+demonstrated that, under the assumption of a single dominant shear wave propagation 
+direction, the axisymmetric deformation of the peri-balloon gel can directly impact the 
+apparent shear modulus measured by MRE due to nonlinear effects.
+In the proposed TSM technique, a directional filter was integrated to capture nonlinear 
+effects arising from abnormal local strain caused by expanding lesions within complex, 
+multidirectional shear wave fields. In the balloon phantoms, 3D displacement was 
+introduced, and directional filtering was applied to isolate wave components propagating 
+parallel to the balloon-gel interface. The resulting inversions revealed heterogeneous shear 
+modulus distributions that varied with wave propagation direction. Areas of gel adjacent 
+to the balloon exhibited a pronounced stiffness increase for interface-parallel components 
+(including those aligned with the through-plane propagation direction) in inflated states 
+relative to baseline. This directional dependence contributed to the circumferential stiffening 
+ring observed when the direction-specific inversions were combined using MIP. To rule out 
+the possibility that such an effect was merely due to the geometric changes in the balloon, 
+a control phantom with a balloon fixed at the same size as the fully inflated condition was 
+examined. This control did not exhibit increased stiffness, supporting the interpretation that 
+the observed stiffening in Phantoms 1 and 2 is attributable to the increased deformation and 
+stretching from the expanding balloon, due to nonlinear mechanical effects.
+Consistent with this observation, the directions contributing to the MIP within the peri-
+interface stiffening ring preferentially aligned tangentially to the balloon-gel interface during 
+peak inflation, whereas this tangential preference was not observed at baseline or in the 
+negative-control phantom 3 (Supplementary Fig. S3). Although MIP selects the maximum 
+across directions at each voxel, the peri-interface ring typically retains a broad set of eligible 
+directions after amplitude thresholding (~13–18 directions per voxel on average), indicating 
+that MIP is generally informed by multiple DF directions per voxel. Furthermore, it should 
+be noted that TSM can appear globally higher than the weighted-average elastogram because 
+a max-type operator introduces an upward bias relative to averaging. To evaluate whether 
+the observed TSM-conventional differences simply reflect this bias, we quantified voxelwise 
+percentage differences between μTSM and μconv. Differences were consistently larger at 
+peak inflation than at baseline and in the negative-control phantom (Supplementary Table 
+S1), suggesting that the observed contrast cannot be attributed to a global MIP bias alone. 
+Together, these findings support the pragmatic use of MIP processing in the TSM pipeline.
+Directional filtering serves as a key processing step in TSM by decomposing complex wave 
+fields into directional components defined by propagation vectors. In principle, the DF set 
+can be selected to emphasize directions expected to be most sensitive to strain-induced 
+stiffening near the lesion-host interface (e.g., tangential directions along the local boundary). 
+However, in vivo, defining a “true” lesion boundary can be uncertain due to segmentation 
+variability, partial volume, edema/hemorrhage boundaries, and irregular lesion geometry. 
+An approach less dependent on accurate segmentation (e.g., MIP) therefore improves 
+robustness and practicality for clinical translation, while surface-referenced analyses can 
+be incorporated when a reliable interface definition is available. Directional filtering can 
+also reduce SNR in the filtered wave images, as certain components of the original signal 
+may be attenuated or removed. This can make the subsequent analysis and inversion 
+Yin et al.
+Page 11
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

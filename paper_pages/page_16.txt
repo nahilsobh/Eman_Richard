@@ -1,0 +1,60 @@
+21. Galarce F, Tabelow K, Polzehl J, Papanikas CP, Vavourakis V, Lilaj L, Sack I, Caiazzo A. 
+Assimilation of magnetic resonance elastography data in an in silico brain model. ArXiv 2022;abs/
+2204.12445.
+22. Prince E, Morozova S, Chen Z, Adibnia V, Yakavets I, Panyukov S, Rubinstein M, Kumacheva 
+E. Nanocolloidal hydrogel mimics the structure and nonlinear mechanical properties of biological 
+fibrous networks. Proceedings of the National Academy of Sciences 2023;120(51):e2220755120.
+23. Campodoni E, Montanari M, Dozio SM, Heggset EB, Panseri S, Montesi M, Tampieri A, 
+Syverud K, Sandri M. Blending Gelatin and Cellulose Nanofibrils: Biocomposites with Tunable 
+Degradability and Mechanical Behavior. Nanomaterials. Volume 102020. p 1219.
+24. Tamo AK. Nanocellulose-based hydrogels as versatile materials with interesting 
+functional properties for tissue engineering applications. Journal of Materials Chemistry B 
+2024;12(32):7692–7759. [PubMed: 38805188] 
+25. Arunachalam SP, Rossman PJ, Arani A, Lake DS, Glaser KJ, Trzasko JD, Manduca A, McGee 
+KP, Ehman RL, Araoz PA. Quantitative 3D magnetic resonance elastography: Comparison with 
+dynamic mechanical analysis. Magnetic Resonance in Medicine 2017;77(3):1184–1192. [PubMed: 
+27016276] 
+26. Yin Z, Sui Y, Trzasko Joshua D, Rossman Phillip J, Manduca A, Ehman Richard L, Huston J. In 
+vivo characterization of 3D skull and brain motion during dynamic head vibration using magnetic 
+resonance elastography. Magn Reson Med 2018;0(0).
+27. Manduca A, Lake DS, Kruse SA, Ehman RL. Spatio-temporal directional filtering for improved 
+inversion of MR elastography images. Med Image Anal 2003;7(4):465–473. [PubMed: 14561551] 
+28. Manduca A, Oliphant TE, Dresner MA, Mahowald JL, Kruse SA, Amromin E, Felmlee JP, 
+Greenleaf JF, Ehman RL. Magnetic resonance elastography: non-invasive mapping of tissue 
+elasticity. Med Image Anal 2001;5(4):237–254. [PubMed: 11731304] 
+29. Murphy MC, Huston J 3rd, Glaser KJ, Manduca A, Meyer FB, Lanzino G, Morris JM, Felmlee 
+JP, Ehman RL. Preoperative assessment of meningioma stiffness using magnetic resonance 
+elastography. J Neurosurg 2013;118(3):643–648. [PubMed: 23082888] 
+30. Wang J, Shan Q, Liu Y, Yang H, Kuang S, He B, Zhang Y, Chen J, Zhang T, Glaser KJ, Zhu C, 
+Chen J, Yin M, Venkatesh SK, Ehman RL. 3D MR Elastography of Hepatocellular Carcinomas as 
+a Potential Biomarker for Predicting Tumor Recurrence. J Magn Reson Imaging 2019;49(3):719–
+730. [PubMed: 30260529] 
+31. Allen AM, Shah VH, Therneau TM, Venkatesh SK, Mounajjed T, Larson JJ, Mara KC, Schulte 
+PJ, Kellogg TA, Kendrick ML, McKenzie TJ, Greiner SM, Li J, Glaser KJ, Wells ML, Chen 
+J, Ehman RL, Yin M. The Role of Three-Dimensional Magnetic Resonance Elastography in 
+the Diagnosis of Nonalcoholic Steatohepatitis in Obese Patients Undergoing Bariatric Surgery. 
+Hepatology 2020;71(2):510–521. [PubMed: 30582669] 
+32. Zhang L, Long X, Nijiati M, Zhang T, Li M, Deng Y, Kuang S, Xiao Y, Zhu J, He B, Chen 
+J, Rossman P, Glaser KJ, Venkatesh SK, Ehman RL, Wang J. Tumor stiffness measured by 3D 
+magnetic resonance elastography can help predict the aggressiveness of endometrial carcinoma: 
+preliminary findings. Cancer Imaging 2021;21(1):50. [PubMed: 34454623] 
+33. Park SJ, Yoon JH, Lee DH, Lim WH, Lee JM. Tumor Stiffness Measurements on MR 
+Elastography for Single Nodular Hepatocellular Carcinomas Can Predict Tumor Recurrence After 
+Hepatic Resection. J Magn Reson Imaging 2021;53(2):587–596. [PubMed: 32914909] 
+34. Pepin KM, Chen J, Glaser KJ, Mariappan YK, Reuland B, Ziesmer S, Carter R, Ansell SM, 
+Ehman RL, McGee KP. MR elastography derived shear stiffness—a new imaging biomarker 
+for the assessment of early tumor response to chemotherapy. Magnetic Resonance in Medicine 
+2014;71(5):1834–1840. [PubMed: 23801372] 
+35. Pagé G, Tardieu M, Gennisson JL, Besret L, Garteiser P, Van Beers BE. Tumor Solid 
+Stress: Assessment with MR Elastography under Compression of Patient-Derived Hepatocellular 
+Carcinomas and Cholangiocarcinomas Xenografted in Mice. Cancers (Basel) 2021;13(8).
+36. Clarke EC, Cheng S, Green M, Sinkus R, Bilston LE. Using static preload with magnetic 
+resonance elastography to estimate large strain viscoelastic properties of bovine liver. J Biomech 
+2011;44(13):2461–2465. [PubMed: 21762921] 
+Yin et al.
+Page 16
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

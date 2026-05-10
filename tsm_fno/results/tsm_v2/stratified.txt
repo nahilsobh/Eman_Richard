@@ -1,0 +1,15 @@
+== By expansion pressure (Pa) ==
+  p: 0-0.5  N= 1016  RL2_G=0.0437  RL2_eps=403406.8125  ring_RL2=0.0020
+  p: 500-2000  N=  793  RL2_G=0.0449  RL2_eps=0.0378  ring_RL2=0.0108
+  p: 2000-5000  N= 1592  RL2_G=0.0410  RL2_eps=0.0167  ring_RL2=0.0046
+  p: 5000-8500  N= 1599  RL2_G=0.0435  RL2_eps=0.0130  ring_RL2=0.0007
+
+== By stiffness contrast G_lesion / G_bg ==
+  c: 1-3  N=  979  RL2_G=0.0391  RL2_eps=100546.5312  ring_RL2=0.0049
+  c: 3-7  N= 2491  RL2_G=0.0414  RL2_eps=88542.8047  ring_RL2=0.0040
+  c: 7-20  N= 1530  RL2_G=0.0480  RL2_eps=59389.6562  ring_RL2=0.0028
+
+== By equivalent radius (mm) ==
+  a: 0-10  N=   45  RL2_G=0.0715  RL2_eps=44445.6211  ring_RL2=0.0056
+  a: 10-20  N= 3709  RL2_G=0.0439  RL2_eps=82404.5156  ring_RL2=0.0037
+  a: 20-50  N= 1246  RL2_G=0.0391  RL2_eps=82040.9219  ring_RL2=0.0040

@@ -1,0 +1,38 @@
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+7 
+Fig. 3. Summary results from the coupled harmonic oscillators (CHO) experiment. Each plot shows the error in inclusion estimate (estimated stiffness in the inclusion - 
+true stiffness in inclusion) vs the inclusion contrast (true inclusion stiffness - true background stiffness) in 10 0 0 CHO simulations. For a perfect inversion all points would 
+be along the zero-error line. If an inversion completely fails to detect the inclusion, points will be along the diagonal labeled “No Contrast”. The color of the data points 
+corresponds to inclusion size. 
+range, where ILI estimates are biased soft in the noisiest examples 
+( Fig. 2 ). Both HLI and DI show no clear trend with SNR (right col- 
+umn, Fig. 2 ), and produce estimates biased toward the center of 
+the training range, suggesting that at the spatial footprints shown 
+these methods are more affected by their assumption of material 
+homogeneity than SNR. 
+Additional, larger-footprint simulation experiments showed that 
+the median stiffness of an inclusion estimated by ILI was more ac- 
+curate than estimates by DI and HLI at multiple noise levels. The 
+perfect performance (to numerical precision) of DI in the homo- 
+geneous, noise-free simulation ( Table 2 ) serves as an important 
+check that the simulation produces accurate displacement ﬁelds 
+that obey the fundamental assumptions of conventional inversion 
+algorithms under ideal conditions. In noise-free simulations with 
+inclusions, DI accurately estimated the stiffness of large inclusions, 
+with errors only in the smaller inclusions ( Fig. 3 ). This is expected, 
+as with decreasing inclusion size, the proportion of voxels affected 
+by the boundary will increase. Due to the partial volume effect, 
+this will result in underestimated stiffness of a stiff inclusion in 
+a soft background and overestimated stiffness of a soft inclusion 
+in a stiff background. This effect can be seen in both the DI and 
+HLI panels of Fig. 3 . These partial volume effects are substantially 
+reduced by ILI, though ILI actually appears to overestimate inclu- 
+sion contrast in some of the smallest inclusions when SNR is high. 
+With the large spatial footprints used in Fig. 3 , all three inversion 
+algorithms appear robust to noise, with relatively little change in 
+performance as noise is added. However, when using smaller spa- 
+tial footprints ( Table 2 ), it is clear that DI is more sensitive to 
+noise than the ANN inversions, which is in agreement with pre- 
+vious ﬁndings ( Murphy et al., 2018 ). 
+Results in the phantom suggest that ILI improves the detectabil- 
+ity of focal inclusions, producing higher CNR than DI and HLI in six 

@@ -1,0 +1,47 @@
+it quantifies tissue mechanical properties, such as shear stiffness, a parameter sensitive 
+to changes in tissue tension and structure (13,14). Localized stiffening adjacent to an 
+expanding mass may therefore serve as a measurable manifestation of the underlying strain 
+field. Indeed, previous studies have revealed that when isotropic tissue is compressed, its 
+mechanical properties change to become anisotropic, with increased shear stiffness in the 
+direction perpendicular to the compression and little change or slightly decreased stiffness 
+along the compression axis (15–18).
+These principles have been applied in attempts to estimate internal tumor pressure. It has 
+been proposed that a nearly spherical, well-separated tumor under high pressure compresses 
+adjacent tissue radially while stretching it circumferentially. Due to mechanical nonlinearity, 
+this results in increased peri-tumoral shear stiffness circumferentially and decreased stiffness 
+radially. Consistent with this theory, several MRE studies have sought to characterize tumor 
+pressure by identifying this specific pattern of heterogeneous shear modulus distribution 
+around tumors (19,20). These studies often use an idealized model that assumes a single 
+dominant wave propagation direction. Results from simulations and phantom experiments 
+show how shear waves used in MRE detect apparent changes in shear modulus along their 
+propagation direction when deformed, suggesting the method’s potential to estimate total 
+tumor pressure. Furthermore, another line of research integrates MRE data with in silico 
+modeling to estimate both displacement and pressure fields in poroelastic biological tissues 
+(21). However, in most practical applications of MRE, the presence of multiple interfaces 
+causes diffraction, reflection, and mode conversion, leading to complex wavefields that 
+do not have a single prominent direction of wave propagation. This complexity presents 
+challenges in applying these techniques in vivo using existing models.
+The goal of this study was to develop, validate through phantom testing, and demonstrate 
+preliminary in vivo feasibility of an MRE-based method for identifying abnormal local 
+tissue strain that is suitable for use with complex, multidirectional shear wave fields. 
+We hypothesized that the proposed MRE-based tissue strain mapping (TSM) technique 
+could depict strain-induced perilesional stiffness changes in expanding lesions that may be 
+undetectable using conventional MRE inversion methods. The methodology applies spatial-
+temporal directional filters (DFs) to decompose MRE displacement data, separating complex 
+wave fields into components propagating in multiple directions in three-dimensional space. 
+Inversion processing of wave fields propagating parallel to the lesion-host interface is 
+expected to demonstrate locally elevated stiffness in host tissue if the tissue is actively being 
+stretched by an expanding mass lesion, whereas inversions of wave fields in other directions 
+would not depict this anisotropic effect. The multiple inversion results are then combined in 
+a way that preserves local strain-related effects.
+The TSM technique was tested in a series of phantom experiments using both linear and 
+nonlinear tissue-simulating materials containing an embedded expandable mass. Preliminary 
+in vivo feasibility was demonstrated in a small number of patient studies, including a case of 
+acute intracranial hemorrhage and two cases of hepatocellular carcinomas (HCC).
+Yin et al.
+Page 3
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

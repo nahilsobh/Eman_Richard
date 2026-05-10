@@ -1,0 +1,200 @@
+Once phase 0 is completed. How can we check it and how is it used?
+
+hecking Phase 0 and What Happens Next
+There are three distinct layers of checking — data integrity, model quality, and scientific validity — each with concrete commands and pass/fail criteria. Then the outputs feed directly into three parallel downstream uses.
+
+Layer 1 — Data Integrity Check
+Run immediately after the SLURM merge job completes. Takes 2 minutes.
+
+# scripts/check_dataset.py
+import h5py
+import numpy as np
+
+f = h5py.File("data/mre_synthetic_50000.h5", "r")
+
+# ── Shape checks ──────────────────────────────────────────
+assert f["X"].shape == (50000, 4, 64, 64), "Wrong X shape"
+assert f["Y"].shape == (50000, 64, 64),    "Wrong Y shape"
+
+# ── Range checks ──────────────────────────────────────────
+X = f["X"][:]
+Y = f["Y"][:]
+
+assert np.isfinite(X).all(),  "X contains NaN or Inf"
+assert np.isfinite(Y).all(),  "Y contains NaN or Inf"
+assert Y.min() >= 500,         "Stiffness below physical floor"
+assert Y.max() <= 50_000,      "Stiffness above physical ceiling"
+
+# ── Diversity check ───────────────────────────────────────
+# G values should not be degenerate (all background, no inclusions)
+G_std_per_sample = Y.std(axis=(-2,-1))
+assert G_std_per_sample.mean() > 500, "Suspiciously uniform G maps"
+
+# ── Channel check ─────────────────────────────────────────
+# Re and Im channels should be correlated but not identical
+corr = np.corrcoef(X[:,0].ravel(), X[:,1].ravel())[0,1]
+assert abs(corr) < 0.99, "Re and Im channels are identical — solver bug"
+
+# ── Seed uniqueness check (no duplicate cases) ────────────
+sample_hashes = [hash(Y[i].tobytes()) for i in range(0, 50000, 500)]
+assert len(set(sample_hashes)) == len(sample_hashes), "Duplicate samples found"
+
+print("✓ Dataset integrity: PASS")
+print(f"  Samples    : {f['X'].shape[0]:,}")
+print(f"  G range    : {Y.min():.0f} – {Y.max():.0f} Pa")
+print(f"  G std mean : {G_std_per_sample.mean():.0f} Pa (diversity check)")
+print(f"  File size  : {os.path.getsize(path)/1e9:.1f} GB")
+
+
+
+Pass criteria before training starts:
+
+All shape and range assertions pass
+No NaN/Inf anywhere
+G std per sample > 500 Pa (confirms inclusions are present, not just flat backgrounds)
+No duplicate samples
+
+
+Layer 2 — Model Quality Check
+Run after training completes (100 epochs). Takes 10 minutes.
+2a. Loss curve inspection
+
+# scripts/plot_training.py
+import json, matplotlib.pyplot as plt
+
+h = json.load(open("runs/phase0/history.json"))
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(h["train_loss"], label="train")
+ax1.plot(h["val_rl2"],    label="val RL²")
+ax1.axhline(0.05, color="red", linestyle="--", label="target")
+ax1.set_title("Relative L² loss")
+ax1.legend()
+
+ax2.plot(h["val_ssim"])
+ax2.axhline(0.90, color="red", linestyle="--", label="target SSIM=0.90")
+ax2.set_title("Validation SSIM")
+ax2.legend()
+
+plt.savefig("runs/phase0/training_curves.png", dpi=150)
+
+
+What you are looking for:
+
+Val RL² should drop below 0.10 by epoch 30 and settle below 0.05 by epoch 80
+Val SSIM should exceed 0.85
+Train and val curves should track each other — a large gap means overfitting to the simulation distribution
+No sudden spikes (which indicate CFL violations leaking into the solver)
+
+
+2b. The benchmark figure — most important check
+
+# scripts/benchmark_figure.py
+import torch, h5py, numpy as np, matplotlib.pyplot as plt
+from src.fno_model import FNO2d
+
+model = FNO2d()
+ckpt  = torch.load("runs/phase0/best.pt", map_location="cpu")
+model.load_state_dict(ckpt["model_state"])
+model.eval()
+
+f = h5py.File("data/mre_synthetic_50000.h5", "r")
+
+# Pick 6 test cases that span the stiffness contrast range
+test_ids = [45000, 45200, 45500, 46000, 47000, 48000]
+
+fig, axes = plt.subplots(6, 3, figsize=(9, 18))
+
+for row, idx in enumerate(test_ids):
+    X = torch.tensor(f["X"][idx:idx+1])
+    Y_true = f["Y"][idx]
+
+    with torch.no_grad():
+        Y_pred = model(X).squeeze().numpy()
+
+    rl2 = np.linalg.norm(Y_pred - Y_true) / np.linalg.norm(Y_true)
+    vmin, vmax = Y_true.min(), Y_true.max()
+
+    axes[row,0].imshow(X[0,0], cmap="RdBu_r")
+    axes[row,0].set_title("Re(u) — input" if row==0 else "")
+
+    axes[row,1].imshow(Y_pred, cmap="hot", vmin=vmin, vmax=vmax)
+    axes[row,1].set_title(f"FNO prediction  RL²={rl2:.3f}" if row==0 else f"RL²={rl2:.3f}")
+
+    axes[row,2].imshow(Y_true, cmap="hot", vmin=vmin, vmax=vmax)
+    axes[row,2].set_title("Ground truth" if row==0 else "")
+
+    for ax in axes[row]: ax.axis("off")
+
+plt.tight_layout()
+plt.savefig("runs/phase0/benchmark_figure.png", dpi=200)
+print("Saved benchmark_figure.png")
+
+This is the figure you email to Dr. Ehman. What you are looking for visually:
+
+Inclusion boundaries should be sharp in the prediction, not blurry
+The prediction should not "leak" stiffness into the background
+Cases with high contrast (G_inc / G_bg > 10) should look as clean as low contrast cases
+
+2c. Stratified error table
+
+# Break test set into stiffness contrast bins
+contrasts = Y_test.max(axis=(-2,-1)) / Y_test.min(axis=(-2,-1))
+bins = [(1,2), (2,5), (5,10), (10,20), (20,50)]
+
+print(f"{'Contrast':>12} | {'N':>6} | {'Mean RL²':>10} | {'Mean SSIM':>10}")
+print("-" * 48)
+for lo, hi in bins:
+    mask = (contrasts >= lo) & (contrasts < hi)
+    print(f"  {lo}x – {hi}x   | {mask.sum():>6} | "
+          f"{rl2[mask].mean():>10.4f} | {ssim[mask].mean():>10.3f}")
+
+
+Layer 3 — Scientific Validity Check
+Three targeted experiments. Each takes about 30 minutes.
+3a. Noise ablation
+Rerun inference on the test set with artificial noise added at specific SNR levels. Plot RL² vs SNR. This answers: at what SNR does the FNO start to fail?
+3b. Physics loss ablation
+Compare the best.pt (trained with Helmholtz penalty) against a checkpoint trained with λ=0 (data loss only). Compute SSIM specifically at inclusion boundaries — a 3-pixel strip around the inclusion edge. If the physics loss improves boundary SSIM by > 0.05 that is a publishable finding.
+3c. Inference speed benchmark
+pythonimport time, torch
+
+model = model.cuda()
+X_batch = torch.randn(50, 4, 64, 64).cuda()
+
+# Warmup
+for _ in range(10):
+    model(X_batch)
+
+# Timed
+t0 = time.perf_counter()
+for _ in range(100):
+    with torch.no_grad():
+        model(X_batch)
+torch.cuda.synchronize()
+elapsed = time.perf_counter() - t0
+
+ms_per_case = elapsed / (100 * 50) * 1000
+print(f"Inference: {ms_per_case:.2f} ms per case")
+# Target: < 5 ms
+
+How Phase 0 Outputs Are Used
+Use 1 — Directly into Phase 1 (BioQIC transfer)
+The best.pt checkpoint is loaded as a pre-trained model and run zero-shot on BioQIC phantom displacement fields. You do not retrain — you just call model(X_bioqic) and compare the predicted stiffness map to the BioQIC ground truth elastogram. The gap between Phase 0 validation RL² and BioQIC RL² is the sim-to-real gap, which tells you how much fine-tuning you will need when Mayo data arrives.
+python# Phase 1 entry point — nothing changes except the data loader
+model = FNO2d()
+model.load_state_dict(torch.load("runs/phase0/best.pt")["model_state"])
+
+bioqic_u = load_bioqic_displacement("bioqic/phantom_60Hz.nii.gz")
+G_pred   = model(bioqic_u)
+Use 2 — The MRM paper Methods section
+Phase 0 is the complete computational methods contribution. The paper structure writes itself from the outputs:
+Paper sectionPhase 0 sourceSynthetic data generationsrc/fem_solver.py + src/phantom.pyTraining protocolargs.json from runs/phase0Baseline comparisonRL² and SSIM vs MDEV from benchmark figureNoise robustnessNoise ablation experimentInference speedSpeed benchmark
+Use 3 — The Ehman meeting deliverable
+The three-panel benchmark figure and the stratified error table are the two slides. The framing for Dr. Ehman is:
+
+"This is what the FNO predicts from synthetic displacement fields. The RL² is X%. We are now ready to run this zero-shot on your BioQIC phantom data — we only need the raw displacement volumes, not the stiffness maps, since we generate our own predictions. The question is how far off we are before any fine-tuning on your data."
+
+That framing is important — it positions Phase 1 as a measurement (how big is the sim-to-real gap?) rather than a request (please give us data to train on). Dr. Ehman is far more likely to share raw displacement volumes if you are already showing results and asking a specific scientific question than if you are asking for training data for an unproven model.
+
+

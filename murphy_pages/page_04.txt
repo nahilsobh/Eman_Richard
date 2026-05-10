@@ -1,0 +1,130 @@
+4 
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+2.6. Phantom experiment 
+To assess the performance of ILI on real data, MRE was per- 
+formed on a polyvinyl chloride (PVC) brain phantom contain- 
+ing six spherical inclusions with diameters of 1.75 cm, 2 cm, 
+2.25 cm, 2.5 cm, 2.75 cm, and 3 cm. The 50% PVC/50% soft- 
+ener background has a stiffness of 3.42 kPa (at 60 Hz) and 
+the 65% PVC/35% softener inclusions have a stiffness of 7.09 kPa 
+as measured on a RheoSpectris C500 + (Rheolution, Inc., Mon- 
+treal, QC, Canada) on samples poured from the same batch as 
+the MRE phantom. Mechanical vibration was applied via a pneu- 
+matic system with power levels of 3, 5, and 7 percent to pro- 
+duce wave data with varying SNR (Resoundant Inc., Rochester, 
+MN). Scanning was performed on a compact 3T system with a 
+high performance gradient capable of 80 mT/m amplitude and 
+700T/m/s slew rate ( Foo et al., 2018 ) using a modiﬁed GRE pulse 
+sequence with the following parameters: 7.2 mT/m motion en- 
+coding gradient (MEG) amplitude, mechanical vibration = 60 Hz, 
+TE = 20.4 ms, TR = 24.1 ms, one 16.7 ms ﬁrst-moment nulled 
+MEG cycle, motion encoding sensitivity (MENC) = 7.1 μm/rad, 
+BW = ±25 kHz, FOV = 240 × 240 × 192 mm 3 , acquisition ma- 
+trix = 120 × 120 × 96, ﬂip angle = 12 °, 2D GRAPPA accelera- 
+tion = 2, 8 channel receiver array (Invivo, Gainesville, FL), scan 
+time = 12:25. 
+ILI, HLI, and DI were applied to the ﬁrst harmonic of the curl of 
+the measured displacement ﬁeld. ILI and HLI results were analyzed 
+and displayed without any further ﬁltering or smoothing. DI results 
+were median ﬁltered with a 3 × 3 × 3 kernel for display only. 
+Contrast to noise ratio (CNR) as deﬁned in ( Doyley et al., 2003 ) 
+is reported for all three inversions. Note that for DI, CNR was cal- 
+culated using the median values of the inclusion and background 
+to minimize potential bias due to outliers. To statistically test for 
+differences in CNR, two linear mixed effects models were ﬁt with 
+CNR as the response variable. The full model included ﬁxed effects 
+of inversion, driver power, inclusion diameter and a constant, with 
+random slopes (inversion and inclusion diameter) and intercepts 
+for each driver power. The restricted model was identical with the 
+exception that the ﬁxed effect of inversion was removed. The like- 
+lihood ratio test was then used to test if inclusion of inversion as a 
+ﬁxed effect signiﬁcantly improved the prediction of CNR ( p < 0.05 
+considered signiﬁcant). 
+To evaluate the performance of each inversion at the bound- 
+aries of the inclusions, a line proﬁle across the boundary was ﬁt. 
+A map of distance (in voxels) from the inclusion boundary was de- 
+veloped by repeated dilations (distance from the boundary into the 
+background) or erosions (distance from the boundary into the in- 
+clusion) of the inclusion masks using a 6-connected jack-shaped 
+structural element. For each distance from the boundary, the me- 
+dian stiffness as well as the 97.5 and 2.5 percentiles were esti- 
+mated by a 10 0 0 sample bootstrap with case resampling (treating 
+inclusions as cases). Similar to the CNR test, two linear mixed ef- 
+fects models were ﬁt with the error in squared stiffness estimates 
+as the response variable. To reduce the number of model param- 
+eters, a restricted cubic spline basis was used to represent posi- 
+tion with respect to the boundary (3 knots located 3 voxels into 
+the background, on the boundary, and 3 voxels into the inclusion). 
+The full model included inversion, position, and their interaction 
+as ﬁxed effects, with random slopes (inversion, position, and their 
+interaction) and intercepts for each inclusion. The restricted model 
+was identical with the exception that the ﬁxed effects involving in- 
+version were removed. The likelihood ratio test was again used to 
+test if inclusion of inversion as a ﬁxed effect signiﬁcantly improved 
+the prediction of the squared error in stiffness estimates ( p < 0.05 
+considered signiﬁcant). 
+2.7. In vivo evaluation 
+Human data were obtained with institutional review board ap- 
+proval and written informed consent from all patients. Menin- 
+giomas offer an opportunity to assess the accuracy of ILI in vivo as 
+they are well deﬁned lesions with clear borders and their stiffness 
+is known qualitatively from the surgical report at resection. Since 
+meningiomas have high variability in stiffness, we consider a sub- 
+set of tumors stiffer than normal brain to allow cross-subject anal- 
+ysis of the spatial pattern of stiffness changes. Of the 64 menin- 
+gioma cases with available surgical reports in our MRE database, 
+23 were stiff enough that suction could not be used for removal of 
+any part of the tumor (encompassing scales 3, 4, and 5 described 
+in ( Hughes et al., 2015 )). Of these 23, one case was excluded be- 
+cause of a T1-weighted (T1w) image of insuﬃcient quality to ac- 
+curately segment the meningioma and two cases were excluded 
+because of extensive tumor growth into the sinuses. After gener- 
+ating the stiffness maps but before any further processing, three 
+additional cases were excluded because the median tumor stiff- 
+ness for DI was softer than normal brain. All three of these cases 
+were highly vascular tumors, where the surgical score, which is 
+dependent on the surgical instrumentation used to resect the tu- 
+mor, is more likely to be discordant with MRE measured stiffness 
+( Hughes et al., 2015 ). Seventeen cases were included in the ﬁnal 
+analysis. 
+MRE data were acquired as described in ( Hughes et al., 2015 ) 
+with 3 mm isotropic resolution and 8 phase offsets sampled over 
+one period of 60 Hz motion on clinical 3T scanners (GE Medi- 
+cal Systems, Milwaukee, WI) or the compact 3T scanner described 
+above ( Foo et al., 2018 ). MRE data were resampled to 2 mm 
+isotropic resolution prior to computation of the curl and subse- 
+quent inversion to allow the use of the same ILI and HLI net- 
+works used in Sections 2.4 –2.6 . Tumor segmentation was per- 
+formed manually on a T1w image acquired in the same session as 
+the MRE scan (acquisition previously described in ( Murphy et al., 
+2013b )) using FSLView ( Jenkinson et al., 2012 ). Gray matter, white 
+matter, and cerebrospinal ﬂuid probability maps were computed in 
+SPM5 ( Ashburner and Friston, 2005 ). Then the T1w image, along 
+with the tissue probability maps and tumor mask, were registered 
+to the MRE magnitude image, and the T1w image and all derived 
+masks were resampled to 2 mm isotropic resolution. ILI, HLI, and 
+DI were applied to the ﬁrst harmonic of the curl of the resampled 
+MRE displacement images. 
+To assess overall spatial agreement between manual tracings 
+and a stiffness-based segmentation, stiffness maps for each inver- 
+sion in each subject were thresholded at the 95th percentile of the 
+normal brain stiffness, and the Dice coeﬃcient was calculated be- 
+tween the thresholded stiffness map within the tumor mask and 
+the tumor mask itself. To compute the stiffness threshold, the gray 
+and white matter probability maps were summed and all voxels 
+with a combined probability greater than or equal to 95% that 
+were outside the tumor mask were deﬁned as normal brain. To 
+reduce bias introduced by edge effects, two erosions using a 6- 
+connected jack-shaped structural element were performed on the 
+resulting segmentation. The 95 th percentile within this volume was 
+then used to threshold the stiffness map. Paired, two-tailed T -tests 
+were used to compare Dice coeﬃcients between ILI and DI and ILI 
+and HLI ( p < 0.05 considered signiﬁcant). 
+To assess inversion performance at the tumor boundaries, sim- 
+ilar analysis to that in Section 2.6 was used. A map of distance 
+(in voxels) from the tumor boundary was developed by repeated 
+dilations (distance from the boundary into the brain) or erosions 
+(distance from the boundary into the tumor) of the tumor mask 
+using a 6-connected jack-shaped structural element. For each sub- 
+ject, the median stiffness at each location for each inversion was 
+used to generate a summary line proﬁle across the tumor bound- 

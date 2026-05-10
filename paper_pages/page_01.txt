@@ -1,0 +1,38 @@
+Tissue Strain Mapping Via Magnetic Resonance Elastography 
+Can be Used to Detect Active Lesion Expansion
+Ziying Yin, Ph.D.1, David S. Lake, M.S.1, Armando Manduca, Ph.D.2, John Huston III, M.D.1, 
+Richard L. Ehman, M.D.1
+1Department of Radiology, Mayo Clinic College of Medicine, Rochester, MN
+2Physiology and Biomedical Engineering, Mayo Clinic College of Medicine, Rochester, MN
+Abstract
+Purpose: Active lesion expansion is clinically important because it can indicate disease 
+progression and influence management and treatment planning. However, sequential imaging 
+is often unavailable, and rapid growth can only be inferred from indirect findings such as 
+active perilesional tissue injury. This study aimed to implement and test the feasibility of an 
+MR elastography (MRE)-based technique for assessing the expansile nature of mass lesions by 
+detecting stiffness changes caused by mechanical strain manifestations in adjacent tissues.
+Methods: A tissue strain mapping (TSM) algorithm was developed using spatial-temporal 
+directional filtering to reveal the presence of perilesional latent strain that is not apparent in 
+conventional MRE inversions. The technical feasibility was tested in tissue-simulating phantoms 
+containing a mass that was progressively expanded. Preliminary feasibility for clinical application 
+was also demonstrated in representative in vivo examples. Resulting TSM maps were compared 
+with conventional MRE stiffness maps.
+Results: In the phantom experiments, TSM revealed the presence of local strain at the periphery 
+of the expanding mass, with the effect increasing proportionally to the degree of expansion. 
+Conventional MRE did not demonstrate comparable localized stiffening patterns. In vivo examples 
+showed similar perilesional strain features that were not apparent on conventional MRE maps.
+Conclusion: The feasibility of the proposed MRE-based tissue strain mapping technique was 
+demonstrated in phantom and preliminary in vivo studies. These findings suggest that the 
+technique is a promising tool for assessing the expansile nature of mass lesions and motivate 
+further development of the TSM processing and exploration of potential clinical applications.
+Keywords
+Magnetic resonance elastography (MRE); Tissue strain mapping; Expanding lesions; Perilesional 
+stiffness; Tumor biomechanical imaging
+Corresponding Author: Ziying Yin, PhD, yin.ziying@mayo.edu, 200 1st St SW, Rochester, MN 55905, USA. 
+HHS Public Access
+Author manuscript
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

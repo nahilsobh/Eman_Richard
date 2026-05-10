@@ -1,0 +1,223 @@
+# Claude Code Prompt — MRE FEM Pipeline on NCSA Delta (SLURM)
+
+Paste the block below verbatim into a Claude Code session started from the
+project root directory on the Delta login node.
+
+---
+
+```
+You are building a complete scientific computing pipeline from scratch.
+The current directory is empty except for some documents.
+Do not assume any code, environment, or data exists.
+Build everything step by step, verifying each file before moving on.
+
+## Goal
+Generate 50,000 paired synthetic MRE training samples
+(complex displacement field u → shear modulus map G)
+using a 2D finite-difference Helmholtz solver,
+distributed across a SLURM cluster (NCSA Delta).
+
+## Project structure to create
+
+mre_pipeline/
+├── README.md
+├── environment.yml          # conda environment spec
+├── setup_env.sh             # one-command environment setup
+├── src/
+│   ├── __init__.py
+│   ├── fem_solver.py        # 2D Helmholtz FD solver
+│   ├── phantom.py           # stiffness map generator
+│   └── dataset.py           # HDF5 writer + merge utility
+├── slurm/
+│   ├── gen_array.sbatch     # SLURM array job: generate chunks
+│   ├── merge.sbatch         # SLURM job: merge chunks into one HDF5
+│   └── train.sbatch         # SLURM GPU job: train FNO (placeholder)
+├── scripts/
+│   ├── generate_chunk.py    # entry point for each array task
+│   ├── merge_chunks.py      # merges all chunk HDF5 files
+│   └── submit_all.sh        # submits gen_array → merge as a dependency chain
+└── tests/
+    └── test_solver.py       # quick sanity check (runs in < 30 s)
+
+---
+
+## Detailed specifications
+
+### Physics (src/fem_solver.py)
+Solve the 2D time-harmonic shear wave equation:
+    ∇·(G*(x,y) ∇u) + ρω²u = 0
+where G* = G(1 + iξ) is the complex shear modulus (ξ = 0.05 damping).
+
+Use second-order finite differences on an N×N grid (default N=64).
+Half-point harmonic averaging at material interfaces:
+    G_half = 2·G_a·G_b / (G_a + G_b)
+
+Boundary conditions:
+- Left column (j=0): u = 1+0j (unit source)
+- All other edges: u = 0 (Dirichlet)
+
+Use scipy.sparse (lil_matrix → csr_matrix) and spsolve.
+Return complex (N,N) displacement array.
+
+Physical parameters (SI):
+    rho   = 1000.0   # kg/m³
+    dx    = 0.002    # m (2 mm voxel)
+    freq  = 60.0     # Hz primary drive frequency
+
+### Phantom generator (src/phantom.py)
+Generate a random 2D stiffness map G [Pa] for each sample:
+
+Background: uniform G_bg ~ Uniform(800, 3000) Pa
+
+Inclusions (1 or 2, probability [0.75, 0.25]):
+  - Centre: random within [N/4, 3N/4]
+  - Shape: randomly rotated ellipse
+  - Semi-axes: a ~ Uniform(4, N/6), b ~ Uniform(0.6a, a)
+  - Rotation angle ~ Uniform(0, π)
+  - G_inc ~ Uniform(5000, 45000) Pa
+
+### Input/output format (src/dataset.py)
+Each training pair:
+  X: float32 (4, N, N)
+     channel 0: Re(u) at 60 Hz
+     channel 1: Im(u) at 60 Hz
+     channel 2: Re(u) at 120 Hz   ← solve at 2× freq
+     channel 3: Im(u) at 120 Hz
+  Y: float32 (N, N) — stiffness G in Pa
+
+Add complex Gaussian noise to u at random SNR ~ Uniform(15, 30) dB.
+
+HDF5 layout (each chunk file and final merged file):
+  /X        float32  (n_samples, 4, N, N)
+  /Y        float32  (n_samples, N, N)
+  /meta     attributes: freq, dx, rho, damping, N, G_bg_min, G_bg_max,
+                         G_inc_min, G_inc_max, n_total, chunk_id
+
+### SLURM array job (slurm/gen_array.sbatch)
+SLURM settings for NCSA Delta CPU partition:
+  --partition=cpu
+  --account=YOUR_ACCOUNT        # placeholder — user will fill in
+  --array=0-99                  # 100 tasks
+  --ntasks-per-node=1
+  --cpus-per-task=4
+  --mem=16G
+  --time=01:00:00
+  --output=logs/gen_%A_%a.out
+  --error=logs/gen_%A_%a.err
+
+Each task generates CHUNK_SIZE=500 samples:
+  - Task id from $SLURM_ARRAY_TASK_ID
+  - seed = task_id * 1000  (reproducible, non-overlapping)
+  - Save to data/chunks/chunk_{task_id:04d}.h5
+
+The script (scripts/generate_chunk.py) must accept:
+  --task_id INT
+  --chunk_size INT   (default 500)
+  --grid_size INT    (default 64)
+  --output_dir PATH
+
+### Merge job (slurm/merge.sbatch)
+  --partition=cpu
+  --account=YOUR_ACCOUNT
+  --ntasks-per-node=1
+  --cpus-per-task=8
+  --mem=64G
+  --time=00:30:00
+  --dependency=afterok:$GEN_JOB_ID
+
+scripts/merge_chunks.py:
+  - Glob data/chunks/chunk_*.h5
+  - Verify all 100 chunks exist and each has exactly 500 samples
+  - Concatenate in order into data/mre_synthetic_50000.h5
+  - Print final summary: total samples, file size, min/max G values
+  - Delete chunk files after successful merge
+
+### GPU training job (slurm/train.sbatch) — placeholder only
+  --partition=gpuA100x4
+  --account=YOUR_ACCOUNT
+  --gpus-per-node=1
+  --ntasks-per-node=1
+  --cpus-per-task=8
+  --mem=64G
+  --time=02:00:00
+
+Just echo the command that will be run. The actual FNO training code
+will be added in a later phase. The sbatch should reference:
+  python src/train_fno.py \
+    --data_path data/mre_synthetic_50000.h5 \
+    --run_dir runs/phase0
+
+### Submission script (scripts/submit_all.sh)
+A bash script that:
+1. Creates directories: logs/, data/chunks/, data/, runs/
+2. Submits gen_array.sbatch → captures job ID
+3. Submits merge.sbatch with --dependency=afterok:$GEN_JOB_ID → captures job ID
+4. Prints the full dependency chain and estimated completion time
+5. Tells user to fill in --account= before running
+
+### Environment (environment.yml)
+Name: mre_pipeline
+Channels: conda-forge, defaults
+Dependencies:
+  python=3.11
+  numpy
+  scipy
+  h5py
+  tqdm
+  matplotlib    # for quick visual checks
+  pip:
+    - torch     # CPU version for data gen node, GPU added separately
+
+setup_env.sh should:
+  conda env create -f environment.yml
+  conda activate mre_pipeline
+  pip install -e .  (if setup.py needed)
+  echo "Environment ready. Run: conda activate mre_pipeline"
+
+### Tests (tests/test_solver.py)
+Write pytest tests that run in under 30 seconds total:
+  - test_phantom_shape: verify G map is (N,N) float64 with values in
+    [800, 45000] Pa
+  - test_solver_runs: verify helmholtz_solve returns (N,N) complex array
+    on a 16×16 grid with a simple homogeneous phantom
+  - test_dataset_pair: verify make_training_pair returns X:(4,16,16)
+    float32 and Y:(16,16) float32 with correct ranges
+  - test_noise_snr: verify add_noise reduces SNR to within 2 dB of target
+  - test_chunk_hdf5: run generate_chunk for 5 samples, verify HDF5
+    structure matches spec
+
+### README.md
+Write a complete README with:
+1. Project overview (2 sentences)
+2. Setup instructions (conda env)
+3. Quick test (pytest tests/)
+4. Running on Delta:
+   a. Edit slurm/gen_array.sbatch and slurm/merge.sbatch to set --account=
+   b. bash scripts/submit_all.sh
+   c. Monitor: squeue --me
+   d. After completion: python -c "import h5py; f=h5py.File('data/mre_synthetic_50000.h5'); print(f['X'].shape)"
+5. Output file description
+
+---
+
+## Implementation order
+
+1. Create all directories
+2. Write environment.yml and setup_env.sh
+3. Write src/phantom.py — test with a quick script
+4. Write src/fem_solver.py — test on a 16×16 grid, verify it returns
+   non-trivial complex values
+5. Write src/dataset.py — test make_training_pair end to end
+6. Write scripts/generate_chunk.py
+7. Write scripts/merge_chunks.py
+8. Write slurm/gen_array.sbatch, merge.sbatch, train.sbatch
+9. Write scripts/submit_all.sh
+10. Write tests/test_solver.py and run: pytest tests/ -v
+11. Write README.md
+12. Final check: run generate_chunk.py with --task_id 0 --chunk_size 5
+    and verify the output HDF5 is valid
+
+Do not skip the verification step at each stage.
+If any test fails, fix it before continuing.
+Print the directory tree when complete.
+```

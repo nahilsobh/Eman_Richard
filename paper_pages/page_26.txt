@@ -1,0 +1,20 @@
+Figure 9. 
+In vivo demonstration of TSM in two hepatocellular carcinomas with differing degrees 
+of mass effect. (A) Tumor 1: dynamic contrast-enhanced MRI shows a large, well-
+circumscribed HCC. The mass effect caused biliary ductal obstruction with diffuse 
+intrahepatic ductal dilatation (white arrows), compression and effacement of the inferior 
+vena cave (IVC, arrowhead), and severe compression of the central hepatic veins. Concentric 
+peri-tumoral shell ROIs overlaid on MRI are shown, together with the corresponding 
+μTSM and μconv stiffness maps. (B) Tumor 2: a second large HCC with comparatively 
+minimal mass effect; corresponding shell ROIs and stiffness maps are shown. (C) Shell-wise 
+radial profile of the percent difference plotted versus distance from the tumor surface, 
+demonstrating a larger near-boundary TSM-conventional difference for Tumor 1 and a 
+smaller, more uniform difference for Tumor 2. Error bars indicate the 95% confidence 
+interval within each shell.
+Yin et al.
+Page 26
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

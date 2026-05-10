@@ -1,0 +1,61 @@
+3. Bhargav AG, Domino JS, Chamoun R, Thomas SM. Mechanical Properties in the Glioma 
+Microenvironment: Emerging Insights and Theranostic Opportunities. Front Oncol 2021;11:805628. 
+[PubMed: 35127517] 
+4. Lemée J-M, Clavreul A, Menei P. Intratumoral heterogeneity in glioblastoma: don’t forget the 
+peritumoral brain zone. Neuro-Oncology 2015;17(10):1322–1332. [PubMed: 26203067] 
+5. Evan GI, Vousden KH. Proliferation, cell cycle and apoptosis in cancer. Nature 
+2001;411(6835):342–348. [PubMed: 11357141] 
+6. Purcell Y, Sartoris R, Paradis V, Vilgrain V, Ronot M. Influence of pretreatment tumor growth rate 
+on objective response of hepatocellular carcinoma treated with transarterial chemoembolization. J 
+Gastroenterol Hepatol 2020;35(2):305–313. [PubMed: 31369166] 
+7. Lamarca A, Crona J, Ronot M, Opalinska M, Lopez Lopez C, Pezzutti D, Najran P, Carvhalo 
+L, Franca Bezerra RO, Borg P, Vietti Violi N, Vidal Trueba H, de Mestier L, Schaefer N, 
+Sundin A, Costa F, Pavel M, Dromain C. Value of Tumor Growth Rate (TGR) as an Early 
+Biomarker Predictor of Patients’ Outcome in Neuroendocrine Tumors (NET)-The GREPONET 
+Study. Oncologist 2019;24(11):e1082–e1090. [PubMed: 30910869] 
+8. Ferté C, Koscielny S, Albiges L, Rocher L, Soria JC, Iacovelli R, Loriot Y, Fizazi K, Escudier B. 
+Tumor growth rate provides useful information to evaluate sorafenib and everolimus treatment in 
+metastatic renal cell carcinoma patients: an integrated analysis of the TARGET and RECORD phase 
+3 trial data. European urology 2014;65(4):713–720. [PubMed: 23993162] 
+9. Eisenhauer EA, Therasse P, Bogaerts J, Schwartz LH, Sargent D, Ford R, Dancey J, Arbuck S, 
+Gwyther S, Mooney M, Rubinstein L, Shankar L, Dodd L, Kaplan R, Lacombe D, Verweij J. New 
+response evaluation criteria in solid tumours: revised RECIST guideline (version 1.1). Eur J Cancer 
+2009;45(2):228–247. [PubMed: 19097774] 
+10. Chavan R, Kamble N, Kuthe C, Sarnobat S. On Mechanical Behavior and Characterization of Soft 
+Tissues. Biomed Eng Comput Biol 2024;15:11795972241294115.
+11. Wang Y, Du Y, Xu F. Strain stiffening retards growth instability in residually stressed biological 
+tissues. Journal of the Mechanics and Physics of Solids 2023;178:105360.
+12. Nam S, Hu KH, Butte MJ, Chaudhuri O. Strain-enhanced stress relaxation impacts nonlinear 
+elasticity in collagen gels. Proceedings of the National Academy of Sciences 2016;113(20):5492–
+5497.
+13. Glaser KJ, Manduca A, Ehman RL. Review of MR elastography applications and recent 
+developments. J Magn Reson Imaging 2012;36(4):757–774. [PubMed: 22987755] 
+14. Pagé G, Garteiser P, Van Beers BE. Magnetic resonance elastography of malignant tumors. 
+Frontiers in Physics 2022;10.
+15. Perepelyuk M, Chin L, Cao X, van Oosten A, Shenoy VB, Janmey PA, Wells RG. Normal and 
+Fibrotic Rat Livers Demonstrate Shear Strain Softening and Compression Stiffening: A Model for 
+Soft Tissue Mechanics. PLoS One 2016;11(1):e0146588. [PubMed: 26735954] 
+16. Latorre-Ossa H, Gennisson JL, De Brosses E, Tanter M. Quantitative imaging of nonlinear shear 
+modulus by combining static elastography and shear wave elastography. IEEE Trans Ultrason 
+Ferroelectr Freq Control 2012;59(4):833–839. [PubMed: 22547295] 
+17. Capilnasiu A, Hadjicharalambous M, Fovargue D, Patel D, Holub O, Bilston L, Screen H, Sinkus 
+R, Nordsletten D. Magnetic resonance elastography in nonlinear viscoelastic materials under load. 
+Biomechanics and Modeling in Mechanobiology 2019;18(1):111–135. [PubMed: 30151814] 
+18. Deptuła P, Łysik D, Pogoda K, Cieśluk M, Namiot A, Mystkowska J, Król G, Głuszek S, Janmey 
+PA, Bucki R. Tissue Rheology as a Possible Complementary Procedure to Advance Histological 
+Diagnosis of Colon Cancer. ACS Biomaterials Science & Engineering 2020;6(10):5620–5631. 
+[PubMed: 33062848] 
+19. Fovargue D, Fiorito M, Capilnasiu A, Nordsletten D, Lee J, Sinkus R. Towards noninvasive 
+estimation of tumour pressure by utilising MR elastography and nonlinear biomechanical models: 
+a simulation and phantom study. Scientific Reports 2020;10(1):5588. [PubMed: 32221324] 
+20. Fiorito M, Fovargue D, Capilnasiu A, Hadjicharalambous M, Nordsletten D, Sinkus R, Lee 
+J. Impact of axisymmetric deformation on MR elastography of a nonlinear tissue-mimicking 
+material and implications in peri-tumour stiffness quantification. PLoS One 2021;16(7):e0253804. 
+[PubMed: 34242296] 
+Yin et al.
+Page 15
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

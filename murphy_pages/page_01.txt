@@ -1,0 +1,76 @@
+Medical Image Analysis 63 (2020) 101710 
+Contents lists available at ScienceDirect 
+Medical Image Analysis 
+journal homepage: www.elsevier.com/locate/media 
+Artiﬁcial neural networks for magnetic resonance elastography 
+stiffness estimation in inhomogeneous materials 
+Jonathan M. Scott a , Arvin Arani b , Armando Manduca c , Kiaran P. McGee b , 
+Joshua D. Trzasko b , John Huston III b , Richard L. Ehman b , Matthew C. Murphy b , ∗
+a Mayo Clinic Medical Scientist Training Program, 200 First Street SW, Rochester 55905, MN, USA 
+b Department of Radiology, Mayo Clinic College of Medicine, 200 First Street SW, Rochester 55905, MN, USA 
+c Department of Physiology and Biomedical Engineering, Mayo Clinic College of Medicine, 200 First Street SW, Rochester 55905, MN, USA 
+a r t i c l e 
+i n f o 
+Article history: 
+Received 12 June 2019 
+Revised 27 February 2020 
+Accepted 15 April 2020 
+Available online 22 April 2020 
+Keywords: 
+Magnetic resonance elastography 
+Inversion 
+Stiffness 
+Artiﬁcial neural networks 
+a b s t r a c t 
+Purpose: To test the hypothesis that removing the assumption of material homogeneity will improve the 
+spatial accuracy of stiffness estimates made by Magnetic Resonance Elastography (MRE). 
+Methods: An artiﬁcial neural network was trained using synthetic wave data computed using a cou- 
+pled harmonic oscillator model. Material properties were allowed to vary in a piecewise smooth pattern. 
+This neural network inversion (Inhomogeneous Learned Inversion (ILI)) was compared against a previous 
+homogeneous neural network inversion (Homogeneous Learned Inversion (HLI)) and conventional direct 
+inversion (DI) in simulation, phantom, and in-vivo experiments. 
+Results: In simulation experiments, ILI was more accurate than HLI and DI in predicting the stiffness 
+of an inclusion in noise-free, low-noise, and high-noise data. In the phantom experiment, ILI delineated 
+inclusions ≤2.25 cm in diameter more clearly than HLI and DI, and provided a higher contrast-to-noise 
+ratio for all inclusions. In a series of stiff brain tumors, ILI shows sharper stiffness transitions at the edges 
+of tumors than the other inversions evaluated. 
+Conclusion: ILI is an artiﬁcial neural network based framework for MRE inversion that does not assume 
+homogeneity in material stiffness. Preliminary results suggest that it provides more accurate stiffness 
+estimates and better contrast in small inclusions and at large stiffness gradients than existing algorithms 
+that assume local homogeneity. These results support the need for continued exploration of learning- 
+based approaches to MRE inversion, particularly for applications where high resolution is required. 
+© 2020 Elsevier B.V. All rights reserved. 
+1. Introduction 
+Magnetic Resonance Elastography (MRE) is an imaging 
+method for noninvasively measuring tissue mechanical prop- 
+erties ( Muthupillai et al., 1995 ). In MRE, a phase-contrast MRI 
+pulse sequence with motion encoding gradients is used to image 
+a steady-state displacement ﬁeld from shear waves that have 
+been introduced into the tissue of interest by mechanical vibra- 
+tion. This displacement ﬁeld is then mathematically inverted to 
+produce estimates of tissue mechanical properties. Changes in 
+tissue stiffness as measured with MRE have been shown to be 
+sensitive to a number of pathological processes, includingbut not 
+limited to ﬁbrosis in the liver ( Asbach et al., 2008 ; Huwart et al., 
+2007 ; Rustogi et al., 2012 ; Yin et al., 2016 ) and neurodegenerative 
+∗Corresponding authors. 
+E-mail address: murphy.matthew@mayo.edu (M.C. Murphy). 
+disease ( ElSheikh et al., 2017 ; Gerischer et al., 2018 ; Lipp et al., 
+2018 ; Murphy et al., 2016 ; Streitberger et al., 2012 ; Wuerfel et al., 
+2010 ). In focal disease, stiffness has been shown to differenti- 
+ate malignant and benign lesions in the liver ( Venkatesh et al., 
+2008 ), pancreas ( Shi et al., 2018 ), and brain ( Pepin et al., 2018 ; 
+Streitberger et al., 2014 ), as well as characterize brain tumor 
+mechanical properties for operative planning ( Hughes et al., 2015 ; 
+Murphy et al., 2013a ). Recent work has also shown that viscoelas- 
+tic properties of the hippocampus as measured by MRE correlate 
+with performance on a memory task ( Schwarb et al., 2017 , 2016 ). 
+While these results are promising, there is still room for improve- 
+ment in the spatial resolution of the technique, particularly for 
+the evaluation of mechanical properties in small focal lesions that 
+are often diﬃcult to evaluate ( Hughes et al., 2015 ; Shi et al., 2018 ; 
+Venkatesh et al., 2008 ). 
+One area for potential improvement is in the inversion algo- 
+rithms that estimate mechanical properties from the acquired dis- 
+https://doi.org/10.1016/j.media.2020.101710 
+1361-8415/© 2020 Elsevier B.V. All rights reserved. 

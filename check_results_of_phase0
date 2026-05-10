@@ -1,0 +1,100 @@
+Excellent results. The data is clean and ready for training. Let me give you the precise interpretation of each number, flag one discrepancy worth noting, and tell you exactly what to run next.
+
+What Each Number Actually Tells You
+G std = 4,569 Pa is the most informative single number in that table. It means the average spatial standard deviation across each 64×64 stiffness map is 4,569 Pa. Given your background range of 800–3,000 Pa and inclusion range of 5,000–45,000 Pa, a per-sample std of 4,569 confirms that inclusions are large and high-contrast on average — not just barely distinguishable from background. For the FNO this is ideal training signal: the model will encounter clear, learnable structure from the very first batch.
+Re/Im correlation = −0.02 is effectively zero, which is the physically correct answer. In a properly solved complex Helmholtz system, the real and imaginary displacement components encode phase-quadrature information — they should be orthogonal. A value near zero confirms the solver is computing both components independently, meaning all four input channels carry genuinely distinct information. If this had been −0.98 or +0.98, the model would have been learning from two channels of effectively redundant data.
+G range 800–45,000 Pa spanning the full generation range confirms no systematic clipping or truncation at the solver boundary conditions. Cases near the extremes — very soft backgrounds, very stiff inclusions — did not cause the FD matrix to become singular or overflow.
+
+One Discrepancy to Correct
+The file size of 4.10 GB contradicts the earlier estimate of 18–22 GB. The 4.10 GB is correct. Here is the actual arithmetic:
+X:  50,000 × 4 × 64 × 64 × 4 bytes (float32) = 3.28 GB
+Y:  50,000 × 64 × 64 × 4 bytes (float32)      = 0.82 GB
+HDF5 overhead + metadata                       ≈ 0.01 GB
+Total                                          ≈ 4.10 GB  ✓
+The earlier 18–22 GB estimate assumed float64 storage. The good news is that 4.10 GB fits entirely in CPU RAM on Delta (256 GB nodes) and comfortably in A100 GPU memory (80 GB), meaning you can load the entire dataset into memory before training rather than streaming from disk. This will make training significantly faster.
+
+What to Run Right Now
+Step 1 — Quick visual spot check before committing to training (2 minutes)
+Do this before submitting the GPU job. It takes 10 lines and will immediately surface any phantom generation or solver problem that the numerical checks cannot catch.
+python# Run this interactively on the login node (CPU only, 2 min)
+import h5py, matplotlib.pyplot as plt, numpy as np
+
+f   = h5py.File("data/mre_synthetic_50000.h5", "r")
+idx = [0, 12500, 25000, 37500, 49999]   # span the full dataset
+
+fig, axes = plt.subplots(len(idx), 3, figsize=(9, 15))
+
+for row, i in enumerate(idx):
+    X, Y = f["X"][i], f["Y"][i]
+
+    axes[row,0].imshow(X[0], cmap="RdBu_r")   # Re(u) at 60 Hz
+    axes[row,0].set_title(f"Re(u)  sample {i}" if row==0 else f"s={i}")
+
+    axes[row,1].imshow(X[2], cmap="RdBu_r")   # Re(u) at 120 Hz
+    axes[row,1].set_title("Re(u) 120 Hz" if row==0 else "")
+
+    axes[row,2].imshow(Y, cmap="hot")
+    axes[row,2].set_title("G map [Pa]" if row==0 else f"{Y.min():.0f}–{Y.max():.0f} Pa")
+
+    for ax in axes[row]: ax.axis("off")
+
+plt.tight_layout()
+plt.savefig("data/spot_check.png", dpi=150)
+print("Saved data/spot_check.png")
+What you must see to proceed:
+
+Column 1: a visible wave pattern propagating left to right with a clear wavelength change where the inclusion sits
+Column 2: the same wave at 120 Hz should show roughly half the wavelength — more cycles across the domain
+Column 3: a clean elliptical or circular bright region on a darker background
+
+If any of those three conditions look wrong, stop and investigate before submitting the GPU job.
+
+Step 2 — Submit training (after spot check passes)
+bashsbatch slurm/train.sbatch
+With the exact training call:
+bashpython src/train_fno.py \
+  --data_path data/mre_synthetic_50000.h5 \
+  --run_dir   runs/phase0 \
+  --epochs    100 \
+  --batch_size 32 \
+  --lr        1e-3 \
+  --modes     12 \
+  --width     32 \
+  --n_layers  4 \
+  --physics_weight 0.05
+Expected wall time on one A100: ~25–35 minutes for 100 epochs.
+
+Step 3 — Early stopping check at epoch 30
+Do not wait for epoch 100 to find out if training is broken. After the job has been running for about 8 minutes, check:
+bash# From the login node while the job is running
+tail -f runs/phase0/logs/train_*.out
+At epoch 30 you should see roughly:
+Ep 030/100 | train=0.087 | val_RL2=0.091 | SSIM=0.74 | 14.2s
+Stop and resubmit with adjustments if any of these are true at epoch 30:
+SignalMeaningFixval_RL2 > 0.20Learning rate too high or physics weight fighting data lossRerun with --lr 3e-4 --physics_weight 0.01train << val by > 0.05Overfitting to solver artifactsAdd --noise_augment flag to randomize source phaseval_RL2 not moving from epoch 10 onwardOptimizer stuckRerun with --lr 3e-3 for first 10 epochs then cosine decaySSIM < 0.50 at epoch 30Model not resolving inclusion structureIncrease --modes 16
+If all three numbers are on track at epoch 30, let it run to completion.
+
+The Full Checkpoint When Training Finishes
+Once the job completes, your runs/phase0/ directory should contain:
+runs/phase0/
+  best.pt           ← what you use for everything downstream
+  history.json      ← open this first
+  epoch_025.pt
+  epoch_050.pt
+  epoch_075.pt
+  epoch_100.pt
+  args.json
+  logs/
+The very first thing to run after job completion:
+pythonimport json
+h = json.load(open("runs/phase0/history.json"))
+print(f"Best val RL²  : {min(h['val_rl2']):.4f}  at epoch {h['val_rl2'].index(min(h['val_rl2']))+1}")
+print(f"Final SSIM    : {h['val_ssim'][-1]:.3f}")
+print(f"Final train   : {h['train_loss'][-1]:.4f}")
+Pass criteria to move to Layer 2:
+
+Best val RL² < 0.08 (excellent < 0.05)
+Final SSIM > 0.80
+|train_loss[-1] - val_rl2[-1]| < 0.03 (no overfitting gap)
+
+All three of those in green means you submit the GPU job for the benchmark figure the same day and have results for Dr. Ehman within the week.

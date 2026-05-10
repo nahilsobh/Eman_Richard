@@ -1,0 +1,12 @@
+12 
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+Venkatesh, S.K., Yin, M., Glockner, J.F., Takahashi, N., Araoz, P.A., Talwalkar, J.A., 
+Ehman, R.L., 2008. MR elastography of liver tumors: preliminary results. AJR 
+Am. J. Roentgenol. 190, 1534–1540. doi: 10.2214/AJR.07.3123 . 
+Wuerfel, J., Paul, F., Beierbach, B., Hamhaber, U., Klatt, D., Papazoglou, S., Zipp, F., 
+Martus, P., Braun, J., Sack, I., 2010. MR-elastography reveals degradation of tis- 
+sue integrity in multiple sclerosis. Neuroimage 49, 2520–2525. doi: 10.1016/j. 
+neuroimage.2009.06.018 . 
+Yin, M., Glaser, K.J., Talwalkar, J.A., Chen, J., Manduca, A., Ehman, R.L., 2016. Hepatic 
+MR elastography: clinical performance in a series of 1377 consecutive examina- 
+tions. Radiology 278, 114–124. doi: 10.1148/radiol.2015142141 . 

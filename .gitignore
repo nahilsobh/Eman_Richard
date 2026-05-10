@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data & model artifacts
+*.h5
+*.pt
+*.npy
+*.npz
+runs/
+data/chunks/
+
+# Matplotlib / output figures
+*.png
+*.pdf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# SLURM logs
+logs/
+*.out
+*.err
+
+# OS
+.DS_Store
+Thumbs.db

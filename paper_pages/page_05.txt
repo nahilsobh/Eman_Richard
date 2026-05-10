@@ -1,0 +1,48 @@
+Phantom 3: Negative control. Phantom 3 was designed as a negative control to test 
+whether a static, large mass (i.e., no active expansion during imaging) fails to produce 
+the circumferential stiffening ring observed during active inflation in Phantoms 1 and 2. 
+This design also controls for potential geometric/processing effects associated with a larger 
+balloon boundary during directional filtering. For this purpose, an additional 200 mL of 
+water was injected into the baseline-sized balloon (50 mL) prior to embedding in the 8% 
+gelatin and 7% cellulose mixture. During the scan, no further inflation was performed for 
+Phantom 3. All gels were allowed to solidify at room temperature for 5 days to ensure 
+complete solidification.
+MRE Setup and Phantom Scanning
+Mechanical vibrations at 80 Hz were introduced into the phantoms using a commercially 
+available pneumatic active driver (Resoundant Inc., Minnesota, USA) connected to a 
+custom-designed MRE passive driver. Each phantom was placed on top of the passive 
+driver, which was designed to induce uniform axial motion of the entire phantom within 
+the container, resulting in the side walls of the container serving as sources of shear wave 
+generation (25). All MR experiments were performed on a 3.0T scanner (SIGNA Premier, 
+GE HealthCare, Wisconsin, USA) using a 20-channel body coil (AIR™, GE HealthCare, 
+Wisconsin, USA). The imaging was conducted in the coronal plane relative to the scanner 
+bore and produced axial cross-sections of the phantom. A dual-motion encoding, spin-echo 
+echo planar imaging (SE-EPI) MRE sequence (26) was used with the following imaging 
+parameters: repetition time (TR) = 4000 ms, echo time (TE) = 72 ms, field of view (FOV) 
+= 24 cm, acquisition matrix: 80×80, 80 contiguous coronal slices (3-mm thickness). The 
+motion encoding gradients were applied in the positive and negative x-, y-, and z-axis 
+directions with 4 equally spaced phase offsets sampled over one period of the 80-Hz motion.
+As shown in Figure 3, during each MRE acquisition for Phantom 1 and Phantom 2, the 
+balloon was inflated in 50 mL increments using a lockable syringe and then deflated 
+stepwise by extracting 100 mL of water. This process resulted in seven measurement states: 
+baseline (50 mL), 100 mL, 150 mL, 200 mL, 250 mL, 150 mL, and 50 mL (returning to 
+the baseline size). Each state was maintained for ~10 min (including the inflation/deflation 
+processes, stabilization of the setup, and MRE acquisition) before proceeding to the next 
+state. To estimate the balloon size and position, high-resolution (0.9 mm in-plane resolution) 
+coronal T2-weighted (T2W) images were collected at each state.
+Data Processing for Phantom Study
+The MRE phase was unwrapped using the dual-motion encoding approach (26). The 
+first temporal harmonic of the curl of the displacement fields was calculated to remove 
+contributions from the longitudinal wave.
+TSM workflow. TSM consists of directional decomposition of the MRE wave field 
+followed by direction-specific inversion and a max-type directional combination designed 
+to preserve localized directional stiffening. A schematic of the inversion pipeline is shown 
+in Figure 4. More specifically, after phase unwrapping and curl processing, the curl wave 
+field was separated into N directionally filtered components (here N = 20, dodecahedral 
+Yin et al.
+Page 5
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

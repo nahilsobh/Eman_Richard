@@ -1,0 +1,17 @@
+Figure 5. 
+Stiffness maps obtained using conventional inversion (top two rows) and TSM (bottom two 
+rows) for Phantoms 1 and 2 at baseline (50 mL), peak inflation (250 mL), and deflation 
+to baseline states, respectively. A 20-direction 3D directional filter (DF) was used for 
+analysis. Black annular ROIs indicate the regions used to calculate mean stiffness values for 
+each state. TSM revealed a circumferential stiffening ring around the expanding balloon in 
+both phantoms (middle column). Although baseline stiffness was similar, Phantom 2 with 
+cellulose fibers exhibited a more pronounced stiffening effect than Phantom 1 at the same 
+level of balloon inflation. Stiffness returned to baseline levels upon water extraction. In 
+contrast, conventional inversion did not demonstrate these trends.
+Yin et al.
+Page 22
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

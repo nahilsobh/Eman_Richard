@@ -1,0 +1,17 @@
+name: eigenstrain_1d
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - matplotlib
+  - h5py
+  - tqdm
+  - pytest
+  - pip
+  - pip:
+    - torch
+    - scikit-learn

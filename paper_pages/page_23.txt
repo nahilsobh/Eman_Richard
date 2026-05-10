@@ -1,0 +1,15 @@
+Figure 6. 
+Changes in mean stiffness values measured from peri-balloon regions (black annular 
+ROIs shown in Figure 5) during balloon inflation and deflation for all three phantoms. 
+The analysis was performed using a 20-direction 3D directional filter (DF). TSM results 
+demonstrate a clear increase in stiffness during balloon inflation, particularly in Phantom 2, 
+followed by a return to baseline upon deflation, whereas conventional inversion results show 
+minimal stiffness variation. The dotted line represents stiffness measured from Phantom 3, 
+which served as a non-pressurizing control.
+Yin et al.
+Page 23
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

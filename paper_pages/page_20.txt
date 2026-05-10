@@ -1,0 +1,15 @@
+Figure 3. 
+Balloon gel-phantoms. (Left panel, Top row) T2W images of Phantom 1, where the balloon 
+was incrementally inflated by 50 mL of water and then decrementally deflated by 100 mL, 
+resulting in a total of 7 measurement states: baseline (50 mL), 100 mL, 150 mL, 200 mL, 
+250 mL, 150 mL, 50 mL (returning to the baseline size). (Left panel, Bottom row) T2W 
+images of Phantom 2 with the same 7 measurement states. (Right panel) T2W image of 
+Phantom 3 as the negative control, with 250 mL of water injected prior to embedding in the 
+background gel.
+Yin et al.
+Page 20
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

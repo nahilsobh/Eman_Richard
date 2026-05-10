@@ -1,0 +1,49 @@
+Supplementary Figures S1 and S4–S7 provide detailed views of the curl wave fields, 
+directionally filtered wave fields, wave amplitudes with low-amplitude exclusion regions 
+marked, and the corresponding stiffness maps for each directional filter. These figures 
+include Phantoms 1 and 2 at their baseline and peak inflation states, as well as the baseline 
+control Phantom 3. Supplementary Figure S8 summarizes the stiffness maps across all seven 
+inflation and deflation states for Phantoms 1 and 2, and compares results obtained using 
+two directional filter configurations (6- and 20-direction). In this phantom setting, the key 
+findings were qualitatively similar between the two DF configurations.
+In vivo example of acute intracranial hematoma
+Figure 8 illustrates a large, acute left cerebral intraparenchymal hemorrhage in a 60-year-old 
+female patient with intraventricular extension and substantial mass effect, status post left 
+temporal craniotomy/clot evacuation with external ventricular drainage. Brain MRE/MRI 
+was performed ~6 days after CT-documented rapid hematoma enlargement, which occurred 
+within hours (from ~4.9 × 2.8 cm to ~8.4 × 3.2 cm) and was accompanied by new 
+intraventricular extension, hydrocephalus, and progression of midline shift (from ~2 mm to 
+~8–10 mm) with concern for impending herniation. Imaging ~2 days before MRE described 
+a similar-sized hematoma, whereas MRI on the day of MRE again showed persistent 
+edema/sulcal effacement with increased rightward midline shift and findings suggesting 
+ventricular entrapment, consistent with a subacute post-intervention state with ongoing 
+mass effect. The mass effect is evident as pronounced sulcal effacement throughout the 
+left hemisphere (Figure 8A, white arrow) and rightward midline shift (white arrowhead). 
+The corresponding stiffness maps (Figure 8B) show that μTSM demonstrates stronger 
+perilesional elevations than μconv, in regions adjacent to the hematoma and along the 
+direction of mass effect. This difference is summarized by a radial profile of the shell-wise 
+percent difference, which was highest in shells closest to the hematoma boundary and 
+decreased monotonically with increasing distance (Figure 8C). Two independent readers 
+produced consistent distance-dependent decay profiles, supporting that the observed TSM-
+conventional difference is localized to the peri-hematoma region and is not driven by a 
+single subjective ROI placement. These findings demonstrate the enhanced sensitivity of 
+TSM in detecting localized stiffness changes in the vicinity of a lesion associated with recent 
+rapid expansion and persistent mass effect.
+In vivo examples of hepatocellular carcinomas (HCC)
+Figure 9A presents a large, stiff, well-circumscribed, and heterogeneous HCC located 
+centrally in the liver of a patient without underlying liver disease. MRI/MRE was performed 
+~4 weeks after the earliest available CT. At MRI/MRE, the tumor measured ~13 × 11 cm, 
+involved the caudate and right lobe, and demonstrated heterogeneous arterial enhancement 
+with washout and a pseudocapsule. The patient underwent locoregional therapy (TACE) 
+shortly after MRI/MRE. Over the short interval preceding MRI/MRE, reports described 
+no substantial change in overall size but persistent compressive effects. The mass effect 
+exerted on the liver hilum resulted in obstruction of the biliary ducts, as evidenced by diffuse 
+intrahepatic ductal dilation (white arrows). There were also compression and effacement 
+of the inferior vena cava (IVC, arrowhead) and significant constriction of the central 
+Yin et al.
+Page 9
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

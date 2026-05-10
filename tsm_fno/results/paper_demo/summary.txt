@@ -1,0 +1,23 @@
+Paper Phantom Demo — Yin et al. 2026 Simulation
+======================================================================
+G_bg=2500 Pa  G_lesion=2000 Pa  A_coeff=5.0
+Lesion: circular, r=20 mm, centred at (32.0,32.0)
+Grid: 64×64, dx=2 mm  →  FOV 13×13 cm
+
+State                                   p (Pa)   max(ε_pred ring)   mean(G_pred ring) Pa   A_pred
+----------------------------------------------------------------------------------------------------
+Baseline (0 mL equiv.)                       0             0.0000                 2433.8   -2.719
++50 mL equiv. (p=1 kPa)                   1000             0.7717                10339.4   -2.719
++100 mL equiv. (p=2 kPa)                  2000             1.5686                18670.2   -2.719
++150 mL equiv. (p=3 kPa)                  3000             2.3571                27291.5   -2.719
++200 mL equiv. (p=5 kPa)                  5000             3.0000                41562.7   -2.719
++250 mL equiv. (p=7 kPa)                  7000             3.0000                59326.1   -2.719
+----------------------------------------------------------------------------------------------------
+
+CONTROL (p=0, Phantom 3 analogue):
+  max(ε_pred in ring) = 0.0000  (target ≈ 0)
+
+Notes:
+  - Frequency: 60+120 Hz (training distribution; paper uses 80 Hz)
+  - Resolution: 2 mm/voxel (paper: 0.9 mm clinical)
+  - Lamé prior is provided exactly (advantage vs real MRE)

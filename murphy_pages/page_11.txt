@@ -1,0 +1,170 @@
+J.M. Scott, A. Arani and A. Manduca et al. / Medical Image Analysis 63 (2020) 101710 
+11 
+Supplementary materials 
+Supplementary material associated with this article can be 
+found, in the online version, at doi: 10.1016/j.media.2020.101710 . 
+References 
+Asbach, P., Klatt, D., Hamhaber, U., Braun, J., Somasundaram, R., Hamm, B., Sack, I., 
+2008. Assessment of liver viscoelasticity using multifrequency MR elastography. 
+Magn. Reson. Med. 60, 373–379. doi: 10.1002/mrm.21636 . 
+Ashburner, J., Friston, K.J., 2005. Uniﬁed segmentation. Neuroimage 26, 839–851. 
+doi: 10.1016/j.neuroimage.2005.02.018 . 
+Barnhill, E., Davies, P.J., Ariyurek, C., Fehlner, A., Braun, J., Sack, I., 2018. Heteroge- 
+neous multifrequency direct inversion (HMDI) for magnetic resonance elastog- 
+raphy with application to a clinical brain exam. Med. Image Anal. 46, 180–188. 
+doi: 10.1016/j.media.2018.03.003 . 
+Braun, J., Buntkowsky, G., Bernarding, J., Tolxdorff, T., Sack, I., 2001. Simulation and 
+analysis of magnetic resonance elastography wave images using coupled har- 
+monic oscillators and Gaussian local frequency estimation. Magn. Reson. Imag- 
+ing 19, 703–713. doi: 10.1016/S0730-725X(01)00387-3 . 
+Chollet, Francois, 2015. Keras. https://keras.io . 
+Clayton, E.H., Okamoto, R.J., Bayly, P.V., 2013. Mechanical properties of viscoelastic 
+media by local frequency estimation of divergence-free wave ﬁelds. J. Biomech. 
+Eng. 135, 021025. doi: 10.1115/1.4023433 . 
+Doyley, M.M., Weaver, J.B., Van Houten, E.E.W., Kennedy, F.E., Paulsen, K.D., 2003. 
+Thresholds for detecting and characterizing focal lesions using steady-state MR 
+elastography. Med. Phys. 30, 495–504. doi: 10.1118/1.1556607 . 
+ElSheikh, M., Arani, A., Perry, A., Boeve, B.F., Meyer, F.B., Savica, R., Ehman, R.L., Hus- 
+ton, J., 2017. MR elastography demonstrates unique regional brain stiffness pat- 
+terns in dementias. AJR Am. J. Roentgenol. 209, 403–408. doi: 10.2214/AJR.16. 
+17455 . 
+Foo, T.K.F., Laskaris, E., Vermilyea, M., Xu, M., Thompson, P., Conte, G., Van 
+Epps, C., Immer, C., Lee, S.-K., Tan, E.T., Graziani, D., Mathieu, J.-B., Hardy, C.J., 
+Schenck, J.F., Fiveland, E., Stautner, W., Ricci, J., Piel, J., Park, K., Hua, Y., Bai, Y., 
+Kagan, A., Stanley, D., Weavers, P.T., Gray, E., Shu, Y., Frick, M.A., Campeau, N.G., 
+Trzasko, J., Huston, J., Bernstein, M.A., 2018. Lightweight, compact, and high- 
+performance 3T MR system for imaging the brain and extremities. Magn. Reson. 
+Med. 80, 2232–2245. doi: 10.1002/mrm.27175 . 
+Gerischer, L.M., Fehlner, A., Köbe, T., Prehn, K., Antonenko, D., Grittner, U., Braun, J., 
+Sack, I., Flöel, A., 2018. Combining viscoelasticity, diffusivity and volume of the 
+hippocampus for the diagnosis of Alzheimer’s disease based on magnetic reso- 
+nance imaging. NeuroImage 18, 4 85–4 93. doi: 10.1016/j.nicl.2017.12.023 . 
+Honarvar, M., Sahebjavaher, R., Sinkus, R., Rohling, R., Salcudean, S.E., 2013. Curl- 
+based ﬁnite element reconstruction of the shear modulus without assuming lo- 
+cal homogeneity: time harmonic case. IEEE Trans. Med. Imaging 32, 2189–2199. 
+doi: 10.1109/TMI.2013.2276060 . 
+Hughes, J.D., Fattahi, N., Van Gompel, J., Arani, A., Meyer, F., Lanzino, G., Link, M.J., 
+Ehman, R., Huston, J., 2015. Higher-resolution magnetic resonance elastography 
+in meningiomas to determine intratumoral consistency. Neurosurgery 77, 653–
+659. doi: 10.1227/NEU.0 0 0 0 0 0 0 0 0 0 0 0 0892 . 
+Huwart, L., Sempoux, C., Salameh, N., Jamart, J., Annet, L., Sinkus, R., Peeters, F., ter 
+Beek, L.C., Horsmans, Y., Van Beers, B.E., 2007. Liver ﬁbrosis: noninvasive assess- 
+ment with MR elastography versus aspartate aminotransferase–to-Platelet Ratio 
+Index. Radiology 245, 458–466. doi: 10.1148/radiol.2452061673 . 
+Jenkinson, M., Beckmann, C.F., Behrens, T.E.J., Woolrich, M.W., Smith, S.M., 2012. FSL. 
+NeuroImage. 20 Years of fMRI 62, 782–790. doi: 10.1016/j.neuroimage.2011.09. 
+015 . 
+Johnson, C.L., McGarry, M.D.J., Gharibans, A .A ., Weaver, J.B., Paulsen, K.D., Wang, H., 
+Olivero, W.C., Sutton, B.P., Georgiadis, J.G., 2013. Local mechanical properties of 
+white matter structures in the human brain. Neuroimage 79, 145–152. doi: 10. 
+1016/j.neuroimage.2013.04.089 . 
+Johnson, C.L., Schwarb, H., DJ McGarry„ M., Anderson, A.T., Huesmann, G.R., Sut- 
+ton, B.P., Cohen, N.J., 2016. Viscoelasticity of subcortical gray matter structures. 
+Hum. Brain Mapp. 37, 4221–4233. doi: 10.1002/hbm.23314 . 
+Kingma, D.P., Ba, J., 2017. Adam: a method for stochastic optimization. arXiv:1412. 
+6980 [cs]. 
+Knutsson, H., Westin, C.F., Granlund, G., 1994. Local multiscale frequency and band- 
+width estimation, in: proceedings of 1st international conference on image pro- 
+cessing. In: Presented at the Proceedings of 1st International Conference on Im- 
+age Processing, 1, pp. 36–40. doi: 10.1109/ICIP.1994.413270 . 
+Lipp, A., Skowronek, C., Fehlner, A., Streitberger, K.-.J., Braun, J., Sack, I., 2018. Pro- 
+gressive supranuclear palsy and idiopathic Parkinson’s disease are associated 
+with local reduction of in vivo brain viscoelasticity. Eur. Radiol. 28, 3347–3354. 
+doi: 10.10 07/s0 0330- 017- 5269- y . 
+Manduca, A., Oliphant, T.E., Dresner, M.A., Mahowald, J.L., Kruse, S.A., Amromin, E., 
+Felmlee, J.P., Greenleaf, J.F., Ehman, R.L., 2001. Magnetic resonance elastography: 
+non-invasive mapping of tissue elasticity. Med. Image Anal. 5, 237–254. doi: 10. 
+1016/S1361-8415(0 0)0 0 039-6 . 
+Abadi, M. , Agarwal, A. , Barham, P. , Brevdo, E. , Chen, Z. , Citro, C. , Corrado, G.S. , 
+Davis, A. , Dean, J. , Devin, M. , Ghemawat, S. , Goodfellow, I. , Harp, A. , Irving, G. , 
+Isard, M. , Jia, Y. , Jozefowicz, R. , Kaiser, L. , Kudlur, M. , Levenberg, J. , Mané, D. , 
+Monga, R. , Moore, S. , Murray, D. , Olah, C. , Schuster, M. , Shlens, J. , Steiner, B. , 
+Sutskever, I. , Talwar, K. , Tucker, P. , Vanhoucke, V. , Vasudevan, V. , Viégas, F. , 
+Vinyals, O. , Warden, P. , Wattenberg, M. , Wicke, M. , Yu, Y. , Zheng, X. , 2015. Ten- 
+sorFlow: Large-Scale Machine Learning on Heterogeneous Systems . 
+McGarry, M., Johnson, C.L., Sutton, B.P., Van Houten, E.E., Georgiadis, J.G., 
+Weaver, J.B., Paulsen, K.D., 2013. Including spatial information in nonlinear in- 
+version MR elastography using soft prior regularization. IEEE Trans. Med. Imag- 
+ing 32, 1901–1909. doi: 10.1109/TMI.2013.2268978 . 
+McGarry, M.D.J., Van Houten, E.E.W., Johnson, C.L., Georgiadis, J.G., Sutton, B.P., 
+Weaver, J.B., Paulsen, K.D., 2012. Multiresolution MR elastography using non- 
+linear inversion. Med. Phys. 39, 6388–6396. doi: 10.1118/1.4754649 . 
+McGrath, D.M., Ravikumar, N., Wilkinson, I.D., Frangi, A.F., Taylor, Z.A., 2016. Mag- 
+netic resonance elastography of the brain: an in silico study to determine the 
+inﬂuence of cranial anatomy. Magn. Reson. Med. 76, 645–662. doi: 10.1002/mrm. 
+25881 . 
+Murphy, M.C., Cogswell, P.M., Trzasko, J.D., Manduca, A., Senjem, M.L., Meyer, F.B., 
+Ehman, R.L., Huston, J., 2020. Identiﬁcation of normal pressure hydrocephalus 
+by disease-speciﬁc patterns of brain stiffness and damping ratio. Invest. Radiol. 
+doi: 10.1097/RLI.0 0 0 0 0 0 0 0 0 0 0 0 0630 . 
+Murphy, M.C., Huston, J., Glaser, K.J., Manduca, A., Meyer, F.B., Lanzino, G., Mor- 
+ris, J.M., Felmlee, J.P., Ehman, R.L., 2013a. Preoperative assessment of menin- 
+gioma stiffness using magnetic resonance elastography. J. Neurosurg. 118, 643–
+648. doi: 10.3171/2012.9.JNS12519 . 
+Murphy, M.C., Huston, J., Jack, C.R., Glaser, K.J., Senjem, M.L., Chen, J., Manduca, A., 
+Felmlee, J.P., Ehman, R.L., 2013b. Measuring the characteristic topography of 
+brain stiffness with magnetic resonance elastography. PLoS ONE 8. doi: 10.1371/ 
+journal.pone.0081668 . 
+Murphy, M.C., Jones, D.T., Jack, C.R., Glaser, K.J., Senjem, M.L., Manduca, A., Felm- 
+lee, J.P., Carter, R.E., Ehman, R.L., Huston, J., 2016. Regional brain stiffness 
+changes across the Alzheimer’s disease spectrum. Neuroimage Clin. 10, 283–
+290. doi: 10.1016/j.nicl.2015.12.007 . 
+Murphy, M.C., Manduca, A., Trzasko, J.D., Glaser, K.J., Huston, J., Ehman, R.L., 2018. 
+Artiﬁcial neural networks for stiffness estimation in magnetic resonance elas- 
+tography. Magn. Reson. Med. 80, 351–360. doi: 10.1002/mrm.27019 . 
+Muthupillai, R. , Lomas, D.J. , Rossman, P.J. , Greenleaf, J.F. , Manduca, A. , Ehman, R.L. , 
+1995. Magnetic resonance elastography by direct visualization of propagating 
+acoustic strain waves. Science 269, 1854–1857 . 
+Oliphant, T.E. , Manduca, A. , Ehman, R.L. , Greenleaf, J.F. , 2001. Complex-valued stiff- 
+ness reconstruction for magnetic resonance elastography by algebraic inversion 
+of the differential equation. Magn. Reson. Med. 45, 299–310 . 
+Papazoglou, S., Hamhaber, U., Braun, J., Sack, I., 2008. Algebraic Helmholtz inver- 
+sion in planar magnetic resonance elastography. Phys. Med. Biol. 53, 3147–3158. 
+doi: 10.1088/0031-9155/53/12/005 . 
+Pepin, K.M., McGee, K.P., Arani, A., Lake, D.S., Glaser, K.J., Manduca, A., Parney, I.F., 
+Ehman, R.L., Huston, J., 2018. Magnetic resonance elastography analysis of 
+glioma stiffness and IDH1 mutation status. AJNR Am. J. Neuroradiol. 39, 31–36. 
+doi: 10.3174/ajnr.A5415 . 
+Romano, A .J., Bucaro, J.A ., Ehnan, R.L., Shirron, J.J., 20 0 0. Evaluation of a material 
+parameter extraction algorithm using MRI-based displacement measurements. 
+IEEE Trans. Ultrason. Ferroelectr. Freq. Control 47, 1575–1581. doi: 10.1109/58. 
+883546 . 
+Romano, A.J., Shirron, J.J., Bucaro, J.A., 1998. On the noninvasive determination of 
+material parameters from a knowledge of elastic displacements theory and nu- 
+merical simulation. IEEE Trans. Ultrason. Ferroelectr. Freq. Control 45, 751–759. 
+doi: 10.1109/58.677725 . 
+Rustogi, R., Horowitz, J., Harmath, C., Wang, Y., Chalian, H., Ganger, D.R., Chen, Z.E., 
+Bolster, B.D., Shah, S., Miller, F.H., 2012. Accuracy of MR elastography and 
+anatomic MR imaging features in the diagnosis of severe hepatic ﬁbrosis and 
+cirrhosis. J. Magn. Reson. Imaging 35, 1356–1364. doi: 10.1002/jmri.23585 . 
+Sack, I. , Bernarding, J. , Braun, J. , 2002. Analysis of wave patterns in MR elastography 
+of skeletal muscle using coupled harmonic oscillator simulations. Magn. Reson. 
+Imaging 20, 95–104 . 
+Sánchez, C.A., Drapaca, C.S., Sivaloganathan, S., Vrscay, E.R., 2010. Elastography of 
+biological tissue: direct inversion methods that allow for local shear mod- 
+ulus variations, in: image analysis and recognition, lecture notes in com- 
+puter science. In: Presented at the International Conference Image Analy- 
+sis and Recognition. Springer, Berlin, Heidelberg, pp. 195–206. doi: 10.1007/ 
+978- 3- 642- 13775- 4 _ 20 . 
+Schwarb, H., Johnson, C.L., Daugherty, A.M., Hillman, C.H., Kramer, A.F., Cohen, N.J., 
+Barbey, A.K., 2017. Aerobic ﬁtness, hippocampal viscoelasticity, and relational 
+memory performance. Neuroimage 153, 179–188. doi: 10.1016/j.neuroimage.2017. 
+03.061 . 
+Schwarb, H., Johnson, C.L., McGarry, M.D.J., Cohen, N.J., 2016. Medial temporal lobe 
+viscoelasticity and relational memory performance. Neuroimage 132, 534–541. 
+doi: 10.1016/j.neuroimage.2016.02.059 . 
+Shi, Y., Gao, F., Li, Y., Tao, S., Yu, B., Liu, Z., Liu, Y., Glaser, K.J., Ehman, R.L., 
+Guo, Q., 2018. Differentiation of benign and malignant solid pancreatic masses 
+using magnetic resonance elastography with spin-echo echo planar imaging and 
+three-dimensional inversion reconstruction: a prospective study. Eur. Radiol. 28, 
+936–945. doi: 10.10 07/s0 0330- 017- 5062- y . 
+Streitberger, K.-J., Reiss-Zimmermann, M., Freimann, F.B., Bayerl, S., Guo, J., Arlt, F., 
+Wuerfel, J., Braun, J., Hoffmann, K.-T., Sack, I., 2014. High-resolution mechani- 
+cal imaging of glioblastoma by multifrequency magnetic resonance elastogra- 
+phy. PLoS ONE 9, e110588. doi: 10.1371/journal.pone.0110588 . 
+Streitberger, K.-J., Sack, I., Krefting, D., Pfüller, C., Braun, J., Paul, F., Wuerfel, J., 2012. 
+Brain viscoelasticity alteration in chronic-progressive multiple sclerosis. PLoS 
+ONE 7, e29888. doi: 10.1371/journal.pone.0029888 . 
+Van Houten, E.E. , Miga, M.I. , Weaver, J.B. , Kennedy, F.E. , Paulsen, K.D. , 2001. Three-di- 
+mensional subzone-based reconstruction algorithm for MR elastography. Magn. 
+Reson. Med. 45, 827–837 . 

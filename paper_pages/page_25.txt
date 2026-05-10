@@ -1,0 +1,18 @@
+Figure 8. 
+In vivo demonstration of TSM in an acute intracranial hematoma with recent rapid 
+expansion. (A) Coronal T2-FLAIR shows a large left intraparenchymal hemorrhage with 
+substantial mass effect, including sulcal effacement (white arrow) and rightward midline 
+shift (white arrowhead). (B) Top row shows the T1-weighted image with overlaid concentric 
+peri-hematoma shell ROIs (coronal, sagittal, and axial views) derived from the 3D 
+hematoma mask; middle and bottom rows show the corresponding μTSM and μconv stiffness 
+maps, respectively. (C) Shell-wise radial profile of the percent difference plotted versus 
+distance from the hematoma boundary, showing the largest differences in shells closest to 
+the hematoma and a monotonic decay with increasing distance. Profiles derived from two 
+independent readers are shown to assess robustness to hematoma delineation.
+Yin et al.
+Page 25
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript

@@ -1,0 +1,46 @@
+The potential applications of TSM are broad, as it enables the detection of actively 
+expanding masses of any kind. Particularly in tumor assessment and treatment, TSM offers 
+a noninvasive mechanical contrast that may help identify lesions associated with pronounced 
+mass effect and strain-related perilesional stiffening. With longitudinal validation and 
+clinical correlation, future studies can evaluate whether TSM-derived signatures relate to 
+lesion growth behavior (e.g., rapid versus slow mass-forming expansion) and whether they 
+add value for risk stratification and treatment monitoring. This capability could provide 
+clinicians with a deeper understanding of tumor pathophysiology, aid in predicting treatment 
+outcomes, and identify therapeutic targets. For instance, this could be particularly valuable 
+in managing HCCs, where radiologists often encounter lesions with indeterminate features 
+based on size or imaging characteristics on conventional imaging. The ability of TSM 
+to provide additional mechanical information can assist radiologists in assessing the level 
+of concern for these lesions, guiding appropriate follow-up intervals, and aiding in the 
+management of patients, particularly those who may be candidates for transplantation. Such 
+information is crucial for transplant surgeons in determining the appropriate course of action 
+and timing for monitoring these lesions.
+Conclusion
+This proof-of-concept study introduces MRE-based tissue strain mapping (TSM) as an 
+innovative approach for noninvasively assessing strain-induced changes in perilesional 
+stiffness associated with expanding lesions. The results support the feasibility of TSM and 
+motivate future studies to determine whether TSM provides clinically useful information 
+about expansile mass effect beyond conventional MRE, thus enhancing the capabilities 
+of diagnosis, treatment planning, and monitoring. Further research is warranted to refine 
+the TSM methodology, validate its performance in larger patient cohorts with longitudinal 
+follow-up, and explore its potential applications in various clinical settings.
+Supplementary Material
+Refer to Web version on PubMed Central for supplementary material.
+Acknowledgements
+This work was supported in part by grants from the National Institute Health (R37 EB001981, R61/R33 AT012185, 
+and R01 NS113760).
+References
+1. Nathani P, Gopal P, Rich N, Yopp A, Yokoo T, John B, Marrero J, Parikh N, Singal AG. 
+Hepatocellular carcinoma tumour volume doubling time: a systematic review and meta-analysis. 
+Gut 2021;70(2):401–407. [PubMed: 32398224] 
+2. Feucht D, Haas P, Skardelly M, Behling F, Rieger D, Bombach P, Paulsen F, Hoffmann E, 
+Hauser TK, Bender B, Renovanz M, Niyazi M, Tabatabai G, Tatagiba M, Roder C. Preoperative 
+growth dynamics of untreated glioblastoma: Description of an exponential growth type, correlating 
+factors, and association with postoperative survival. Neurooncol Adv 2024;6(1):vdae053. [PubMed: 
+38680987] 
+Yin et al.
+Page 14
+Magn Reson Med. Author manuscript; available in PMC 2026 March 24.
+Author Manuscript
+Author Manuscript
+Author Manuscript
+Author Manuscript
