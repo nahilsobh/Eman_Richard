@@ -1,0 +1,260 @@
+% =============================================================================
+%   References for TSM-FNO Nature paper
+%   Curated from the May 2026 MRE+ML literature survey
+% =============================================================================
+
+% ── Foundational MRE ──────────────────────────────────────────────────────────
+
+@article{muthupillai1995,
+  author  = {Muthupillai, R. and Lomas, D. J. and Rossman, P. J. and Greenleaf, J. F. and Manduca, A. and Ehman, R. L.},
+  title   = {Magnetic resonance elastography by direct visualization of propagating acoustic strain waves},
+  journal = {Science},
+  volume  = {269},
+  number  = {5232},
+  pages   = {1854--1857},
+  year    = {1995},
+  doi     = {10.1126/science.7569924}
+}
+
+@article{manduca2001,
+  author  = {Manduca, A. and Oliphant, T. E. and Dresner, M. A. and Mahowald, J. L. and Kruse, S. A. and Amromin, E. and Felmlee, J. P. and Greenleaf, J. F. and Ehman, R. L.},
+  title   = {Magnetic resonance elastography: Non-invasive mapping of tissue elasticity},
+  journal = {Medical Image Analysis},
+  volume  = {5},
+  number  = {4},
+  pages   = {237--254},
+  year    = {2001},
+  doi     = {10.1016/s1361-8415(00)00039-6}
+}
+
+@article{romano1998,
+  author  = {Romano, A. J. and Bucaro, J. A. and Ehman, R. L. and Shirron, J. J.},
+  title   = {Evaluation of a material parameter extraction algorithm using {MRI}-based displacement measurements},
+  journal = {IEEE Transactions on Ultrasonics, Ferroelectrics, and Frequency Control},
+  volume  = {47},
+  number  = {6},
+  pages   = {1575--1581},
+  year    = {2000},
+  doi     = {10.1109/58.883546}
+}
+
+@article{papazoglou2008kmdev,
+  author  = {Papazoglou, S. and Hamhaber, U. and Braun, J. and Sack, I.},
+  title   = {Algebraic Helmholtz inversion in planar magnetic resonance elastography},
+  journal = {Physics in Medicine \& Biology},
+  volume  = {53},
+  number  = {12},
+  pages   = {3147--3158},
+  year    = {2008},
+  doi     = {10.1088/0031-9155/53/12/005}
+}
+
+@article{mcgarry2012nli,
+  author  = {McGarry, M. D. J. and Van Houten, E. E. W. and Johnson, C. L. and Georgiadis, J. G. and Sutton, B. P. and Weaver, J. B. and Paulsen, K. D.},
+  title   = {Multiresolution {MR} elastography using nonlinear inversion},
+  journal = {Medical Physics},
+  volume  = {39},
+  number  = {10},
+  pages   = {6388--6396},
+  year    = {2012},
+  doi     = {10.1118/1.4754649}
+}
+
+@article{murphy2020ili,
+  author  = {Scott, J. M. and Arani, A. and Manduca, A. and McGee, K. P. and Trzasko, J. D. and Huston, J., III and Ehman, R. L. and Murphy, M. C.},
+  title   = {Artificial neural networks for magnetic resonance elastography stiffness estimation in inhomogeneous materials},
+  journal = {Medical Image Analysis},
+  volume  = {63},
+  pages   = {101710},
+  year    = {2020},
+  doi     = {10.1016/j.media.2020.101710}
+}
+
+% ── Tissue strain mapping (the headline clinical hypothesis) ──────────────────
+
+@article{yin2025tsm,
+  author  = {Yin, Z. and others},
+  title   = {Tissue strain mapping via magnetic resonance elastography can be used to detect active lesion expansion},
+  journal = {Magnetic Resonance in Medicine},
+  year    = {2025},
+  note    = {Early view; \url{https://onlinelibrary.wiley.com/doi/10.1002/mrm.70311}},
+  doi     = {10.1002/mrm.70311}
+}
+
+% ── Recent DL inversion for MRE ───────────────────────────────────────────────
+
+@inproceedings{ragoza2023pinn,
+  author    = {Ragoza, Matthew and Batmanghelich, Kayhan},
+  title     = {Physics-informed neural networks for tissue elasticity reconstruction in magnetic resonance elastography},
+  booktitle = {Medical Image Computing and Computer-Assisted Intervention (MICCAI)},
+  series    = {LNCS},
+  volume    = {14222},
+  year      = {2023},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-031-43996-4_31}
+}
+
+@article{ma2023twenn,
+  author  = {Ma, Shengyuan and Wang, Runke and Qiu, Suhao and Li, Ruokun and Yue, Qi and Sun, Qingfang and Chen, Liang and Yan, Fuhua and Yang, Guang-Zhong and Feng, Yuan},
+  title   = {{MR} elastography with optimization-based phase unwrapping and traveling wave expansion-based neural network ({TWENN})},
+  journal = {IEEE Transactions on Medical Imaging},
+  volume  = {42},
+  number  = {9},
+  pages   = {2631--2642},
+  year    = {2023},
+  doi     = {10.1109/TMI.2023.3262285}
+}
+
+@article{iftikhar2024dime,
+  author  = {Iftikhar, Hassan and Ahmad, Rizwan and Kolipaka, Arunark},
+  title   = {Deep learning-driven inversion framework for shear modulus estimation in magnetic resonance elastography ({DIME})},
+  journal = {arXiv preprint arXiv:2412.13010},
+  year    = {2024}
+}
+
+@article{bustin2025elastonet,
+  author  = {Bustin, H{\'e}lo{\"i}se and Meyer, Tom and Reiter, Rolf and Jordan, Jakob and Walczak, Lars and Tzsch{\"a}tzsch, Heiko and Sack, Ingolf and Hennemuth, Anja},
+  title   = {{ElastoNet}: Neural network-based multicomponent {MR} elastography wave inversion with uncertainty quantification},
+  journal = {Medical Image Analysis},
+  year    = {2025},
+  doi     = {10.1016/j.media.2025.103642}
+}
+
+@article{zhang2025fdtdnet,
+  author  = {Zhang, Jiaying and Mu, Xin and Lin, Xi and Kong, Xiangwei and Li, Yanbin and Du, Lianjun and Xu, Xueqin and Zhang, Jeff L.},
+  title   = {Quantification of tissue stiffness with magnetic resonance elastography and finite difference time domain ({FDTD}) simulation-based spatiotemporal neural network},
+  journal = {Magnetic Resonance Imaging},
+  volume  = {118},
+  pages   = {110265},
+  year    = {2025},
+  doi     = {10.1016/j.mri.2025.110265}
+}
+
+@article{herasrivera2025onli,
+  author  = {Heras Rivera, Juampablo E. and Neher, Caitlin M. and Kurt, Mehmet},
+  title   = {Real-time nonlinear inversion of magnetic resonance elastography with operator learning},
+  journal = {arXiv preprint arXiv:2510.03372},
+  year    = {2025}
+}
+
+@inproceedings{kim2025pino,
+  author    = {Kim, Y. and Lee, J. Y. and Kwon, J.},
+  title     = {Physics-informed neural operators for tissue elasticity reconstruction},
+  booktitle = {Medical Image Computing and Computer-Assisted Intervention (MICCAI)},
+  year      = {2025},
+  publisher = {Springer}
+}
+
+@inproceedings{bustin2025mfelastonet,
+  author    = {Bustin, H{\'e}lo{\"i}se and Meyer, Tom and Jordan, Jakob and Walczak, Lars and Tzsch{\"a}tzsch, Heiko and Sack, Ingolf and Hennemuth, Anja},
+  title     = {Multifrequency neural network-based wave inversion in {MR} elastography ({MF-ElastoNet})},
+  booktitle = {Medical Image Computing and Computer-Assisted Intervention (MICCAI)},
+  year      = {2025},
+  publisher = {Springer}
+}
+
+% ── Benchmarks and datasets ───────────────────────────────────────────────────
+
+@article{wang2025dataset,
+  author  = {Wang, Runke and others},
+  title   = {{MR} elastography datasets including phantom, liver, and brain},
+  journal = {Scientific Data},
+  volume  = {12},
+  pages   = {1547},
+  year    = {2025},
+  doi     = {10.1038/s41597-025-05968-9}
+}
+
+@article{verma2026simbench,
+  author  = {Verma, Yashasvi and Schattenfroh, Jakob and Sack, Ingolf and Budday, Silvia and Steinmann, Paul and Heltai, Luca},
+  title   = {Simulation platform to evaluate inversion techniques for magnetic resonance elastography data},
+  journal = {arXiv preprint arXiv:2604.02435},
+  year    = {2026}
+}
+
+% ── Clinical MRE applications ─────────────────────────────────────────────────
+
+@article{yin2025liver,
+  author  = {Yin, Z. and Glaser, K. J. and Manduca, A. and Ehman, R. L.},
+  title   = {Liver {MR} elastography: clinical applications and future directions},
+  journal = {Radiology},
+  year    = {2025},
+  note    = {Review article}
+}
+
+@article{ali2025deepliver,
+  author  = {Ali, Redha and Li, Hailong and Zhang, Huixian and Pan, Wen and Reeder, Scott B. and Harris, David and Masch, William and Aslam, Anum and Shanbhogue, Krishna and Bernieh, Anas and Ranganathan, Sarangarajan and Parikh, Nehal and Dillman, Jonathan R. and He, Lili},
+  title   = {Multi-site, multi-vendor development and validation of a deep learning model for liver stiffness prediction using abdominal biparametric {MRI}},
+  journal = {European Radiology},
+  volume  = {35},
+  number  = {7},
+  pages   = {4362--4373},
+  year    = {2025},
+  doi     = {10.1007/s00330-024-11312-3}
+}
+
+@article{he2025glioma,
+  author  = {He, Siyuan and Zhou, Wenwen and Hu, Tianyu and Huang, Yingqian and Zhu, NengJin and Mazu, Liwei and Wang, Wei and Zhang, Nu and He, Kejun and Chu, Jianping},
+  title   = {Biomechanical stiffness of gliomas, meningiomas, and schwannomas assessed by {MR} elastography and virtual {MR} elastography},
+  journal = {Journal of Magnetic Resonance Imaging},
+  year    = {2025},
+  doi     = {10.1002/jmri.29701}
+}
+
+@article{murphy2024lowfreq,
+  author  = {Murphy, M. C. and others},
+  title   = {Low-frequency {MR} elastography reveals altered deep gray matter viscoelasticity in multiple sclerosis},
+  journal = {NeuroImage: Clinical},
+  volume  = {42},
+  pages   = {103600},
+  year    = {2024},
+  doi     = {10.1016/j.nicl.2024.103600}
+}
+
+@article{sinha2025breast,
+  author  = {Sinha, A. P. and Jurrius, P. and van Schelt, A. S. and Darwish, O. and others},
+  title   = {Tumor biomechanics quantified using {MR} elastography to predict response to neoadjuvant chemotherapy in individuals with breast cancer},
+  journal = {Radiology: Imaging Cancer},
+  volume  = {7},
+  number  = {2},
+  pages   = {e240128},
+  year    = {2025}
+}
+
+% ── Methods foundations ───────────────────────────────────────────────────────
+
+@inproceedings{li2020fno,
+  author    = {Li, Zongyi and Kovachki, Nikola B. and Azizzadenesheli, Kamyar and Liu, Burigede and Bhattacharya, Kaushik and Stuart, Andrew M. and Anandkumar, Anima},
+  title     = {{Fourier} neural operator for parametric partial differential equations},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2021}
+}
+
+@article{kovachki2023neuraloperator,
+  author  = {Kovachki, Nikola B. and Li, Zongyi and Liu, Burigede and Azizzadenesheli, Kamyar and Bhattacharya, Kaushik and Stuart, Andrew M. and Anandkumar, Anima},
+  title   = {Neural operator: Learning maps between function spaces with applications to {PDE}s},
+  journal = {Journal of Machine Learning Research},
+  volume  = {24},
+  number  = {89},
+  pages   = {1--97},
+  year    = {2023}
+}
+
+@article{raissi2019pinn,
+  author  = {Raissi, M. and Perdikaris, P. and Karniadakis, G. E.},
+  title   = {Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations},
+  journal = {Journal of Computational Physics},
+  volume  = {378},
+  pages   = {686--707},
+  year    = {2019},
+  doi     = {10.1016/j.jcp.2018.10.045}
+}
+
+@article{pao1984acoustoelastic,
+  author  = {Pao, Y.-H. and Sachse, W. and Fukuoka, H.},
+  title   = {Acoustoelasticity and ultrasonic measurements of residual stresses},
+  journal = {Physical Acoustics},
+  volume  = {17},
+  pages   = {61--143},
+  year    = {1984}
+}

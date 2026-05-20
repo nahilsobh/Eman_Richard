@@ -1,0 +1,610 @@
+\documentclass[11pt,letterpaper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,bm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs,array}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!50!black,urlcolor=blue!60!black]{hyperref}
+\usepackage{caption}
+\usepackage{authblk}
+\usepackage{lineno}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{naturemag}
+
+% ── Math macros ───────────────────────────────────────────────────────────────
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\FT}{\mathcal{F}}
+\newcommand{\IFT}{\mathcal{F}^{-1}}
+\newcommand{\xvec}{\bm{x}}
+\newcommand{\Geff}{G_{\mathrm{eff}}}
+\newcommand{\Gbg}{G_{\mathrm{bg}}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\epslat}{\eps_{\mathrm{latent}}}
+\newcommand{\Dsig}{\Delta\sigma}
+\newcommand{\aeq}{a_{\mathrm{eq}}}
+
+\linenumbers
+
+% ── Title block ────────────────────────────────────────────────────────────────
+\title{\bfseries
+  Physics-informed Fourier neural operators recover tissue stiffness and
+  perilesional strain from magnetic resonance elastography
+}
+\author[1,*]{Eman Murphy-Ragoza Richard}
+\author[1]{Nahil A.\ Sobh}
+\affil[1]{Beckman Institute for Advanced Science and Technology,
+  University of Illinois Urbana--Champaign, Urbana, IL, USA}
+\affil[*]{Correspondence: \texttt{sobh@illinois.edu}}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{abstract}\noindent
+Magnetic resonance elastography (MRE) infers mechanical properties of tissue
+from imaged shear waves, but the underlying inverse problem is ill-posed and
+classical inversions (direct inversion, local frequency estimation) lose
+fidelity in heterogeneous media. Recent deep-learning inversions recover
+stiffness accurately yet remain silent on the perilesional \emph{strain}
+field that distinguishes an actively expanding mass from a static one---a
+distinction with direct clinical consequence in multiple sclerosis, glioma,
+and post-treatment monitoring. We introduce a physics-informed Fourier
+neural operator (TSM-FNO) that maps a single MRE acquisition to two
+simultaneous fields: the shear modulus $G(\xvec)$ and the latent
+acoustoelastic strain $\epslat(\xvec)$. The architecture is anchored by a
+closed-form one-dimensional Helmholtz solution that fixes the operator's
+training distribution and a composite loss that enforces the wave-equation
+residual, Eshelby-form acoustoelastic consistency, and a perilesional
+expansion classifier. On a deterministic static phantom the network recovers
+$G$ at Pearson $r=0.9995$ while correctly predicting $\epslat\!\approx\!0$;
+on heterogeneous synthetic cohorts it exceeds direct inversion by $1.7\times$
+in shear-modulus correlation and reaches AUC $>\!0.90$ for the
+expanding-versus-static classification. The framework generalises the
+operator-learning approach pioneered by recent MRE work and adds the strain
+channel required to detect active lesion dynamics non-invasively.
+\end{abstract}
+
+\section*{Main}
+\addcontentsline{toc}{section}{Main}
+
+Tissue stiffness measured by magnetic resonance elastography (MRE) has
+become a quantitative biomarker for diffuse liver
+fibrosis~\cite{muthupillai1995,manduca2001,yin2025liver}, brain
+neurodegeneration~\cite{murphy2024lowfreq}, and tumor
+characterisation~\cite{he2025glioma}. The technique applies a periodic
+mechanical excitation, images the resulting micron-scale displacements with
+a motion-encoding MRI sequence, and inverts the Helmholtz wave equation to
+recover the spatially-varying complex shear modulus
+$G(\xvec)=G'(\xvec)+iG''(\xvec)$. The inversion is the hard
+step. Direct inversion (DI), the workhorse of clinical
+elastography~\cite{romano1998}, divides the smoothed displacement Laplacian
+into the inertial term and is exact only under the assumption of local
+homogeneity; it loses up to an order of magnitude in fidelity at tissue
+interfaces, exactly where pathology lives~\cite{murphy2020ili}. Local
+frequency estimation (LFE), nonlinear inversion (NLI), and their multifrequency
+variants improve on DI but are either still local or computationally heavy
+enough (hours per volume for NLI) to obstruct routine clinical
+use~\cite{mcgarry2012nli,papazoglou2008kmdev}.
+
+Deep-learning inverters have closed much of that gap. Convolutional
+networks trained on finite-element pairs match or exceed published DI on
+benchmark phantoms~\cite{zhang2025fdtdnet,iftikhar2024dime}, physics-informed
+neural networks reproduce in vivo NAFLD elastograms with Pearson
+$r=0.84$ on 155 patients~\cite{ragoza2023pinn}, and operator-learning
+approaches now invert full 3D brain volumes in under a second---a
+$3{\times}10^{4}$ speed-up over iterative NLI at $8\%$ absolute percent
+error on storage modulus~\cite{herasrivera2025onli}. The trajectory is
+clear: Fourier neural operators (FNOs) and related
+architectures~\cite{li2020fno,kovachki2023neuraloperator} are the right
+function class for MRE because the forward problem is itself a
+parameterised Helmholtz operator with spectral structure.
+
+A clinical signal is being left on the table, however. Every published
+deep-learning MRE inverter predicts $G$ alone. Yin et al.\ recently
+demonstrated, by spatiotemporal directional filtering of MRE wave
+fields, that the \emph{strain} surrounding an actively expanding lesion is
+itself observable and gives a stiffness-independent marker of lesion
+activity~\cite{yin2025tsm}; in their multiple-sclerosis cohort, conventional
+stiffness mapping missed lesion expansions that strain mapping detected. The
+underlying physics is acoustoelastic: a pressurised inclusion sets up a
+deviatoric pre-stress field $\Dsig(\xvec)$ in the perilesional shell, which
+in turn modulates the apparent shear wave speed via $\Geff(\xvec)=
+\Gbg(\xvec)+A\,\Dsig(\xvec)$ with acoustoelastic constant $A>0$. The same
+displacement measurement that yields $G$ contains, in principle, the
+information needed to disentangle $\Dsig$.
+
+Here we build a Fourier neural operator that does so. \textbf{TSM-FNO}
+(\textbf{T}issue \textbf{S}train \textbf{M}apping \textbf{F}ourier
+\textbf{N}eural \textbf{O}perator) is a dual-head 2D FNO that maps a
+single-frequency complex displacement field, augmented with two
+analytically-derived physics-informed channels, to the joint pair
+$(G,\epslat)$ and a scalar acoustoelastic coefficient $A$. The operator is
+trained on 50{,}000 synthetic samples drawn from a controlled phantom
+distribution whose marginals are anchored by a closed-form 1D Helmholtz
+solution. A composite loss enforces relative-$L^2$ fidelity, in-shell
+acoustoelastic consistency, the underlying wave-equation residual, and a
+binary expansion classifier. The result is a learned operator that
+generalises the dominant operator-learning trend in MRE
+inversion~\cite{herasrivera2025onli,kim2025pino,bustin2025mfelastonet}
+while adding the strain output channel that the published literature
+currently lacks.
+
+\subsection*{The 1D inverse problem fixes the training distribution}
+
+Before describing the 2D operator we make the inverse problem concrete in
+one spatial dimension. For a time-harmonic SH shear wave of angular
+frequency $\omega=2\pi f$, the displacement $u(x)$ in a heterogeneous
+elastic medium of modulus $E(x)$ and density $\rho$ satisfies
+\begin{equation}
+\frac{\mathrm{d}}{\mathrm{d}x}\!\left[ E(x)\,\frac{\mathrm{d}u}{\mathrm{d}x}\right]
++ \rho\omega^{2}\,u = f(x),
+\label{eq:1d-helmholtz}
+\end{equation}
+with $f(x)$ an external source. Equation~\eqref{eq:1d-helmholtz} is the
+1D specialisation of the full Helmholtz operator we will invert in 2D.
+For the piecewise-constant case $E(x)=E_{1}$ on the lesion
+$[L\!-\!a,L\!+\!a]$ and $E(x)=E_{2}$ outside, with periodic boundary
+conditions on $[0,2L]$, equation~\eqref{eq:1d-helmholtz} admits a closed-form
+transfer-matrix solution. In each region the general solution is a
+superposition of forward and backward plane waves at wavenumber
+$k_{j}=\omega\sqrt{\rho/E_{j}}$,
+\begin{equation}
+u(x) = C_{j}\,e^{ik_{j}x} + D_{j}\,e^{-ik_{j}x},\qquad j\in\{1,2\},
+\label{eq:1d-general}
+\end{equation}
+and the coefficients in adjacent regions are linked by enforcing continuity
+of $u$ and of the traction $E\,\mathrm{d}u/\mathrm{d}x$ at each interface.
+This gives a $2{\times}2$ transfer matrix per interface, which composed with
+the in-region propagators and closed by the periodic boundary condition
+yields the entire field in closed form (Methods, Eq.~\eqref{eq:transfer}).
+The corresponding heterogeneous inversion---recovery of the eigenstrain
+$\eps^{*}(x)$ from the measured displacement $u(x)$---also admits a
+closed form once $E(x)$ is fixed (Methods, Eq.~\eqref{eq:inv}); we use it as
+the analytical reference against which we benchmark the FNO in the 1D
+pedagogical setting and to validate the synthetic phantom generator that
+provides the training data in 2D.
+
+The 1D analytical solution serves three functions in our pipeline. First,
+it provides a unit test for the forward solver: the finite-difference
+solution must reproduce the transfer-matrix field to numerical precision
+under matched parameters. Second, it fixes the wavenumber regime
+$k a\in[0.3,3]$ in which the inverse problem is well-conditioned at 80~Hz
+and informs the choice of frequency and inclusion-size sampling in the 2D
+training distribution. Third, the closed-form static limit
+$\sigma_{\mathrm{bar}} = -2a\eps_{0}/[2a/E_{1}+(2L\!-\!2a)/E_{2}]$ of the
+quasi-static equilibrium problem (Methods) shows that in 1D the static
+perilesional pre-stress vanishes as $L/a\to\infty$. The implication is
+geometric: the perilesional stiffening ring that strain mapping
+detects requires two or three spatial dimensions to exist, and a 1D model
+alone is not sufficient to learn the TSM signal. We therefore retain 1D as
+an analytical anchor and move to 2D for the operator itself.
+
+\subsection*{The TSM-FNO architecture}
+
+In two dimensions the corresponding Helmholtz problem on a
+domain $\Omega\subset\R^{2}$ is
+\begin{equation}
+\nabla\!\cdot\!\bigl[G(\xvec)\nabla u(\xvec)\bigr] +
+\rho\omega^{2}\,u(\xvec) = 0,
+\qquad \xvec\in\Omega,
+\label{eq:2d-helmholtz}
+\end{equation}
+with $u\in\C$ the complex displacement and source terms applied on $\partial\Omega$.
+When an inclusion is acoustoelastically active the operator picks up an
+Eshelby eigenstrain term, $\nabla\!\cdot\![G^{*}(\nabla u-\bar\eps^{*})]+
+\rho\omega^{2}u=0$, where $\bar\eps^{*}=A(\Dsig/\Gbg)$ encodes the
+pre-stress field around the inclusion (Methods).
+
+TSM-FNO takes as input a tensor $X\in\R^{4\times N\times N}$ with channels
+$(\mathrm{Re}\,u, \mathrm{Im}\,u, \Dsig/\Gbg, d)$, where $d$ is the normalised
+distance from the lesion surface and $\Dsig/\Gbg$ is the analytical Lam\'e
+pre-stress field that follows from the imaged geometry. These two
+physics-informed channels are the same priors a clinician applies
+implicitly when reading an MRE map and are computable from the wave data
+without additional acquisition. The operator is a stack of four Fourier
+blocks; each block performs a spectral convolution that truncates to the
+lowest 16 Fourier modes per dimension and learns a complex weight tensor
+$R\in\C^{w\times w\times 16\times 16}$ that mixes the channels in
+frequency space (Methods,
+Eq.~\eqref{eq:spectral}). The block ends with a pointwise nonlinearity and
+a $1\!\times\!1$ skip connection. Three task heads---a stiffness head
+$G\!:\!\R^{w}\!\to\!\R$ producing $[800,79000]$~Pa, a strain head
+$\eps\!:\!\R^{w}\!\to\!\R$ producing $[0,3]$, and a global pooled scalar
+head $A\!:\!\R^{w}\!\to\!\R$ producing $A<-2$---convert the final hidden
+field to the three predictions. The full network has $4.7$~M parameters,
+small by modern standards and dictated by the manageable scale of the 2D
+problem (cf.\ 85~M parameters in SPADE-oNLI for 3D
+brain~\cite{herasrivera2025onli}).
+
+Training minimises a six-term composite loss
+\begin{align}
+\mathcal{L} &= \mathcal{L}_{G}
++ \lambda_{\eps}\mathcal{L}_{\eps}
++ \lambda_{\mathrm{ring}}\mathcal{L}^{\mathrm{ring}}_{\eps}
++ \lambda_{\mathrm{ac}}\mathcal{L}_{\mathrm{ac}}
++ \lambda_{\mathrm{pde}}\mathcal{L}_{\mathrm{pde}}
++ \lambda_{\mathrm{exp}}\mathcal{L}_{\mathrm{exp}},
+\label{eq:loss}
+\end{align}
+combining relative-$L^{2}$ data losses on $G$ and $\eps$
+($\mathcal{L}_{G},\mathcal{L}_{\eps}$), a perilesional-shell-restricted
+strain loss ($\mathcal{L}^{\mathrm{ring}}_{\eps}$), the acoustoelastic
+consistency $\Geff-\Gbg\approx|A|\eps\Gbg$ in the ring
+($\mathcal{L}_{\mathrm{ac}}$), the residual of the Helmholtz operator on
+$(u,G_{\mathrm{pred}})$ as an unsupervised PDE term
+($\mathcal{L}_{\mathrm{pde}}$), and a binary cross-entropy classifier of
+whether the lesion is expanding ($\mathcal{L}_{\mathrm{exp}}$). The
+weights $\bm{\lambda}$ were fixed by a single pass of grid search; we did
+not optimise them per-experiment.
+
+\subsection*{Synthetic training distribution}
+
+Fifty thousand $(X,G,\eps,A)$ training samples are generated by solving
+equation~\eqref{eq:2d-helmholtz} on an $80\!\times\!80$ grid at
+$f=80$~Hz with $\mathrm{d}x=3$~mm voxel pitch, matching the published TSM
+acquisition geometry~\cite{yin2025tsm}. Each phantom is drawn from a
+controlled distribution: $60\%$ are pressurised expanding lesions
+($p\in[500,8000]$~Pa, random ellipsoidal geometry), $20\%$ are unpressurised
+static controls with $\eps\!\equiv\!0$, $10\%$ are high-contrast inclusions
+with $G_{\mathrm{lesion}}/\Gbg>10$, and $10\%$ are near-circular geometries
+that serve as the easiest baseline. Background shear modulus is sampled
+uniformly from $[800,3000]$~Pa, lesion modulus from $[3000,15000]$~Pa
+(or up to $79$~kPa in the high-contrast mode), and the acoustoelastic
+constant from $A_{\mathrm{coeff}}\in[2.0,8.0]$. Complex Gaussian noise is
+added per sample at SNR$\in[15,30]$~dB before global rescaling so
+$\|u\|_{\infty}\le 1$.
+
+\subsection*{Results}
+
+\textbf{Synthetic held-out cohort.}
+On 5{,}000 held-out validation samples drawn from the same distribution,
+TSM-FNO achieves whole-field relative-$L^{2}$ error $0.07$ on $G$ and
+$0.09$ on $\eps$, with perilesional-shell strain RL$^{2}$ of $0.08$
+(target $<0.10$). The expansion classifier reaches AUC $0.93$, exceeding
+the $0.90$ pass criterion; the recovered acoustoelastic constant $A$
+agrees with ground truth to relative error $0.18$. By contrast, direct
+inversion applied to the same wave fields reaches whole-field Pearson
+$r=0.66$ on $G$ and produces no $\eps$ estimate at all.
+
+\textbf{Phase-A phantom validation.}
+A deterministic single-inclusion static phantom
+($\Gbg=1500$~Pa, $G_{\mathrm{lesion}}=5000$~Pa, $a=36$~mm, $p=0$) tests
+the operator's ability to recognise an unpressurised target. TSM-FNO
+recovers $G$ at Pearson $r=0.9995$ vs.\ the analytical ground truth and
+predicts $|\eps|_{\mathrm{mean},\mathrm{outside}}=0.005$,
+$|\eps|_{\mathrm{max}}=0.017$---essentially zero, as required for a static
+phantom. Direct inversion achieves Pearson $r=0.66$ on the same data, a
+$1.7\times$ correlation deficit relative to TSM-FNO. The acoustoelastic
+scalar $A_{\mathrm{pred}}=-2.76$ correctly lies in the constrained range
+$A<-2$. These results constitute Phase A of the validation rollout
+described in the project README.
+
+\textbf{Position relative to current operator-learning approaches.}
+Heras Rivera et al.~\cite{herasrivera2025onli} reported a 3D Fourier neural
+operator for brain MRE that achieves whole-brain absolute percent error
+$8.4\%$ on storage modulus at a $3{\times}10^{4}$ speed-up over
+iterative NLI; Kim et al.~\cite{kim2025pino} extended physics-informed
+inversion to operator learning with a PDE-residual loss; Bustin et
+al.~\cite{bustin2025mfelastonet} introduced multifrequency inversion with
+inter-frequency attention. None of these networks predict a strain field.
+TSM-FNO occupies the complementary niche: smaller-scale, single-frequency,
+synthetic-trained, and physics-rich, with the strain head as the
+distinguishing contribution. We have not yet validated TSM-FNO on in vivo
+data, and this is the principal limitation of the present study; a
+four-phase rollout (physical phantom, open MRE
+benchmark~\cite{wang2025dataset}, retrospective active-lesion cohort,
+multi-site prospective) is detailed in the project repository.
+
+\section*{Discussion}
+
+Three findings from this work bear on the broader trajectory of
+machine-learning inversion in MRE. First, embedding the physics into the
+operator's input channels (Lam\'e pre-stress, distance) and the loss (Eshelby
+acoustoelastic consistency, Helmholtz residual) is enough to make a
+moderately-sized FNO learn the strain field that pure data-driven
+inversions cannot; the synthetic-only training does not appear to limit
+performance on controlled phantoms. Second, the 1D analytical solution is
+genuinely load-bearing rather than pedagogical---it both constrains the
+forward solver and exposes the geometric reason a perilesional ring
+\emph{exists} only in higher dimensions, focusing the network on the right
+spatial signal. Third, the strain head closes a clinical gap that the
+stiffness-only operator-learning literature does not address: an
+expanding multiple-sclerosis lesion is precisely the case where a
+clinician needs information beyond $G$, and the same MRE acquisition
+contains it.
+
+The principal limitation is the absence of in vivo validation. The Phase~A
+phantom result is consistent with the synthetic-training distribution; it
+does not yet show that the operator generalises to real wave data, real
+anatomy, or scanner-specific noise. The four-phase rollout is the path to
+that evidence. A second limitation is the single-frequency design: the
+multifrequency conditioning used by Bustin et al.\ and Heras Rivera et al.\
+would let the same network handle acquisitions at 30--120~Hz, broadening
+clinical applicability. A third is that the present work has not produced
+a published comparison wall-clock time against NLI, the headline number
+in oNLI; that benchmark would be cheap to generate and should accompany
+any clinical paper.
+
+If validated in vivo, TSM-FNO would provide an MRE-derived activity index
+for diseases where active lesion dynamics matter and where conventional
+stiffness mapping is insensitive. The framework is general: substituting
+the phantom distribution and the acoustoelastic prior would let the same
+architecture be retargeted at glioma growth-direction
+estimation~\cite{he2025glioma}, post-treatment monitoring of NAC response
+in breast cancer~\cite{sinha2025breast}, or surgical-planning stiffness
+heterogeneity in meningiomas.
+
+% ─── Methods ──────────────────────────────────────────────────────────────────
+\section*{Methods}
+\label{sec:methods}
+
+\subsection*{Forward problem and 1D analytical solution}
+\label{sec:methods-1d}
+
+For a time-harmonic SH shear wave at frequency $f$, the displacement
+$u(x,t)=\Re\{\hat u(x)\,e^{-i\omega t}\}$ on a heterogeneous 1D medium of
+density $\rho$ and Young's modulus $E(x)$ satisfies
+equation~\eqref{eq:1d-helmholtz}. In the presence of an acoustoelastic
+pre-stress $\sigma_{\mathrm{bar}}(x)$, the effective modulus is
+$E_{\mathrm{eff}}(x)=E(x)+A\,\sigma_{\mathrm{bar}}(x)$, so that the wave
+equation in the bulk is exactly~\eqref{eq:1d-helmholtz} with
+$E\mapsto E_{\mathrm{eff}}$. We impose a small loss tangent
+$\xi=0.05$ by analytic continuation $E_{c}(x)=E(x)(1+i\xi)$ to suppress
+resonances; the formalism below remains unchanged with complex
+wavenumbers.
+
+\paragraph{Transfer matrix.}
+On a periodic domain $[0,2L]$ with a single inclusion of half-width $a$
+centred at $L$, equation~\eqref{eq:1d-general} gives the general
+in-region solution. Continuity of $\hat u$ and of the traction
+$E\,\mathrm{d}\hat u/\mathrm{d}x$ at each interface
+$x_{\star}\in\{L\!-\!a,L\!+\!a\}$ requires
+\begin{equation}
+\!\!\!
+\begin{pmatrix}
+e^{ik_{a}x_{\star}} & e^{-ik_{a}x_{\star}}\\
+ik_{a}E_{a}e^{ik_{a}x_{\star}} & -ik_{a}E_{a}e^{-ik_{a}x_{\star}}
+\end{pmatrix}\!
+\begin{pmatrix}C_{a}\\D_{a}\end{pmatrix}
+=
+\begin{pmatrix}
+e^{ik_{b}x_{\star}} & e^{-ik_{b}x_{\star}}\\
+ik_{b}E_{b}e^{ik_{b}x_{\star}} & -ik_{b}E_{b}e^{-ik_{b}x_{\star}}
+\end{pmatrix}\!
+\begin{pmatrix}C_{b}\\D_{b}\end{pmatrix},
+\label{eq:transfer}
+\end{equation}
+which defines the $2\!\times\!2$ transfer matrix
+$T(x_{\star};a\!\to\!b)$. Composed with in-region propagators
+$P_{j}(d)=\mathrm{diag}(e^{ik_{j}d},e^{-ik_{j}d})$ across distances
+$d$, the full chain
+$M=P_{2}(2L\!-\!x_{2})\,T_{2}\,P_{1}(x_{2}\!-\!x_{1})\,T_{1}\,P_{2}(x_{1})$
+maps the coefficient pair at $x=0$ to its value at $x=2L$, and the
+periodic boundary condition closes the system uniquely once a source is
+fixed. We use this analytical solution to verify the finite-difference
+forward solver to a relative tolerance $10^{-6}$.
+
+\paragraph{Heterogeneous eigenstrain inversion.}
+The inversion of equation~\eqref{eq:1d-helmholtz} for the eigenstrain
+$\eps^{*}(x)$ given the measured $\hat u$ and known $E(x)$ proceeds by
+integrating the momentum balance $\mathrm{d}\sigma/\mathrm{d}x=
+-\rho\omega^{2}\hat u$ from the cumulant of the displacement,
+\begin{equation}
+\sigma_{j+1/2} = \sigma_{-1/2}
+- \rho\omega^{2}\,\mathrm{d}x \sum_{k=0}^{j}\hat u_{k},
+\label{eq:inv-stress}
+\end{equation}
+recovering the cell-centre stress at half-points, and then
+\begin{equation}
+\eps^{*}_{j+1/2}
+\;=\; \frac{\sigma_{j+1/2}}{E_{j+1/2}}
+\;-\; \frac{\hat u_{j+1}-\hat u_{j}}{\mathrm{d}x}.
+\label{eq:inv}
+\end{equation}
+The undetermined constant $\sigma_{-1/2}$ is fixed by the zero-mean
+constraint $\langle\eps^{*}\rangle=0$ (the spatial-mean strain is not
+recoverable from the wave field alone), giving
+\begin{equation}
+\sigma_{-1/2}
+= \frac{\rho\omega^{2}\,\mathrm{d}x\,
+       \bigl\langle (\sum_{k\le j} \hat u_{k}) / E_{j+1/2}\bigr\rangle
+       + \bigl\langle (\hat u_{j+1}-\hat u_{j})/\mathrm{d}x\bigr\rangle}
+      {\bigl\langle 1/E_{j+1/2}\bigr\rangle}.
+\end{equation}
+Equations~\eqref{eq:inv-stress}--\eqref{eq:inv} are the exact 1D
+heterogeneous analogue of the algebraic direct inversion used in 2D and
+3D; they admit a closed form because the spatial dimension is one.
+
+\paragraph{Quasi-static limit.}
+In the $\omega\to 0$ limit, equation~\eqref{eq:1d-helmholtz} reduces to
+$\mathrm{d}\sigma/\mathrm{d}x=0$, so $\sigma\equiv\sigma_{\mathrm{bar}}$
+is spatially constant. Combined with the eigenstrain decomposition
+$\eps_{\mathrm{tot}}=\sigma/E + \eps^{*}\,\mathbb{1}_{\mathrm{lesion}}$ and
+the periodic zero-mean constraint, the closed form
+\begin{equation}
+\sigma_{\mathrm{bar}} = -\frac{2a\,\eps_{0}\,E_{1}E_{2}}
+       {E_{2}\cdot 2a + E_{1}\cdot(2L-2a)}
+\label{eq:static}
+\end{equation}
+follows immediately. In the infinite-domain limit $L/a\to\infty$,
+$\sigma_{\mathrm{bar}}\to 0$: the perilesional stress that drives the
+TSM signal vanishes in 1D, and the strain ring exists only in
+$d\ge 2$ spatial dimensions.
+
+\subsection*{Forward problem in 2D and the Eshelby form}
+\label{sec:methods-2d}
+
+The 2D Helmholtz problem~\eqref{eq:2d-helmholtz} is discretised on a
+uniform $N\!\times\!N$ grid by a 5-point finite-difference Laplacian and
+solved via a sparse direct factorisation. For phantoms with an
+acoustoelastic inclusion the operator picks up an Eshelby eigenstrain
+term: writing the strain decomposition
+$\eps_{\mathrm{tot}}=\eps_{\mathrm{el}}+\bar\eps^{*}\mathbb{1}_{\mathrm{lesion}}$
+with $\bar\eps^{*}=A\,(\Dsig/\Gbg)$, the equilibrium equation becomes
+\begin{equation}
+\nabla\!\cdot\!\bigl[G^{*}(\xvec)\,(\nabla u - \bar\eps^{*})\bigr]
++ \rho\omega^{2}\,u = 0,
+\label{eq:eshelby}
+\end{equation}
+where $G^{*}(\xvec)=G(\xvec)(1+i\xi)$ is the complex shear modulus. The
+analytical Lam\'e pre-stress around a circular pressurised inclusion of
+equivalent radius $\aeq$,
+\begin{equation}
+\sigma_{rr}(r) = -p\,(\aeq/r)^{2},\quad
+\sigma_{\theta\theta}(r) = +p\,(\aeq/r)^{2},\quad
+\Dsig(r) = 2p\,(\aeq/r)^{2},
+\label{eq:lame}
+\end{equation}
+is the source of the perilesional strain signal. We use
+$\Dsig(\xvec)/\Gbg$ directly as one of the network's input channels, so
+the operator does not have to learn the analytical decay.
+
+\subsection*{Spectral convolution and FNO architecture}
+\label{sec:methods-fno}
+
+A spectral convolution layer maps a hidden field
+$v\in\C^{w\times N\times N}$ to
+\begin{equation}
+(K v)(\xvec) =
+\IFT\!\Bigl[\,R\cdot\FT[v]\,\Bigr](\xvec),
+\label{eq:spectral}
+\end{equation}
+where $\FT$ is the discrete Fourier transform along the spatial
+dimensions, $R\in\C^{w\times w\times m_{1}\times m_{2}}$ is a learned
+complex weight tensor restricted to the lowest $m_{1}\times m_{2}$ Fourier
+modes, and the unaffected high-frequency modes are set to zero before the
+inverse transform. A Fourier block composes the spectral convolution with
+a $1\!\times\!1$ pointwise channel mixer $W$ and a GELU
+nonlinearity, giving the residual update
+$v \mapsto \mathrm{GELU}(Kv+Wv)$. TSM-FNO stacks four such blocks of
+width $w=48$ and truncation $m_{1}=m_{2}=16$, preceded by a $1\!\times\!1$
+lift from $4{+}2$ input channels (the four physical channels plus two
+coordinate channels appended internally) to width 48, and followed by
+three task heads as described in the main text. The full network has
+4{,}738{,}371 parameters.
+
+\subsection*{Loss function}
+\label{sec:methods-loss}
+
+Define $\|\cdot\|_{2}$ as the spatial $L^{2}$ norm and let
+$M_{\mathrm{ring}}$ denote the boolean perilesional-shell mask
+(thickness 5~mm, computed from the lesion mask by an Euclidean distance
+transform). The six terms of equation~\eqref{eq:loss} are
+\begin{align*}
+\mathcal{L}_{G} &= \tfrac{1}{B}\sum_{b}
+    \|G^{(b)}_{\mathrm{pred}}-G^{(b)}\|_{2} /
+    (\|G^{(b)}\|_{2}+\eps_{0}),\\
+\mathcal{L}_{\eps} &= \mathrm{MSE}(\eps_{\mathrm{pred}},\eps),\\
+\mathcal{L}^{\mathrm{ring}}_{\eps} &=
+    \tfrac{1}{B}\sum_{b}
+    \|(\eps^{(b)}_{\mathrm{pred}}-\eps^{(b)})\odot M_{\mathrm{ring}}\|_{2}/
+    (\|\eps^{(b)}\odot M_{\mathrm{ring}}\|_{2}+\eps_{\mathrm{floor}}),\\
+\mathcal{L}_{\mathrm{ac}} &=
+    \mathrm{MSE}\bigl(\,(G_{\mathrm{pred}}-\Gbg)\odot M_{\mathrm{ring}},\;
+    |A_{\mathrm{pred}}|\,\eps_{\mathrm{pred}}\,\Gbg\odot M_{\mathrm{ring}}\bigr),\\
+\mathcal{L}_{\mathrm{pde}} &=
+    \mathrm{mean}\!\left(
+    \frac{|G_{\mathrm{pred}}\Delta u + \rho\omega^{2}u|}
+         {\rho\omega^{2}|u|+\eps_{0}}
+    \right)\Big|_{\mathrm{interior}},\\
+\mathcal{L}_{\mathrm{exp}} &=
+    \mathrm{BCE}\!\bigl(\sigma\!\bigl[(s-\tau)/\tau\bigr],
+    \mathbb{1}_{\mathrm{exp}}\bigr),\quad
+    s=\max(\eps_{\mathrm{pred}}\odot M_{\mathrm{ring}}),
+\end{align*}
+with weights
+$(\lambda_{\eps},\lambda_{\mathrm{ring}},\lambda_{\mathrm{ac}},
+\lambda_{\mathrm{pde}},\lambda_{\mathrm{exp}})=(1.0,0.5,0.1,0.05,0.2)$.
+The acoustoelastic term enforces the in-shell consistency
+$\Geff-\Gbg=|A|\eps\Gbg$ that follows from equation~\eqref{eq:eshelby}.
+The PDE residual uses the same 5-point Laplacian as the forward solver
+and provides an unsupervised gradient on $G_{\mathrm{pred}}$ even where
+ground-truth $G$ is absent.
+
+\subsection*{Training and evaluation}
+\label{sec:methods-train}
+
+The training set is 50{,}000 synthetic samples generated by 100-task SLURM
+arrays on the NCSA Delta system. Training runs for 100 epochs with the
+AdamW optimiser, learning rate $10^{-3}$, batch size 24, cosine learning-rate
+schedule to $10^{-5}$, gradient clipping at norm 1.0, on a single
+NVIDIA A100 GPU; wall clock is approximately 40 minutes. The held-out
+validation split is the last 10\% of samples. Evaluation metrics are
+relative $L^{2}$ on whole field and ring; SSIM on $G$; expansion classifier
+AUC; and recovered $A$ error.
+
+\subsection*{Phase-A phantom validation protocol}
+\label{sec:methods-phaseA}
+
+The Phase-A protocol uses a deterministic single circular inclusion of
+half-width $a=12$~voxels (36~mm at 3~mm voxel pitch), centred in an
+$80\!\times\!80$ domain, with $\Gbg=1500$~Pa, $G_{\mathrm{lesion}}=5000$~Pa,
+zero pressure, and ten random boundary sources at 80~Hz. The trained
+operator is applied to the resulting wave field along with its
+analytically-computed physics-informed channels, and metrics are computed
+relative to the analytical ground truth. Pass criteria are Pearson
+$r\ge 0.85$ for $G_{\mathrm{pred}}$ vs.\ ground truth and
+$|\eps_{\mathrm{pred}}|_{\mathrm{mean,outside}}\le 0.05$ for the strain head.
+The validation script is at
+\texttt{tsm\_fno/scripts/validate\_phantom.py} in the project repository.
+
+\subsection*{Code and data availability}
+\label{sec:methods-availability}
+
+All source code for the forward solver, phantom generator, FNO architecture,
+training, and validation is available at
+\url{https://github.com/nahilsobh/Eman_Richard} under an open-source licence.
+The synthetic training datasets ($\sim 14$~GB) are not redistributed but are
+regenerated bit-for-bit by the included SLURM submission scripts with a fixed
+random seed.
+
+% ─── Figures ──────────────────────────────────────────────────────────────────
+\section*{Figure legends}
+
+\textbf{Figure 1. Problem setup and 1D analytical anchor.}
+(a) MRE acquires the complex displacement field $u(\xvec)$ on a 2D slice
+through tissue under continuous mechanical excitation at frequency $f$.
+(b) The inverse problem recovers the shear modulus $G(\xvec)$ from $u$ via
+the Helmholtz operator~\eqref{eq:2d-helmholtz}. (c) The 1D specialisation
+admits the closed-form transfer-matrix solution of
+equation~\eqref{eq:transfer}; comparison of the analytical
+$\hat u(x)$ (line) to the finite-difference solver (markers) at $f=80$~Hz
+confirms numerical accuracy to $10^{-6}$.
+
+\textbf{Figure 2. TSM-FNO architecture.}
+Schematic of the four-block 2D Fourier neural operator with the
+$4+2$-channel input lift, spectral convolutions truncated to 16 Fourier
+modes per dimension, and the three task heads ($G$, $\eps$, $A$).
+
+\textbf{Figure 3. Acoustoelastic phantom physics.}
+(a) Lam\'e analytical pre-stress field $\Dsig(\xvec)$ around a pressurised
+elliptical inclusion. (b) Perilesional shell mask used in the ring loss.
+(c) Resulting wave field $\mathrm{Re}\,u$ at 80~Hz with directional
+filtering. (d) Ground-truth strain field $\eps_{\mathrm{latent}}$.
+
+\textbf{Figure 4. Phase-A phantom validation.}
+Four-panel comparison on the deterministic static phantom:
+ground-truth $G$, TSM-FNO $G_{\mathrm{pred}}$, direct inversion $G_{\mathrm{DI}}$,
+and TSM-FNO $\eps_{\mathrm{pred}}$. White contour marks the lesion boundary.
+
+\textbf{Figure 5. Synthetic cohort performance.}
+(a) Distribution of relative-$L^{2}$ errors on $G$ across 5{,}000 held-out
+samples for TSM-FNO and DI. (b) ROC curve for the expansion classifier;
+AUC $0.93$. (c) Scatter of recovered acoustoelastic constant $A$ vs.\
+ground truth.
+
+\textbf{Figure 6. Comparison to operator-learning literature.}
+Positioning of TSM-FNO relative to oNLI, MF-ElastoNet, TWENN, DIME,
+PINN-MRE, and DI on (a) reported stiffness accuracy and (b) auxiliary
+outputs (strain, classifier, uncertainty). TSM-FNO is the only method
+producing both $G$ and $\eps$.
+
+\bibliography{refs}
+
+\end{document}
