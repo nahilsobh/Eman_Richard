@@ -66,6 +66,39 @@ def G_profile(x: np.ndarray, p: BrainParams) -> np.ndarray:
     return base * (1.0 + 1j * p.xi)
 
 
+# ── symmetric (mirrored Euler) variant ───────────────────────────────────────
+
+@dataclass
+class SymmetricBrainParams:
+    """Symmetric power-law profile G(x) = Gc (1 + alpha |x - L/2|)^2 (1 + i xi).
+
+    G is smallest at the centre (Gc) and largest at the two boundaries
+    (Gb = Gc * (1 + alpha L/2)^2).
+    """
+    L:    float = L_DEFAULT
+    Gc:   float = 1500.0     # Pa, centre (minimum)
+    Gb:   float = 3500.0     # Pa, boundaries (maximum)
+    xi:   float = XI_DEFAULT
+    rho:  float = RHO_DEFAULT
+    freq: float = FREQ_DEFAULT
+
+    @property
+    def alpha(self) -> float:
+        # Gb = Gc (1 + alpha L/2)^2  ->  alpha = 2 (sqrt(Gb/Gc) - 1) / L
+        return 2.0 * (np.sqrt(self.Gb / self.Gc) - 1.0) / self.L
+
+    @property
+    def omega(self) -> float:
+        return 2.0 * np.pi * self.freq
+
+
+def G_profile_symmetric(x: np.ndarray, p: SymmetricBrainParams) -> np.ndarray:
+    """Symmetric complex shear modulus, V-shape with minimum at x = L/2."""
+    zeta = x - 0.5 * p.L
+    base = p.Gc * (1.0 + p.alpha * np.abs(zeta)) ** 2
+    return base * (1.0 + 1j * p.xi)
+
+
 # ── analytical solution ──────────────────────────────────────────────────────
 
 def analytical_solution(x: np.ndarray, p: BrainParams) -> np.ndarray:
@@ -87,6 +120,83 @@ def analytical_solution(x: np.ndarray, p: BrainParams) -> np.ndarray:
 
 
 # ── numerical solver (Dirichlet-Dirichlet FD with variable G) ────────────────
+
+def analytical_solution_symmetric(
+    x: np.ndarray, p: SymmetricBrainParams, u0: complex = 1.0
+) -> np.ndarray:
+    """Closed-form u(x) for the symmetric profile with u(0)=u0, u(L)=0.
+
+    Each half admits the same Euler-form solution u = A s^p1 + B s^p2 with
+    s = 1 + alpha|x - L/2|. The four constants (A_L, B_L, A_R, B_R) are
+    fixed by two Dirichlet BCs plus continuity of u and of the traction
+    G du/dx at the centre.
+    """
+    nu2 = p.rho * p.omega ** 2 / (p.alpha ** 2 * p.Gc * (1.0 + 1j * p.xi))
+    mu  = np.sqrt(nu2 - 0.25 + 0j)
+    p1, p2 = -0.5 + 1j * mu, -0.5 - 1j * mu
+
+    sB  = 1.0 + p.alpha * 0.5 * p.L     # s at the two boundaries (and at x=0, x=L)
+    sM  = 1.0                            # s at the centre x = L/2
+
+    # 4x4 linear system in [A_L, B_L, A_R, B_R]:
+    #   1: A_L sB^p1 + B_L sB^p2                          = u0     (u(0)=u0)
+    #   2:                       A_R sB^p1 + B_R sB^p2    = 0      (u(L)=0)
+    #   3: A_L sM^p1 + B_L sM^p2 - A_R sM^p1 - B_R sM^p2  = 0      (continuity of u)
+    #   4: -p1 A_L - p2 B_L      - p1 A_R - p2 B_R        = 0      (continuity of G u_x;
+    #                                                                left side has
+    #                                                                ds/dx = -alpha)
+    M = np.array([
+        [sB ** p1, sB ** p2,    0,          0       ],
+        [0,         0,           sB ** p1,  sB ** p2],
+        [sM ** p1, sM ** p2,    -sM ** p1, -sM ** p2],
+        [-p1,      -p2,          -p1,       -p2     ],
+    ], dtype=complex)
+    rhs = np.array([u0, 0.0, 0.0, 0.0], dtype=complex)
+    A_L, B_L, A_R, B_R = np.linalg.solve(M, rhs)
+
+    zeta = x - 0.5 * p.L
+    s    = 1.0 + p.alpha * np.abs(zeta)
+    is_L = zeta < 0
+    u = np.where(
+        is_L,
+        A_L * s ** p1 + B_L * s ** p2,
+        A_R * s ** p1 + B_R * s ** p2,
+    )
+    return u
+
+
+def numerical_solution_symmetric(
+    N: int, p: SymmetricBrainParams, u0: complex = 1.0
+) -> tuple[np.ndarray, np.ndarray]:
+    """FD solver for the symmetric problem, Dirichlet BCs u(0)=u0, u(L)=0."""
+    x  = np.linspace(0.0, p.L, N)
+    dx = x[1] - x[0]
+    G  = G_profile_symmetric(x, p)
+
+    G_half_p = 0.5 * (G + np.roll(G, -1))
+    G_half_m = 0.5 * (G + np.roll(G, 1))
+    diag_main  = (G_half_p + G_half_m) / dx ** 2 - p.rho * p.omega ** 2
+    diag_upper = -G_half_p / dx ** 2
+    diag_lower = -G_half_m / dx ** 2
+
+    from scipy.sparse import diags as _diags
+    from scipy.sparse.linalg import spsolve as _spsolve
+
+    A = _diags(
+        [diag_lower[1:].astype(complex), diag_main.astype(complex),
+         diag_upper[:-1].astype(complex)],
+        offsets=[-1, 0, 1], format="lil", dtype=complex,
+    )
+    A[0, :] = 0;  A[0, 0]   = 1.0
+    A[-1, :] = 0; A[-1, -1] = 1.0
+    A = A.tocsr()
+
+    rhs = np.zeros(N, dtype=complex)
+    rhs[0]  = u0
+    rhs[-1] = 0.0
+    u = _spsolve(A, rhs)
+    return x, u
+
 
 def numerical_solution(N: int, p: BrainParams) -> tuple[np.ndarray, np.ndarray]:
     """Second-order FD discretisation of d/dx[G(x) du/dx] + rho omega^2 u = 0,

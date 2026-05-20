@@ -285,13 +285,37 @@ $6\!\times\!10^{-4}$ at $N=1024$, with clean second-order spatial
 convergence (Fig.~\ref{fig:brain-forward}). A 23k-parameter 1D FNO
 (3 spectral blocks, 12 modes, width 24) trained on 1{,}500 randomly-sampled
 brain-scale instances with SNR\,=\,25\,dB additive noise recovers the
-complex $G(x)$ to validation RL$^{2}=0.043$ after 25 epochs
+complex $G(x)$ to validation RL$^{2}=0.046$ after 25 epochs
 ($\approx\!13$ minutes on a single CPU; Fig.~\ref{fig:brain-inverse}). The
 training and validation curves remain within $0.01$ of each other for the
 last 10 epochs, indicating no over-fitting at this training-set size. The
 1D operator generalises across the full parameter prior without
 retraining and serves as the verifiable anchor against which the 2D
 operator's behaviour is calibrated.
+
+\textbf{Out-of-distribution stress test on symmetric profiles.}
+The 1D operator was trained exclusively on \emph{monotonic} power-law
+profiles. To probe how its inductive bias transfers to a structurally
+different family, we evaluate it zero-shot on the symmetric
+\emph{mirrored-Euler} profile
+\begin{equation}
+G_{\mathrm{sym}}(x)\;=\;G_{c}\bigl(1 + \alpha\,|x - L/2|\bigr)^{2}(1+i\xi),
+\label{eq:G-sym}
+\end{equation}
+a V-shape with $G$ smallest at the centre and equal maxima at the two
+boundaries. Equation~\eqref{eq:G-sym} admits the same Euler reduction
+applied independently on each half $x\!<\!L/2$ and $x\!>\!L/2$; matching
+continuity of $u$ and of the traction $G\,\mathrm{d}u/\mathrm{d}x$ at the
+centre yields a closed-form four-coefficient solution
+(Methods,~\nameref{sec:methods-1d-sym}). On 300 held-out symmetric
+samples drawn from the same per-endpoint $G$ ranges and the same SNR as
+the training distribution, the FNO retains a mean RL$^{2}=0.21$ -- about
+$4.5\!\times\!$ the in-distribution error -- with the dominant residual
+concentrated at the central kink (Fig.~\ref{fig:symmetric-stress}). The
+operator degrades gracefully rather than catastrophically: the broad
+shape and magnitude are recovered, but the kink is smoothed. This
+quantifies the cost of training-distribution narrowness and motivates
+the mixed phantom-family training used in 2D.
 
 \textbf{Synthetic held-out cohort.}
 On 5{,}000 held-out validation samples drawn from the same distribution,
@@ -473,6 +497,36 @@ Fig.~\ref{fig:brain-inverse}a and per-sample predictions in
 Fig.~\ref{fig:brain-inverse}b. All training scripts and the resulting
 checkpoint are in \texttt{paper/figures/}.
 
+\paragraph{Symmetric mirrored-Euler analytical solution.}
+\label{sec:methods-1d-sym}
+For the symmetric profile of equation~\eqref{eq:G-sym} the same Euler
+reduction applies on each half. With $\zeta = x - L/2$ and $|\zeta| \ge 0$,
+the substitution $s = 1+\alpha|\zeta|$ yields the Euler equation in both
+halves with the same indicial roots $p_{1,2}=-\tfrac{1}{2}\pm i\mu$,
+$\mu=\sqrt{\nu_{c}^{2}-\tfrac{1}{4}}$, $\nu_{c}^{2}=\rho\omega^{2}/[\alpha^{2}G_{c}(1+i\xi)]$.
+Writing
+$u_{L}(s)=A_{L}s^{p_{1}}+B_{L}s^{p_{2}}$ on $x\in[0,L/2]$ and
+$u_{R}(s)=A_{R}s^{p_{1}}+B_{R}s^{p_{2}}$ on $x\in[L/2,L]$ (each with
+$s=1+\alpha|\zeta|$), the four coefficients are fixed by
+\begin{align}
+A_{L}\,s_{b}^{p_{1}} + B_{L}\,s_{b}^{p_{2}} &= u_{0}, \quad s_{b}=1+\alpha L/2,\nonumber\\
+A_{R}\,s_{b}^{p_{1}} + B_{R}\,s_{b}^{p_{2}} &= 0,\nonumber\\
+A_{L} + B_{L} - A_{R} - B_{R} &= 0,\quad\text{(continuity of }u\text{ at }L/2)\nonumber\\
+p_{1}(A_{L}+A_{R}) + p_{2}(B_{L}+B_{R}) &= 0,\quad\text{(continuity of traction)}
+\label{eq:sym-bc}
+\end{align}
+where the last equation absorbs the sign flip
+$\mathrm{d}s/\mathrm{d}x = -\alpha$ on $x<L/2$. The $4\!\times\!4$ system
+\eqref{eq:sym-bc} has a unique solution for any $\nu_{c}^{2}\neq 0$ and is
+used as the closed-form reference against which the FD solver and the
+trained FNO are tested (Fig.~\ref{fig:symmetric-stress}). Spatial
+convergence is again $\mathcal{O}(N^{-2})$, reaching relative $L^{2}$
+error $5\!\times\!10^{-4}$ at $N=1024$. For the FNO stress test we
+sample $G_{c}\!\sim\!U(0.8,2.5)$~kPa and $G_{b}\!\sim\!U(1.5,4.5)$~kPa
+matching the per-endpoint ranges used in training; the operator's
+trained weights are evaluated zero-shot without retraining or
+fine-tuning.
+
 \paragraph{Quasi-static limit and dimensional argument for TSM.}
 In the static limit $\omega\to 0$, equation~\eqref{eq:1d-helmholtz} reduces
 to $\mathrm{d}\sigma/\mathrm{d}x=0$ where
@@ -645,6 +699,16 @@ convergence. See legend below.}
 \end{figure}
 }{}
 
+\IfFileExists{figures/fig3_symmetric.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig3_symmetric.png}
+\caption{Symmetric mirrored-Euler stress test: forward analytical/numerical
+agreement (a--c) and zero-shot FNO inverse evaluation (d, e--h).}
+\label{fig:symmetric-stress}
+\end{figure}
+}{}
+
 \begin{figure}[!ht]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig4_phaseA.png}
@@ -678,30 +742,45 @@ $\mathcal{O}(N^{-2})$ rate, reaching $6\!\times\!10^{-4}$ at $N=1024$.
 
 \textbf{Figure 2. 1D FNO inversion: training and prediction.}
 (a) Training and held-out validation relative-$L^{2}$ loss versus epoch
-for a 71k-parameter 1D Fourier neural operator trained to map noisy
-$\hat u(x)$ at SNR\,=\,25\,dB to the complex shear modulus $G(x)$ on
-samples drawn from the brain-scale parameter prior. (b) Four held-out
-samples: ground-truth and predicted real (top row) and imaginary
-(bottom row) parts of $G(x)$; the FNO recovers both the smooth ramp and
-the loss component.
+for a 23k-parameter 1D Fourier neural operator (3 spectral blocks,
+width 24, 12 modes) trained to map noisy $\hat u(x)$ at SNR\,=\,25\,dB
+to the complex shear modulus $G(x)$ on samples drawn from the
+brain-scale parameter prior. (b) Four held-out samples: ground-truth
+and predicted real (top row) and imaginary (bottom row) parts of
+$G(x)$; the FNO recovers both the smooth ramp and the loss component.
 
-\textbf{Figure 3. TSM-FNO architecture.}
+\textbf{Figure 3. Symmetric mirrored-Euler stress test.}
+The 1D FNO is evaluated zero-shot on the symmetric profile
+$G_{\mathrm{sym}}(x)=G_{c}(1+\alpha|x-L/2|)^{2}(1+i\xi)$. (a) Two
+representative symmetric profiles, real parts. (b) Analytical solution
+(line) and FD solver (markers, $N=512$) on one such sample. (c) Spatial
+convergence: relative $L^{2}$ error of the FD solver decays at
+$\mathcal{O}(N^{-2})$ to $5\!\times\!10^{-4}$ at $N=1024$. (d) Per-sample
+RL$^{2}$ histogram over 300 samples: in-distribution (asymmetric
+training family, mean $0.05$) versus the symmetric zero-shot evaluation
+(mean $0.21$). The FNO degrades gracefully but cannot fully resolve the
+central kink. (e--h) Four sample predictions: black is ground truth, blue
+is FNO real-part prediction, red is FNO imaginary-part prediction; the
+broad shape and the imaginary component are recovered while the kink at
+$x=L/2$ is smoothed.
+
+\textbf{Figure 4. TSM-FNO architecture.}
 Schematic of the four-block 2D Fourier neural operator with the
 $4+2$-channel input lift, spectral convolutions truncated to 16 Fourier
 modes per dimension, and the three task heads ($G$, $\eps$, $A$).
 
-\textbf{Figure 4. Acoustoelastic phantom physics.}
+\textbf{Figure 5. Acoustoelastic phantom physics.}
 (a) Lam\'e analytical pre-stress field $\Dsig(\xvec)$ around a pressurised
 elliptical inclusion. (b) Perilesional shell mask used in the ring loss.
 (c) Resulting wave field $\mathrm{Re}\,u$ at 80~Hz with directional
 filtering. (d) Ground-truth strain field $\eps_{\mathrm{latent}}$.
 
-\textbf{Figure 5. Phase-A phantom validation.}
+\textbf{Figure 6. Phase-A phantom validation.}
 Four-panel comparison on the deterministic static 2D phantom:
 ground-truth $G$, TSM-FNO $G_{\mathrm{pred}}$, direct inversion $G_{\mathrm{DI}}$,
 and TSM-FNO $\eps_{\mathrm{pred}}$. White contour marks the lesion boundary.
 
-\textbf{Figure 6. Synthetic cohort performance.}
+\textbf{Figure 7. Synthetic cohort performance.}
 (a) Stiffness recovery RL$^{2}$ stratified by lesion pressure, contrast
 $G_{\mathrm{lesion}}/\Gbg$, and equivalent radius across 5{,}000 held-out
 samples. (b) Perilesional-shell RL$^{2}$ on $\eps$ versus pressure bin --
