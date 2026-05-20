@@ -14,17 +14,33 @@ from MR elastography.
 
 ## Build
 
+Use [tectonic](https://tectonic-typesetting.github.io/) — self-contained,
+fetches packages on demand, handles bibliography in one command:
+
 ```bash
 cd paper
+tectonic main.tex          # produces main.pdf
+```
+
+If using a traditional TeX Live distribution instead:
+
+```bash
 pdflatex main.tex
 bibtex main
 pdflatex main.tex
 pdflatex main.tex
 ```
 
-Produces `main.pdf`. Requires the `naturemag.bst` style (ships with most
-TeXLive distributions); fall back to `unsrtnat` if unavailable by editing
-the `\bibliographystyle` line.
+The Nature bibliography style `naturemag.bst` ships with TeX Live and is
+auto-fetched by tectonic.
+
+### Known harmless warnings
+
+- `lineno.sty:296: Invalid UTF-8` — cosmetic, in the line-numbering package.
+- `TeX rerun seems needed, but stopping at 6 passes` — `natbib` + tectonic
+  cycling on `.bbl`; output is still correct.
+- Drop `\usepackage{lineno}` and `\linenumbers` to silence both for the
+  submission build (line numbers are draft-only).
 
 ## Status
 
