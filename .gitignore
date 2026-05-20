@@ -35,6 +35,10 @@ data/chunks/
 *.png
 *.pdf
 
+# but DO keep the paper figures (needed to build the PDF without retraining)
+!paper/figures/*.png
+!paper/figures/*.pt
+
 # IDE
 .vscode/
 .idea/
