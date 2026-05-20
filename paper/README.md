@@ -54,13 +54,13 @@ auto-fetched by tectonic.
   - Spectral convolution / FNO architecture
   - Six-term composite loss
   - Training and Phase A validation protocols
-- **Figures**: legends drafted, panels not yet generated. Six display items:
-  1. Problem setup + 1D analytical anchor
-  2. TSM-FNO architecture schematic
-  3. Acoustoelastic phantom physics
-  4. Phase A phantom validation panel
-  5. Synthetic cohort performance (RL², ROC, A scatter)
-  6. Comparison to operator-learning literature
+- **Figures**: legends drafted, four of six panels generated. Six display items:
+  1. **(generated)** Brain-scale 1D forward problem: continuous G(x), analytical Euler solution, FD overlay, second-order convergence to N=1024.
+  2. **(generated)** 1D FNO inversion: training/val loss curve + four held-out G(x) predictions (Re and Im).
+  3. TSM-FNO architecture schematic *(TikZ — manual)*
+  4. Acoustoelastic phantom physics *(code — `tsm_fno/scripts/paper_phantom_demo.py`)*
+  5. **(generated)** Phase A phantom validation panel (`tsm_fno/results/phantom_phaseA/phantom_panel.png`).
+  6. **(generated)** Synthetic cohort performance (RL² stratified, ring RL² vs pressure, headline metrics).
 - **Bibliography**: 21 entries, ~75% from primary 2023–2026 literature.
 
 ## Outstanding work before submission

@@ -138,52 +138,67 @@ currently lacks.
 \subsection*{The 1D inverse problem fixes the training distribution}
 
 Before describing the 2D operator we make the inverse problem concrete in
-one spatial dimension. For a time-harmonic SH shear wave of angular
-frequency $\omega=2\pi f$, the displacement $u(x)$ in a heterogeneous
-elastic medium of modulus $E(x)$ and density $\rho$ satisfies
+one spatial dimension at brain scale. For a time-harmonic shear wave of
+angular frequency $\omega=2\pi f$, the displacement $u(x)$ in a
+heterogeneous viscoelastic medium of complex shear modulus $G(x)$ and
+density $\rho$ satisfies
 \begin{equation}
-\frac{\mathrm{d}}{\mathrm{d}x}\!\left[ E(x)\,\frac{\mathrm{d}u}{\mathrm{d}x}\right]
-+ \rho\omega^{2}\,u = f(x),
+\frac{\mathrm{d}}{\mathrm{d}x}\!\left[ G(x)\,\frac{\mathrm{d}u}{\mathrm{d}x}\right]
++ \rho\omega^{2}\,u = 0,
+\qquad x\in[0,L],
 \label{eq:1d-helmholtz}
 \end{equation}
-with $f(x)$ an external source. Equation~\eqref{eq:1d-helmholtz} is the
-1D specialisation of the full Helmholtz operator we will invert in 2D.
-For the piecewise-constant case $E(x)=E_{1}$ on the lesion
-$[L\!-\!a,L\!+\!a]$ and $E(x)=E_{2}$ outside, with periodic boundary
-conditions on $[0,2L]$, equation~\eqref{eq:1d-helmholtz} admits a closed-form
-transfer-matrix solution. In each region the general solution is a
-superposition of forward and backward plane waves at wavenumber
-$k_{j}=\omega\sqrt{\rho/E_{j}}$,
+with Dirichlet boundary conditions $u(0)=u_{0}$, $u(L)=0$. The continuous
+power-law profile
 \begin{equation}
-u(x) = C_{j}\,e^{ik_{j}x} + D_{j}\,e^{-ik_{j}x},\qquad j\in\{1,2\},
+G(x) = G_{0}\,(1+\alpha x)^{2}\,(1+i\xi),
+\label{eq:G-profile}
+\end{equation}
+with the substitution $s = 1+\alpha x$, converts
+equation~\eqref{eq:1d-helmholtz} to the Euler equation
+$s^{2}u''(s) + 2 s u'(s) + \nu^{2}u(s) = 0$, where
+$\nu^{2}=\rho\omega^{2}/[\alpha^{2}G_{0}(1+i\xi)]$. The general solution
+is closed-form,
+\begin{equation}
+u(s) = A\,s^{p_{1}} + B\,s^{p_{2}},\qquad
+p_{1,2} = -\tfrac{1}{2}\pm i\mu,\quad
+\mu = \sqrt{\nu^{2}-\tfrac{1}{4}},
 \label{eq:1d-general}
 \end{equation}
-and the coefficients in adjacent regions are linked by enforcing continuity
-of $u$ and of the traction $E\,\mathrm{d}u/\mathrm{d}x$ at each interface.
-This gives a $2{\times}2$ transfer matrix per interface, which composed with
-the in-region propagators and closed by the periodic boundary condition
-yields the entire field in closed form (Methods, Eq.~\eqref{eq:transfer}).
-The corresponding heterogeneous inversion---recovery of the eigenstrain
-$\eps^{*}(x)$ from the measured displacement $u(x)$---also admits a
-closed form once $E(x)$ is fixed (Methods, Eq.~\eqref{eq:inv}); we use it as
-the analytical reference against which we benchmark the FNO in the 1D
-pedagogical setting and to validate the synthetic phantom generator that
-provides the training data in 2D.
+with $A,B$ fixed by the two boundary conditions. We choose the parameters
+to match published in vivo brain MRE: domain length
+$L=16$~cm (front-to-back of an adult head),
+$G_{0}=1.5$~kPa (white matter) ramping to $G(L)\!\approx\!3.5$~kPa (deep
+grey), constant loss tangent $\xi=0.10$, and frequency $f=50$~Hz, matching
+the pneumatic-driver protocol used in recent operator-learning brain MRE
+work~\cite{herasrivera2025onli}. The finite-difference numerical solver
+matches this closed-form solution at second-order in grid resolution
+(Fig.~\ref{fig:brain-forward}d) reaching $6\!\times\!10^{-4}$ relative
+$L^{2}$ error at $N=1024$. The 1D analytical solution thus provides a
+verifiable forward operator and a tractable inverse problem on which to
+train and validate the neural operator before scaling to 2D.
 
-The 1D analytical solution serves three functions in our pipeline. First,
-it provides a unit test for the forward solver: the finite-difference
-solution must reproduce the transfer-matrix field to numerical precision
-under matched parameters. Second, it fixes the wavenumber regime
-$k a\in[0.3,3]$ in which the inverse problem is well-conditioned at 80~Hz
-and informs the choice of frequency and inclusion-size sampling in the 2D
-training distribution. Third, the closed-form static limit
-$\sigma_{\mathrm{bar}} = -2a\eps_{0}/[2a/E_{1}+(2L\!-\!2a)/E_{2}]$ of the
-quasi-static equilibrium problem (Methods) shows that in 1D the static
-perilesional pre-stress vanishes as $L/a\to\infty$. The implication is
-geometric: the perilesional stiffening ring that strain mapping
-detects requires two or three spatial dimensions to exist, and a 1D model
-alone is not sufficient to learn the TSM signal. We therefore retain 1D as
-an analytical anchor and move to 2D for the operator itself.
+A small Fourier neural operator trained on $3{,}000$ samples drawn from
+the family of equation~\eqref{eq:G-profile} with priors
+$G_{0}\!\sim\!U(0.8,2.5)$~kPa, $G(L)\!\sim\!U(1.5,4.5)$~kPa,
+$\xi\!\sim\!U(0.05,0.20)$, and SNR\,=\,25\,dB Gaussian noise added to the
+displacement field, recovers the complex $G(x)$ to relative-$L^{2}$ error
+on held-out samples (Fig.~\ref{fig:brain-inverse}); the inversion is
+non-iterative and adds no measurable inference cost. This 1D problem
+anchors the training-data philosophy used in 2D: physics-constrained
+analytical priors define a parametric distribution narrow enough to
+guarantee identifiability and broad enough to span the in vivo regime.
+
+Two structural conclusions transfer from 1D to 2D. First, the smoothness
+of $G(x)$ in the brain-scale problem implies that the inverse operator
+acting on $u(\xvec)\!\mapsto\! G(\xvec)$ is itself a low-frequency-dominant
+map, which justifies the spectral truncation in the FNO blocks. Second,
+the closed-form static limit $\omega\!\to\!0$ of
+equation~\eqref{eq:1d-helmholtz} yields a constant stress $\sigma$
+everywhere (Methods, Eq.~\eqref{eq:static}); the perilesional ring that
+TSM detects therefore vanishes in 1D and requires two or three spatial
+dimensions to exist. We retain 1D as the verifiable forward anchor and
+move to 2D for the operator itself.
 
 \subsection*{The TSM-FNO architecture}
 
@@ -262,6 +277,22 @@ $\|u\|_{\infty}\le 1$.
 
 \subsection*{Results}
 
+\textbf{1D brain-scale forward-and-inverse anchor.}
+On the closed-form brain-scale problem of
+equation~\eqref{eq:1d-helmholtz}--\eqref{eq:G-profile}, the
+finite-difference forward solver reaches relative $L^{2}$ error
+$6\!\times\!10^{-4}$ at $N=1024$, with clean second-order spatial
+convergence (Fig.~\ref{fig:brain-forward}). A 23k-parameter 1D FNO
+(3 spectral blocks, 12 modes, width 24) trained on 1{,}500 randomly-sampled
+brain-scale instances with SNR\,=\,25\,dB additive noise recovers the
+complex $G(x)$ to validation RL$^{2}=0.043$ after 25 epochs
+($\approx\!13$ minutes on a single CPU; Fig.~\ref{fig:brain-inverse}). The
+training and validation curves remain within $0.01$ of each other for the
+last 10 epochs, indicating no over-fitting at this training-set size. The
+1D operator generalises across the full parameter prior without
+retraining and serves as the verifiable anchor against which the 2D
+operator's behaviour is calibrated.
+
 \textbf{Synthetic held-out cohort.}
 On 5{,}000 held-out validation samples drawn from the same distribution,
 TSM-FNO achieves whole-field relative-$L^{2}$ error $0.07$ on $G$ and
@@ -309,15 +340,19 @@ operator's input channels (Lam\'e pre-stress, distance) and the loss (Eshelby
 acoustoelastic consistency, Helmholtz residual) is enough to make a
 moderately-sized FNO learn the strain field that pure data-driven
 inversions cannot; the synthetic-only training does not appear to limit
-performance on controlled phantoms. Second, the 1D analytical solution is
-genuinely load-bearing rather than pedagogical---it both constrains the
-forward solver and exposes the geometric reason a perilesional ring
-\emph{exists} only in higher dimensions, focusing the network on the right
-spatial signal. Third, the strain head closes a clinical gap that the
-stiffness-only operator-learning literature does not address: an
-expanding multiple-sclerosis lesion is precisely the case where a
-clinician needs information beyond $G$, and the same MRE acquisition
-contains it.
+performance on controlled phantoms. Second, the closed-form 1D analytical
+solution is genuinely load-bearing rather than pedagogical: the
+brain-scale Euler-reduced problem
+(Fig.~\ref{fig:brain-forward}) gives a verifiable second-order forward
+operator, an exactly-solvable inverse problem for the small FNO
+(Fig.~\ref{fig:brain-inverse}), and the static-limit argument that the
+perilesional ring \emph{exists} only in two or three dimensions. The same
+analytical anchor that fixes the training distribution in 2D is what
+makes the 1D operator trainable on a few thousand samples in minutes.
+Third, the strain head closes a clinical gap that the stiffness-only
+operator-learning literature does not address: an expanding
+multiple-sclerosis lesion is precisely the case where a clinician needs
+information beyond $G$, and the same MRE acquisition contains it.
 
 The principal limitation is the absence of in vivo validation. The Phase~A
 phantom result is consistent with the synthetic-training distribution; it
@@ -347,95 +382,119 @@ heterogeneity in meningiomas.
 \subsection*{Forward problem and 1D analytical solution}
 \label{sec:methods-1d}
 
-For a time-harmonic SH shear wave at frequency $f$, the displacement
-$u(x,t)=\Re\{\hat u(x)\,e^{-i\omega t}\}$ on a heterogeneous 1D medium of
-density $\rho$ and Young's modulus $E(x)$ satisfies
-equation~\eqref{eq:1d-helmholtz}. In the presence of an acoustoelastic
-pre-stress $\sigma_{\mathrm{bar}}(x)$, the effective modulus is
-$E_{\mathrm{eff}}(x)=E(x)+A\,\sigma_{\mathrm{bar}}(x)$, so that the wave
-equation in the bulk is exactly~\eqref{eq:1d-helmholtz} with
-$E\mapsto E_{\mathrm{eff}}$. We impose a small loss tangent
-$\xi=0.05$ by analytic continuation $E_{c}(x)=E(x)(1+i\xi)$ to suppress
-resonances; the formalism below remains unchanged with complex
-wavenumbers.
+For a time-harmonic shear wave at frequency $f$, the displacement
+$u(x,t)=\Re\{\hat u(x)\,e^{-i\omega t}\}$ in a heterogeneous viscoelastic
+1D medium of density $\rho$ and complex shear modulus $G(x)$ satisfies
+equation~\eqref{eq:1d-helmholtz}. We choose the power-law profile
+$G(x) = G_{0}(1+\alpha x)^{2}(1+i\xi)$ of
+equation~\eqref{eq:G-profile} with values matched to in vivo brain MRE
+(Methods,~\nameref{sec:methods-1d-params}).
 
-\paragraph{Transfer matrix.}
-On a periodic domain $[0,2L]$ with a single inclusion of half-width $a$
-centred at $L$, equation~\eqref{eq:1d-general} gives the general
-in-region solution. Continuity of $\hat u$ and of the traction
-$E\,\mathrm{d}\hat u/\mathrm{d}x$ at each interface
-$x_{\star}\in\{L\!-\!a,L\!+\!a\}$ requires
+\paragraph{Closed-form solution via Euler reduction.}
+The substitution $s = 1+\alpha x$ maps the variable-coefficient operator
+to constant-coefficient form. Computing
+$\mathrm{d}u/\mathrm{d}x = \alpha\,\mathrm{d}u/\mathrm{d}s$,
+$G(x)\,\mathrm{d}u/\mathrm{d}x = \alpha G_{0}(1+i\xi)\,s^{2}\,u_{s}$, and
+$\mathrm{d}/\mathrm{d}x[G u_{x}] =
+\alpha^{2}G_{0}(1+i\xi)\,(2s u_{s}+s^{2}u_{ss})$, the wave equation
+becomes
 \begin{equation}
-\!\!\!
-\begin{pmatrix}
-e^{ik_{a}x_{\star}} & e^{-ik_{a}x_{\star}}\\
-ik_{a}E_{a}e^{ik_{a}x_{\star}} & -ik_{a}E_{a}e^{-ik_{a}x_{\star}}
-\end{pmatrix}\!
-\begin{pmatrix}C_{a}\\D_{a}\end{pmatrix}
-=
-\begin{pmatrix}
-e^{ik_{b}x_{\star}} & e^{-ik_{b}x_{\star}}\\
-ik_{b}E_{b}e^{ik_{b}x_{\star}} & -ik_{b}E_{b}e^{-ik_{b}x_{\star}}
-\end{pmatrix}\!
-\begin{pmatrix}C_{b}\\D_{b}\end{pmatrix},
-\label{eq:transfer}
+s^{2}\,u_{ss}(s) + 2 s\,u_{s}(s) + \nu^{2}\,u(s) = 0,
+\qquad
+\nu^{2} = \frac{\rho\omega^{2}}{\alpha^{2}G_{0}(1+i\xi)},
+\label{eq:euler}
 \end{equation}
-which defines the $2\!\times\!2$ transfer matrix
-$T(x_{\star};a\!\to\!b)$. Composed with in-region propagators
-$P_{j}(d)=\mathrm{diag}(e^{ik_{j}d},e^{-ik_{j}d})$ across distances
-$d$, the full chain
-$M=P_{2}(2L\!-\!x_{2})\,T_{2}\,P_{1}(x_{2}\!-\!x_{1})\,T_{1}\,P_{2}(x_{1})$
-maps the coefficient pair at $x=0$ to its value at $x=2L$, and the
-periodic boundary condition closes the system uniquely once a source is
-fixed. We use this analytical solution to verify the finite-difference
-forward solver to a relative tolerance $10^{-6}$.
+the Euler equation. The ansatz $u\propto s^{p}$ gives the indicial
+equation $p^{2}+p+\nu^{2}=0$, whose roots
+$p_{1,2}=-\tfrac{1}{2}\pm i\mu$ with $\mu=\sqrt{\nu^{2}-\tfrac{1}{4}}$ are
+complex even when $\xi=0$ for the wave-regime $\nu^{2}>1/4$. The general
+solution is therefore equation~\eqref{eq:1d-general}, with $A,B$ fixed by
+the boundary conditions
+\begin{equation}
+A + B = u_{0},\qquad
+A\,s_{L}^{p_{1}} + B\,s_{L}^{p_{2}} = 0,\quad s_{L}=1+\alpha L,
+\label{eq:bcs}
+\end{equation}
+which solves to
+\begin{equation}
+A = \frac{u_{0}}{1 - s_{L}^{p_{1}-p_{2}}},\qquad
+B = u_{0} - A.
+\label{eq:AB}
+\end{equation}
+Equation~\eqref{eq:1d-general} with~\eqref{eq:AB} is the exact analytical
+forward solution we use to validate the FD solver
+(Fig.~\ref{fig:brain-forward}). The substitution and the indicial equation
+together constitute the classical Liouville--Green reduction of
+variable-coefficient Helmholtz operators to constant coefficients; the
+power-law $(1+\alpha x)^{2}$ profile is precisely the class for which the
+reduction terminates exactly without a WKB expansion.
 
-\paragraph{Heterogeneous eigenstrain inversion.}
-The inversion of equation~\eqref{eq:1d-helmholtz} for the eigenstrain
-$\eps^{*}(x)$ given the measured $\hat u$ and known $E(x)$ proceeds by
-integrating the momentum balance $\mathrm{d}\sigma/\mathrm{d}x=
--\rho\omega^{2}\hat u$ from the cumulant of the displacement,
+\paragraph{Finite-difference numerical solver.}
+On the uniform grid $x_{j}=j\Delta x$, $\Delta x=L/(N\!-\!1)$,
+$j=0,\dots,N\!-\!1$, the standard second-order conservative
+discretisation of equation~\eqref{eq:1d-helmholtz} is
 \begin{equation}
-\sigma_{j+1/2} = \sigma_{-1/2}
-- \rho\omega^{2}\,\mathrm{d}x \sum_{k=0}^{j}\hat u_{k},
-\label{eq:inv-stress}
+-\frac{G_{j+1/2}(u_{j+1}-u_{j}) - G_{j-1/2}(u_{j}-u_{j-1})}{\Delta x^{2}}
+- \rho\omega^{2}u_{j} = 0,
+\label{eq:fd-1d}
 \end{equation}
-recovering the cell-centre stress at half-points, and then
-\begin{equation}
-\eps^{*}_{j+1/2}
-\;=\; \frac{\sigma_{j+1/2}}{E_{j+1/2}}
-\;-\; \frac{\hat u_{j+1}-\hat u_{j}}{\mathrm{d}x}.
-\label{eq:inv}
-\end{equation}
-The undetermined constant $\sigma_{-1/2}$ is fixed by the zero-mean
-constraint $\langle\eps^{*}\rangle=0$ (the spatial-mean strain is not
-recoverable from the wave field alone), giving
-\begin{equation}
-\sigma_{-1/2}
-= \frac{\rho\omega^{2}\,\mathrm{d}x\,
-       \bigl\langle (\sum_{k\le j} \hat u_{k}) / E_{j+1/2}\bigr\rangle
-       + \bigl\langle (\hat u_{j+1}-\hat u_{j})/\mathrm{d}x\bigr\rangle}
-      {\bigl\langle 1/E_{j+1/2}\bigr\rangle}.
-\end{equation}
-Equations~\eqref{eq:inv-stress}--\eqref{eq:inv} are the exact 1D
-heterogeneous analogue of the algebraic direct inversion used in 2D and
-3D; they admit a closed form because the spatial dimension is one.
+with $G_{j\pm 1/2}$ the arithmetic mean of the cell-centre values; the
+first and last rows of the linear system are overwritten to enforce
+$u_{0}=u_{0,\mathrm{BC}}$ and $u_{N-1}=0$. The resulting complex tridiagonal
+system is solved by direct sparse factorisation. Convergence to
+equation~\eqref{eq:1d-general} is second-order in $N$
+(Fig.~\ref{fig:brain-forward}d), reaching relative $L^{2}$ error
+$6\!\times\!10^{-4}$ at $N=1024$.
 
-\paragraph{Quasi-static limit.}
-In the $\omega\to 0$ limit, equation~\eqref{eq:1d-helmholtz} reduces to
-$\mathrm{d}\sigma/\mathrm{d}x=0$, so $\sigma\equiv\sigma_{\mathrm{bar}}$
-is spatially constant. Combined with the eigenstrain decomposition
-$\eps_{\mathrm{tot}}=\sigma/E + \eps^{*}\,\mathbb{1}_{\mathrm{lesion}}$ and
-the periodic zero-mean constraint, the closed form
+\paragraph{In-vivo-matched parameter ranges.}
+\label{sec:methods-1d-params}
+Defaults: $L=0.16$~m, $G_{0}=1.5$~kPa, $G(L)=3.5$~kPa giving
+$\alpha = (\sqrt{G(L)/G_{0}}-1)/L \approx 3.30~\mathrm{m^{-1}}$,
+$\xi=0.10$, $\rho=10^{3}$~kg/m$^{3}$, $f=50$~Hz, $u_{0}=1$ (unit driver).
+These match the white-matter / deep-grey transition and pneumatic-driver
+frequencies used in the brain MRE
+literature~\cite{murphy2024lowfreq,herasrivera2025onli}.
+
+\paragraph{1D FNO inversion.}
+\label{sec:methods-1d-fno}
+A 1D Fourier neural operator (3 spectral-conv blocks, width 24, 12
+Fourier modes, $23{,}282$ parameters) maps two real input channels
+$(\Re\,\hat u, \Im\,\hat u)$ to two real output channels
+$(\Re\,G, \Im\,G)/G_{\mathrm{scale}}$ on a $N=96$ grid. Training samples
+draw $G_{0}\!\sim\!U(0.8,2.5)$~kPa, $G(L)\!\sim\!U(1.5,4.5)$~kPa,
+$\xi\!\sim\!U(0.05,0.20)$, with complex Gaussian noise added to $\hat u$ at
+SNR$\,=\,25$~dB and per-sample normalisation $\|\hat u\|_{\infty}=1$. The
+loss is per-sample relative $L^{2}$ on $G$; optimisation is AdamW at
+$\mathrm{lr}=10^{-3}$ with cosine annealing for 25 epochs over
+$1{,}500$ training samples and $300$ held-out validation samples. Final
+validation RL$^{2}$ is $0.043$. The trained operator generalises across
+the full prior with the loss curves shown in
+Fig.~\ref{fig:brain-inverse}a and per-sample predictions in
+Fig.~\ref{fig:brain-inverse}b. All training scripts and the resulting
+checkpoint are in \texttt{paper/figures/}.
+
+\paragraph{Quasi-static limit and dimensional argument for TSM.}
+In the static limit $\omega\to 0$, equation~\eqref{eq:1d-helmholtz} reduces
+to $\mathrm{d}\sigma/\mathrm{d}x=0$ where
+$\sigma(x)=G(x)[\mathrm{d}u/\mathrm{d}x - \eps^{*}(x)]$ is the stress and
+$\eps^{*}$ denotes a localised eigenstrain. The stress is therefore
+spatially constant, $\sigma\equiv\sigma_{\mathrm{bar}}$. Integrating with
+the boundary condition $u(0)=u(L)$ (periodic / clamped equivalent) and
+$\int_{0}^{L}\eps^{*}\,\mathrm{d}x=\eps_{0}\,\ell$ for a perturbation of
+width $\ell$ inside a domain of length $L$ gives
 \begin{equation}
-\sigma_{\mathrm{bar}} = -\frac{2a\,\eps_{0}\,E_{1}E_{2}}
-       {E_{2}\cdot 2a + E_{1}\cdot(2L-2a)}
+\sigma_{\mathrm{bar}} = -\eps_{0}\,\ell\, \Bigg/
+\int_{0}^{L}\!\frac{\mathrm{d}x}{G(x)}.
 \label{eq:static}
 \end{equation}
-follows immediately. In the infinite-domain limit $L/a\to\infty$,
-$\sigma_{\mathrm{bar}}\to 0$: the perilesional stress that drives the
-TSM signal vanishes in 1D, and the strain ring exists only in
-$d\ge 2$ spatial dimensions.
+For any bounded $G(x)$ the integral on the right grows linearly with $L$,
+so $\sigma_{\mathrm{bar}}\sim O(\ell/L)\to 0$ as $L/\ell\to\infty$. The
+1D static stress concentration around a localised eigenstrain therefore
+vanishes in the infinite-domain limit; the perilesional ring observed in
+TSM is a strictly two- or three-dimensional phenomenon, driven by the
+divergence of $G\nabla u$ being a vector rather than a scalar
+constraint. The 1D problem cannot reproduce it---a structural reason to
+move the operator to 2D.
 
 \subsection*{Forward problem in 2D and the Eshelby form}
 \label{sec:methods-2d}
@@ -565,45 +624,89 @@ regenerated bit-for-bit by the included SLURM submission scripts with a fixed
 random seed.
 
 % ─── Figures ──────────────────────────────────────────────────────────────────
+\clearpage
+\section*{Figures}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig1_brain_forward.png}
+\caption{Brain-scale 1D forward problem: analytical anchor and numerical
+convergence. See legend below.}
+\label{fig:brain-forward}
+\end{figure}
+
+\IfFileExists{figures/fig2a_loss.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig2a_loss.png}\\[6pt]
+\includegraphics[width=\linewidth]{figures/fig2b_predict.png}
+\caption{1D FNO inversion: training curves and per-sample predictions.}
+\label{fig:brain-inverse}
+\end{figure}
+}{}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/fig4_phaseA.png}
+\caption{Phase-A phantom validation panel.}
+\label{fig:phaseA}
+\end{figure}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig5_cohort.png}
+\caption{Synthetic cohort performance.}
+\label{fig:cohort}
+\end{figure}
+
+\clearpage
 \section*{Figure legends}
 
-\textbf{Figure 1. Problem setup and 1D analytical anchor.}
-(a) MRE acquires the complex displacement field $u(\xvec)$ on a 2D slice
-through tissue under continuous mechanical excitation at frequency $f$.
-(b) The inverse problem recovers the shear modulus $G(\xvec)$ from $u$ via
-the Helmholtz operator~\eqref{eq:2d-helmholtz}. (c) The 1D specialisation
-admits the closed-form transfer-matrix solution of
-equation~\eqref{eq:transfer}; comparison of the analytical
-$\hat u(x)$ (line) to the finite-difference solver (markers) at $f=80$~Hz
-confirms numerical accuracy to $10^{-6}$.
+\textbf{Figure 1. Brain-scale 1D forward problem: analytical anchor and
+numerical convergence.}
+(a) Continuous complex shear modulus
+$G(x)=G_{0}(1+\alpha x)^{2}(1+i\xi)$ at brain scale ($L=16$~cm,
+$G$ ramping 1.5~$\to$~3.5~kPa, $\xi=0.10$); real and imaginary parts
+shown separately. (b) Closed-form analytical solution
+$u(s)=A s^{p_{1}}+B s^{p_{2}}$ of the Euler-reduced
+Helmholtz equation~\eqref{eq:1d-helmholtz} at $f=50$~Hz with Dirichlet
+boundary conditions; real and imaginary parts. (c) Second-order
+finite-difference solver (markers, $N=512$) overlaid on the analytical
+solution (line). (d) Spatial convergence of the FD solver to the
+analytical reference: relative $L^{2}$ error decays at the expected
+$\mathcal{O}(N^{-2})$ rate, reaching $6\!\times\!10^{-4}$ at $N=1024$.
 
-\textbf{Figure 2. TSM-FNO architecture.}
+\textbf{Figure 2. 1D FNO inversion: training and prediction.}
+(a) Training and held-out validation relative-$L^{2}$ loss versus epoch
+for a 71k-parameter 1D Fourier neural operator trained to map noisy
+$\hat u(x)$ at SNR\,=\,25\,dB to the complex shear modulus $G(x)$ on
+samples drawn from the brain-scale parameter prior. (b) Four held-out
+samples: ground-truth and predicted real (top row) and imaginary
+(bottom row) parts of $G(x)$; the FNO recovers both the smooth ramp and
+the loss component.
+
+\textbf{Figure 3. TSM-FNO architecture.}
 Schematic of the four-block 2D Fourier neural operator with the
 $4+2$-channel input lift, spectral convolutions truncated to 16 Fourier
 modes per dimension, and the three task heads ($G$, $\eps$, $A$).
 
-\textbf{Figure 3. Acoustoelastic phantom physics.}
+\textbf{Figure 4. Acoustoelastic phantom physics.}
 (a) Lam\'e analytical pre-stress field $\Dsig(\xvec)$ around a pressurised
 elliptical inclusion. (b) Perilesional shell mask used in the ring loss.
 (c) Resulting wave field $\mathrm{Re}\,u$ at 80~Hz with directional
 filtering. (d) Ground-truth strain field $\eps_{\mathrm{latent}}$.
 
-\textbf{Figure 4. Phase-A phantom validation.}
-Four-panel comparison on the deterministic static phantom:
+\textbf{Figure 5. Phase-A phantom validation.}
+Four-panel comparison on the deterministic static 2D phantom:
 ground-truth $G$, TSM-FNO $G_{\mathrm{pred}}$, direct inversion $G_{\mathrm{DI}}$,
 and TSM-FNO $\eps_{\mathrm{pred}}$. White contour marks the lesion boundary.
 
-\textbf{Figure 5. Synthetic cohort performance.}
-(a) Distribution of relative-$L^{2}$ errors on $G$ across 5{,}000 held-out
-samples for TSM-FNO and DI. (b) ROC curve for the expansion classifier;
-AUC $0.93$. (c) Scatter of recovered acoustoelastic constant $A$ vs.\
-ground truth.
-
-\textbf{Figure 6. Comparison to operator-learning literature.}
-Positioning of TSM-FNO relative to oNLI, MF-ElastoNet, TWENN, DIME,
-PINN-MRE, and DI on (a) reported stiffness accuracy and (b) auxiliary
-outputs (strain, classifier, uncertainty). TSM-FNO is the only method
-producing both $G$ and $\eps$.
+\textbf{Figure 6. Synthetic cohort performance.}
+(a) Stiffness recovery RL$^{2}$ stratified by lesion pressure, contrast
+$G_{\mathrm{lesion}}/\Gbg$, and equivalent radius across 5{,}000 held-out
+samples. (b) Perilesional-shell RL$^{2}$ on $\eps$ versus pressure bin --
+the strain-head metric. (c) Headline cohort metrics
+(RL$^{2}$ on $G$, ring RL$^{2}$, SSIM, AUC).
 
 \bibliography{refs}
 
