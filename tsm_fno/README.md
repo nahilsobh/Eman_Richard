@@ -86,3 +86,61 @@ For control samples (`p = 0`), Δσ ≡ 0 and ε_latent ≡ 0 — the model must
 | Control (`p = 0`) | 0.20 | Negative-control discrimination |
 | High-contrast inclusion (`G_lesion / G_bg > 10`) | 0.10 | Edge-sharpness |
 | Near-circular (`a ≈ b`) | 0.10 | Easier geometry baseline |
+
+## In vivo validation plan
+
+Synthetic FEM training establishes the operator; real data closes the credibility gap. Validation proceeds in four phases of increasing domain difficulty.
+
+### Phase A — Physical phantom (smallest sim-to-real gap)
+
+**Goal**: confirm the model transfers from FEM-synthetic displacement to real wave data acquired on identical phantom geometry.
+
+- **Data**: gelatin or agar phantom with a single stiff inclusion, scanned on the 3 T MRE driver at 80 Hz (matched to `FREQ_1`). Acquire 5–10 inclusion sizes / contrasts.
+- **Ground truth**: NLI inversion (gold standard) and DI baseline computed on the same wave fields.
+- **Success criterion**:
+  - `G_pred` Pearson r ≥ 0.85 vs NLI in inclusion ROI
+  - `ε_pred ≈ 0` everywhere (static phantom — no expansion)
+- **Risk**: pre-processing mismatch (units, normalisation, curl computation). Mitigate by porting the synthetic pipeline's preprocessing exactly.
+
+### Phase B — Open benchmark dataset
+
+**Goal**: stratified comparison against published methods on standardised acquisitions.
+
+- **Data**: Wang et al. 2025 *Scientific Data* MRE benchmark (phantom + healthy liver + healthy brain, 3 T, multiple frequencies, 5 inversion algorithms supplied).
+- **Comparators**: TWENN, LFE, DI, MERSA, MICRo.
+- **Success criterion**:
+  - `G_pred` ranks within ±1 position of TWENN on whole-field RMSE
+  - `ε_pred ≈ 0` (all subjects are healthy — no expanding lesions expected)
+- **Risk**: frequency mismatch (their data is at 30/50/60 Hz; our model is trained at 80 Hz). Mitigate by retraining on 60 Hz or adding frequency conditioning (see Phase D).
+
+### Phase C — Retrospective active-lesion data
+
+**Goal**: validate the strain head and expansion classifier on the clinical population they were designed for.
+
+- **Data**: retrospective MS-lesion MRE cohort with paired gadolinium-enhancement labels (active vs stable). Yin et al. 2026 TSM cohort if accessible; otherwise an institutional MS+MRE cohort.
+- **Ground truth**: gadolinium enhancement as the active-lesion proxy; expert ROI annotation for ring localisation.
+- **Success criterion**:
+  - Expansion classifier AUC ≥ 0.80 on held-out subjects (subject-wise split)
+  - `ε_pred` ring co-localises with gadolinium enhancement on ≥ 70% of active lesions
+- **Risk**: synthetic phantom anatomy is too simple. Mitigate via test-time fine-tuning on a small labelled subset, or by retraining with anatomically-realistic backgrounds segmented from real T1.
+
+### Phase D — Multi-frequency, multi-site prospective
+
+**Goal**: production-grade generalisation across scanners, frequencies, and tissue.
+
+- **Architectural additions**:
+  - Frequency-conditioning input channel (Hz/100), trained jointly on 30/50/60/80 Hz synthetic data — borrowed from SPADE-oNLI's multi-frequency strategy.
+  - Curl-of-displacement input transform to suppress longitudinal-wave contamination at acquisition time.
+- **Data**: prospective acquisition across ≥ 2 sites, ≥ 30 patients with suspected active lesions.
+- **Success criterion**: AUC ≥ 0.85 retained on the external site (no site-specific retraining).
+- **Risk**: scanner-specific noise distributions, motion artefacts. Mitigate by augmenting synthetic training with measured noise profiles per scanner.
+
+### Cross-phase tooling needed
+
+| Tooling | Purpose | Status |
+|---|---|---|
+| Real-data ingestion script | DICOM/HDF5 → model input tensor with matched preprocessing | not started |
+| NLI / DI reference inverters | Per-sample gold-standard for Phases A–B | DI exists in `mre_pipeline`; NLI needed |
+| Test-time fine-tuning script | Few-shot adaptation on a labelled subset | not started |
+| Frequency-conditioned model variant | Multi-frequency training and inference (Phase D) | not started |
+| Wall-clock benchmark vs NLI | Reproduce oNLI-style speedup claim | not started |
