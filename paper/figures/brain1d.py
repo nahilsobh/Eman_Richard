@@ -382,3 +382,236 @@ def numerical_solution(N: int, p: BrainParams) -> tuple[np.ndarray, np.ndarray]:
 
     u = spsolve(A, rhs)
     return x, u
+
+
+# ── embedded-BC synthetic generator ──────────────────────────────────────────
+#
+# Real MRE acquisitions have unknown boundary conditions at the edges of the
+# imaged region: the wave field continues into tissue beyond the FOV.  To
+# match this in training we (a) randomise the BC type per sample, and
+# (b) optionally solve on a domain larger than the inversion ROI and crop
+# the central window.  The PDE-residual / SSL fine-tuning stage uses only
+# interior pixels, so it is BC-agnostic by construction.
+
+
+@dataclass
+class BCSpec:
+    """Boundary-condition specification at one end of the domain.
+
+    kind: 'dirichlet' (u = value), 'neumann' (du/dx = value), or
+          'absorbing' (Sommerfeld: outgoing wave with local wavenumber).
+    value: complex amplitude (dirichlet) or gradient (neumann).
+           Ignored for 'absorbing'.
+    """
+    kind: str    = "dirichlet"
+    value: complex = 1.0 + 0.0j
+
+
+def _apply_bc_row(A_lil, rhs, idx: int, side: str, bc: "BCSpec",
+                  k_local: float, dx: float) -> None:
+    """In-place: overwrite the row of A at `idx` to encode BC `bc`."""
+    if bc.kind == "dirichlet":
+        A_lil[idx, :] = 0
+        A_lil[idx, idx] = 1.0 + 0.0j
+        rhs[idx] = bc.value
+
+    elif bc.kind == "neumann":
+        # First-order one-sided FD for du/dx = bc.value
+        A_lil[idx, :] = 0
+        if side == "left":
+            A_lil[idx, idx]     = -1.0 / dx
+            A_lil[idx, idx + 1] =  1.0 / dx
+        else:  # right
+            A_lil[idx, idx]     =  1.0 / dx
+            A_lil[idx, idx - 1] = -1.0 / dx
+        rhs[idx] = bc.value
+
+    elif bc.kind == "absorbing":
+        # Sommerfeld outgoing-wave condition with local wavenumber k:
+        #   left  end:  du/dx = -i k u   (wave leaves to the left)
+        #   right end:  du/dx = +i k u   (wave leaves to the right)
+        # First-order FD then folds the BC into the boundary row.
+        A_lil[idx, :] = 0
+        if side == "left":
+            A_lil[idx, idx]     = (1.0 / dx) + 1j * k_local
+            A_lil[idx, idx + 1] = -1.0 / dx
+        else:
+            A_lil[idx, idx]     = (1.0 / dx) - 1j * k_local
+            A_lil[idx, idx - 1] = -1.0 / dx
+        rhs[idx] = 0.0 + 0.0j
+
+    else:
+        raise ValueError(f"unknown BC kind: {bc.kind!r}")
+
+
+def solve_helmholtz_1d_with_bcs(
+    x: np.ndarray, G: np.ndarray, rho: float, freq: float,
+    bc_left: "BCSpec", bc_right: "BCSpec",
+) -> np.ndarray:
+    """Generic 1D Helmholtz FD solver with arbitrary BCs at both ends.
+
+    Same arithmetic-mean half-point averaging as the existing solvers.  The
+    full system is built first (assuming generic boundaries), then the first
+    and last rows are overwritten by the BC routine.
+    """
+    from scipy.sparse import diags as _diags
+    from scipy.sparse.linalg import spsolve as _spsolve
+    N    = len(x)
+    dx   = float(x[1] - x[0])
+    omega = 2.0 * np.pi * freq
+
+    G_half_p = 0.5 * (G + np.roll(G, -1))
+    G_half_m = 0.5 * (G + np.roll(G, 1))
+    diag_main  = (G_half_p + G_half_m) / dx ** 2 - rho * omega ** 2
+    diag_upper = -G_half_p / dx ** 2
+    diag_lower = -G_half_m / dx ** 2
+
+    A = _diags(
+        [diag_lower[1:].astype(complex), diag_main.astype(complex),
+         diag_upper[:-1].astype(complex)],
+        offsets=[-1, 0, 1], format="lil", dtype=complex,
+    )
+    rhs = np.zeros(N, dtype=complex)
+
+    # Local wavenumber at each boundary (used for absorbing BCs)
+    k_left  = omega * np.sqrt(rho / float(np.abs(G[0])))
+    k_right = omega * np.sqrt(rho / float(np.abs(G[-1])))
+    _apply_bc_row(A, rhs, 0,     "left",  bc_left,  k_left,  dx)
+    _apply_bc_row(A, rhs, N - 1, "right", bc_right, k_right, dx)
+
+    return _spsolve(A.tocsr(), rhs)
+
+
+def _G_extended_constant(x_ext: np.ndarray, roi_profile_fn, L_roi: float,
+                          *args, **kwargs) -> np.ndarray:
+    """Extend a G profile constant outside the inversion ROI [0, L_roi].
+
+    `roi_profile_fn` is one of G_profile, G_profile_symmetric,
+    G_profile_smooth_symmetric.  Its signature is (x, params).
+    """
+    x_clipped = np.clip(x_ext, 0.0, L_roi)
+    return roi_profile_fn(x_clipped, *args, **kwargs)
+
+
+def _extended_grid(N_roi: int, L_roi: float, ext_factor: float
+                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return (x_ext, roi_mask, x_roi) for a grid extended by `ext_factor`
+    in *both* directions (so the extended length is (1 + 2 ext_factor) L_roi).
+
+    The grids are aligned so that the ROI corresponds to an exact subset of
+    integer indices.
+    """
+    # spacing matches the ROI grid exactly
+    dx = L_roi / (N_roi - 1)
+    n_pad   = int(round(ext_factor * (N_roi - 1)))
+    N_ext   = N_roi + 2 * n_pad
+    x_ext   = np.linspace(-n_pad * dx, L_roi + n_pad * dx, N_ext)
+    roi_idx = slice(n_pad, n_pad + N_roi)
+    return x_ext, roi_idx, x_ext[roi_idx]
+
+
+BC_KINDS = ("dirichlet", "neumann", "absorbing")
+
+
+def _sample_bc(rng: np.random.Generator) -> "BCSpec":
+    """Random BC: type uniformly from BC_KINDS, value as a unit complex."""
+    kind = str(rng.choice(BC_KINDS))
+    if kind == "dirichlet":
+        value = complex(rng.standard_normal(), rng.standard_normal())
+        # normalise so |value| ~ 1
+        value = value / max(abs(value), 1e-12)
+    elif kind == "neumann":
+        # Gradient scale chosen so that the implied wave amplitude is ~ 1 / dx
+        value = complex(rng.standard_normal(), rng.standard_normal())
+    else:
+        value = 0.0 + 0.0j
+    return BCSpec(kind=kind, value=value)
+
+
+PROFILE_FAMILIES = ("asym", "sym_euler", "sym_smooth")
+
+
+def _sample_profile(rng: np.random.Generator, freq: float, rho: float,
+                     L_roi: float):
+    """Sample a random profile from one of the three families."""
+    kind = str(rng.choice(PROFILE_FAMILIES))
+    Gc = float(rng.uniform(800.0,  2500.0))
+    Gb = float(rng.uniform(max(Gc + 300.0, 1500.0), 4500.0))
+    xi = float(rng.uniform(0.05, 0.20))
+    if kind == "asym":
+        p = BrainParams(L=L_roi, G0=Gc, Gend=Gb, xi=xi, freq=freq, rho=rho)
+        pf = G_profile
+    elif kind == "sym_euler":
+        p = SymmetricBrainParams(L=L_roi, Gc=Gc, Gb=Gb, xi=xi, freq=freq, rho=rho)
+        pf = G_profile_symmetric
+    else:
+        p = SmoothSymmetricBrainParams(L=L_roi, Gc=Gc, Gb=Gb, xi=xi,
+                                        freq=freq, rho=rho)
+        pf = G_profile_smooth_symmetric
+    return kind, p, pf, dict(Gc=Gc, Gb=Gb, xi=xi)
+
+
+def make_embedded_sample(
+    N_roi: int = 96, L_roi: float = L_DEFAULT, freq: float = FREQ_DEFAULT,
+    rho: float = RHO_DEFAULT, ext_factor: float = 1.0, snr_db: float = 25.0,
+    rng: np.random.Generator | None = None,
+):
+    """Generate one BC-randomised, domain-embedded training sample.
+
+    Pipeline:
+      1. Choose a profile family (asym / sym_euler / sym_smooth) and sample
+         its parameters from the published-brain-MRE ranges.
+      2. Build an extended grid that overhangs the ROI by `ext_factor` * L_roi
+         on each side.  Extend G constant outside the ROI.
+      3. Sample two random BCs (one per end).  At least one is not Dirichlet
+         in expectation, exposing the network to BC types it would meet in
+         vivo.
+      4. Solve the FD Helmholtz on the extended domain.
+      5. Crop the central window (the ROI) and treat that as the
+         "observation": the network sees a wave field whose edge values are
+         whatever the surrounding tissue + outer BC delivered, not a clean
+         driver+clamped pair.
+      6. Add complex-Gaussian noise at the requested SNR and rescale so
+         ||u||_inf = 1.
+
+    Returns
+    -------
+    u_roi : (N_roi,) complex64  -- noisy normalised wave in the ROI
+    G_roi : (N_roi,) complex64  -- ground-truth modulus in the ROI
+    meta  : dict                  -- sampled hyperparameters
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    family, p_obj, profile_fn, gparams = _sample_profile(rng, freq, rho, L_roi)
+    x_ext, roi_idx, x_roi = _extended_grid(N_roi, L_roi, ext_factor)
+    G_ext = _G_extended_constant(x_ext, profile_fn, L_roi, p_obj)
+
+    bc_left  = _sample_bc(rng)
+    bc_right = _sample_bc(rng)
+
+    u_ext = solve_helmholtz_1d_with_bcs(x_ext, G_ext, rho, freq,
+                                         bc_left, bc_right)
+    u_roi = u_ext[roi_idx]
+    G_roi = G_ext[roi_idx]
+
+    # Complex Gaussian noise + normalise to unit max
+    sig_power = float(np.mean(np.abs(u_roi) ** 2))
+    if sig_power > 0.0:
+        sigma_n = float(np.sqrt(sig_power / (10.0 ** (snr_db / 10.0)) / 2.0))
+        u_roi = u_roi + sigma_n * (rng.standard_normal(N_roi)
+                                    + 1j * rng.standard_normal(N_roi))
+    u_roi = u_roi / max(np.abs(u_roi).max(), 1e-12)
+
+    meta = {
+        "family":    family,
+        "bc_left":   bc_left.kind,
+        "bc_right":  bc_right.kind,
+        "Gc":        gparams["Gc"],
+        "Gb":        gparams["Gb"],
+        "xi":        gparams["xi"],
+        "ext_factor": ext_factor,
+        "snr_db":    snr_db,
+        "freq":      freq,
+    }
+    return u_roi.astype(np.complex64), G_roi.astype(np.complex64), meta
