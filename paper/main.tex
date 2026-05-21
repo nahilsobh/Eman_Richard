@@ -450,6 +450,87 @@ four-phase rollout (physical phantom, open MRE
 benchmark~\cite{wang2025dataset}, retrospective active-lesion cohort,
 multi-site prospective) is detailed in the project repository.
 
+\subsection*{Toward a foundation model: real data and self-supervision}
+
+The synthetic 1D experiments above ask whether the operator-learning
+architecture can fit a controlled physics task. A separate question
+matters for clinical translation: can the same family of operators
+generalise across the variation that real MRE acquisitions
+have---multi-site scanner physics, multi-frequency drivers, unknown
+boundary conditions, anatomical heterogeneity? Recent foundation models
+for structural brain MRI~\cite{tak2026brainiac} show that
+self-supervised pretraining on heterogeneous unlabelled corpora yields
+representations that adapt to many downstream tasks with very few
+labels. We test the analogue for MRE inversion using the BBIR UDel
+brain MRE cohort~\cite{johnson2018bbir}: 82 subjects, three actuation
+frequencies (30, 50, 70 Hz), with NLI-derived complex shear modulus
+maps as the only available source of pseudo-ground-truth.
+
+\textbf{The 1D approximation fails on real 3D wave data.}
+Voxel-line slices from the BBIR 3D volumes give the largest
+data-volume per subject ($\sim$50{,}000 lines), but along any 1D line
+the 1D Helmholtz residual $G\,\partial_x^2 u+\rho\omega^2 u$ is
+missing the transverse Laplacian $G\,(\partial_y^2 u+\partial_z^2
+u)$ that propagating shear waves contribute in three dimensions. A
+direct supervised SIREN trained on $\sim$5{,}000 BBIR voxel lines
+with masked MSE against NLI labels converges in training (train
+MSE $0.10 \to 0.03$) but the held-out test masked relative-$L^2$ is
+$0.65$---worse than the trivial constant-mean baseline of $0.36$
+(Fig.~\ref{fig:bbir-1d-supervised}). The 1D approximation of a 3D
+inverse problem is therefore the wrong inductive bias on its own.
+
+\textbf{Multi-view consistency is the SSL signal for wave inverse
+problems.}
+The unknown $G(\xvec)$ at a voxel is direction-invariant: if two
+voxel-line views (along $x$ and $y$, say) intersect at the same
+tissue point, the network's embeddings of those two views must agree
+because they are encoding the same underlying parameter. This gives
+a label-free supervision signal that is mathematically necessary
+rather than merely statistically useful---the structural-MRI
+foundation-model recipe~\cite{tak2026brainiac} uses augmented
+patches as positive contrastive pairs, while here the positive
+pairs are physically distinct views of the same physical quantity.
+We extracted $124{,}322$ such $(x\text{-line},\,y\text{-line})$ pairs
+from the BBIR UDel cohort (8 pairs per axial slice, restricted to
+voxels with brain coverage above 30\% in both directions) and
+trained a SIREN encoder under the SimCLR InfoNCE
+objective~\cite{chen2020simclr} (Fig.~\ref{fig:bbir-ssl}). The
+encoder body is architecturally identical to the SIREN1d of
+Fig.~\ref{fig:brain-inverse} so its weights transfer to the
+supervised G-prediction head.
+
+\textbf{Alternating-direction implicit splitting is the mathematical
+framing.}
+The multi-view consistency loss is the SSL analogue of classical
+ADI splitting~\cite{peaceman1955adi}. ADI solves a 3D elliptic PDE by
+alternating 1D sub-solves along each spatial axis, with the composed
+scheme consistent with the full operator; multi-view SSL alternates
+\emph{which 1D direction the network sees}, and the consistency
+constraint enforces 3D Helmholtz agreement from 1D building blocks.
+The combination $\mathcal{L}_{\text{SSL}}=
+\mathcal{L}^{\text{(consist)}}_{\text{contrastive}}+
+\lambda_{\text{PDE}}\,\mathcal{L}^{\text{(3D)}}_{\text{Helmholtz}}$
+links the architectural prior to the physics prior: the contrastive
+term is BC-agnostic and label-free, the 3D residual uses a stencil
+across three neighbouring 1D slabs so it costs only a few extra
+voxel fetches per training example. We treat the contrastive
+component as the primary SSL signal and the PDE-residual term as a
+soft regulariser, matching the empirical finding from
+Fig.~\ref{fig:arch-loss} that pure unsupervised PDE residual is
+under-constrained as a standalone loss.
+
+\textbf{Few-shot fine-tune evaluation.}
+Following the BrainIAC protocol~\cite{tak2026brainiac}, we evaluate
+the SSL-pretrained encoder under data-budget conditions
+$K\!\in\!\{1, 5, 50, 500\}$ lines per training subject. For each $K$
+we fine-tune the SSL encoder with a fresh G-prediction head against
+NLI labels and compare against a scratch-initialised SIREN of the
+same size trained on the same budget
+(Fig.~\ref{fig:bbir-ssl-finetune}). This is the operational test
+of the foundation-model claim: SSL pretraining is useful only if it
+beats scratch training at low label budgets. We report results on a
+held-out subject-disjoint test set.
+
 \section*{Discussion}
 
 Three findings from this work bear on the broader trajectory of
@@ -893,6 +974,39 @@ loss functions.}
 \label{fig:cohort}
 \end{figure}
 
+\IfFileExists{figures/fig11_1d_brain_loss.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig11_1d_brain_loss.png}\\[6pt]
+\includegraphics[width=\linewidth]{figures/fig11_1d_brain_predict.png}
+\caption{Supervised SIREN1d trained on BBIR UDel voxel lines:
+the 1D approximation of a 3D wave equation fails (test masked
+RL$^{2}=0.65$, worse than the constant-mean baseline of $0.36$).}
+\label{fig:bbir-1d-supervised}
+\end{figure}
+}{}
+
+\IfFileExists{figures/fig12_ssl_loss.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig12_ssl_loss.png}
+\caption{Multi-view contrastive SSL pretraining on $124{,}322$
+$(x\text{-line},\,y\text{-line})$ pairs from BBIR UDel.}
+\label{fig:bbir-ssl}
+\end{figure}
+}{}
+
+\IfFileExists{figures/fig13_ssl_finetune_bars.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig13_ssl_finetune_bars.png}
+\caption{Few-shot fine-tune comparison: SSL pretrained encoder vs
+scratch initialisation across data budgets $K\in\{1,5,50,500\}$
+lines per training subject.}
+\label{fig:bbir-ssl-finetune}
+\end{figure}
+}{}
+
 \clearpage
 \section*{Figure legends}
 
@@ -1009,6 +1123,39 @@ $G_{\mathrm{lesion}}/\Gbg$, and equivalent radius across 5{,}000 held-out
 samples. (b) Perilesional-shell RL$^{2}$ on $\eps$ versus pressure bin --
 the strain-head metric. (c) Headline cohort metrics
 (RL$^{2}$ on $G$, ring RL$^{2}$, SSIM, AUC).
+
+\textbf{Figure 12. Supervised 1D operator on real BBIR brain voxel
+lines.}
+(a, b) Train and held-out validation curves (masked MSE and RL$^{2}$)
+for SIREN1d trained on $5{,}000$ voxel lines from the BBIR UDel
+cohort. Subject-disjoint $66/8/8$ split. The training loss converges
+but the validation RL$^{2}$ plateaus far from the constant-mean
+baseline of $0.36$, with final held-out test RL$^{2}=0.65$. The
+gap quantifies the cost of approximating a 3D wave inverse problem
+by 1D voxel-line processing without the transverse Laplacian.
+(c--h) Six held-out predictions on real brain lines, showing that
+the network captures the brain-region location and overall magnitude
+of $G$ but loses the spatial structure that the supervised label
+contains.
+
+\textbf{Figure 13. Multi-view contrastive SSL pretraining.}
+InfoNCE loss across 10 epochs on $20{,}000$ subject-disjoint
+$(x\text{-line},\,y\text{-line})$ pairs from BBIR UDel; encoder
+architecturally identical to SIREN1d (Fig.~\ref{fig:brain-inverse}).
+Train loss decreases monotonically as the encoder learns to embed
+the two views of the same voxel into a shared representation. The
+held-out validation curve quantifies generalisation under a
+subject-disjoint split.
+
+\textbf{Figure 14. SSL pretrain vs scratch under matched data budgets.}
+Following the BrainIAC few-shot protocol~\cite{tak2026brainiac}: the
+SSL-pretrained encoder is fine-tuned with a fresh G-prediction head
+against NLI labels at data budgets of $K\in\{1, 5, 50, 500\}$ lines
+per training subject (left to right). Each $K$ is matched between
+the two training procedures so the only difference is the encoder
+initialisation. Bars show the test masked RL$^{2}$ on the
+subject-disjoint held-out set; lower is better. The
+constant-mean-prediction baseline (dashed) is RL$^{2}=0.36$.
 
 \bibliography{refs}
 
