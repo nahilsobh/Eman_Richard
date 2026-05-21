@@ -93,10 +93,148 @@ class SymmetricBrainParams:
 
 
 def G_profile_symmetric(x: np.ndarray, p: SymmetricBrainParams) -> np.ndarray:
-    """Symmetric complex shear modulus, V-shape with minimum at x = L/2."""
+    """Symmetric complex shear modulus, V-shape with minimum at x = L/2.
+
+    G(x) = Gc * (1 + alpha |x - L/2|)^2 * (1 + i xi).  C^0 at x=L/2 but
+    G'(x) is discontinuous (kink).  See ``SmoothSymmetricBrainParams``
+    for the C^infty (quadratic) variant.
+    """
     zeta = x - 0.5 * p.L
     base = p.Gc * (1.0 + p.alpha * np.abs(zeta)) ** 2
     return base * (1.0 + 1j * p.xi)
+
+
+# ── smooth symmetric (quadratic) variant ──────────────────────────────────────
+
+@dataclass
+class SmoothSymmetricBrainParams:
+    """Smooth symmetric profile  G(x) = Gc + beta (x - L/2)^2  with G' and G''
+    continuous everywhere (no absolute values).  Min at the centre (Gc),
+    max at the boundaries (Gb = Gc + beta (L/2)^2).
+    """
+    L:    float = L_DEFAULT
+    Gc:   float = 1500.0
+    Gb:   float = 3500.0
+    xi:   float = XI_DEFAULT
+    rho:  float = RHO_DEFAULT
+    freq: float = FREQ_DEFAULT
+
+    @property
+    def beta(self) -> float:
+        # Gb = Gc + beta (L/2)^2  ->  beta = 4 (Gb - Gc) / L^2
+        return 4.0 * (self.Gb - self.Gc) / self.L ** 2
+
+    @property
+    def omega(self) -> float:
+        return 2.0 * np.pi * self.freq
+
+
+def G_profile_smooth_symmetric(x: np.ndarray,
+                                p: SmoothSymmetricBrainParams) -> np.ndarray:
+    """Smooth symmetric complex modulus G(x) = (Gc + beta zeta^2)(1 + i xi)."""
+    zeta = x - 0.5 * p.L
+    return (p.Gc + p.beta * zeta ** 2) * (1.0 + 1j * p.xi)
+
+
+def _power_series_solution(zeta: np.ndarray, a: complex, b: complex,
+                            rhsq: complex, n_terms: int = 80
+                            ) -> tuple[np.ndarray, np.ndarray]:
+    """Even and odd power-series solutions of
+        (a + b zeta^2) u'' + 2 b zeta u' + rhsq u = 0.
+
+    The recurrence is
+        c_{k+2} = -( b k(k+1) + rhsq ) / ( a (k+2)(k+1) ) * c_k.
+    The 'even' solution sets c_0 = 1, c_1 = 0; the 'odd' solution sets
+    c_0 = 0, c_1 = 1.  Returns (u_even(zeta), u_odd(zeta)).
+    """
+    zeta = np.asarray(zeta, dtype=complex)
+    # Even series: only even powers
+    c_even = np.zeros(n_terms, dtype=complex)
+    c_even[0] = 1.0 + 0.0j
+    for k in range(0, n_terms - 2):
+        if (k % 2) == 0:
+            c_even[k + 2] = -(b * k * (k + 1) + rhsq) / (a * (k + 2) * (k + 1)) * c_even[k]
+    # Odd series: only odd powers
+    c_odd = np.zeros(n_terms, dtype=complex)
+    c_odd[1] = 1.0 + 0.0j
+    for k in range(1, n_terms - 2):
+        if (k % 2) == 1:
+            c_odd[k + 2] = -(b * k * (k + 1) + rhsq) / (a * (k + 2) * (k + 1)) * c_odd[k]
+
+    # Evaluate by Horner-style accumulation over zeta
+    u_even = np.zeros_like(zeta, dtype=complex)
+    u_odd  = np.zeros_like(zeta, dtype=complex)
+    zk = np.ones_like(zeta, dtype=complex)
+    for k in range(n_terms):
+        u_even = u_even + c_even[k] * zk
+        u_odd  = u_odd  + c_odd[k]  * zk
+        zk = zk * zeta
+    return u_even, u_odd
+
+
+def analytical_solution_smooth_symmetric(
+    x: np.ndarray, p: SmoothSymmetricBrainParams,
+    u0: complex = 1.0, n_terms: int = 80,
+) -> np.ndarray:
+    """Closed-form (power-series) u(x) for the smooth symmetric profile with
+    Dirichlet BCs u(0) = u0 and u(L) = 0.
+
+    The wave equation
+        (a + b zeta^2) u''(zeta) + 2b zeta u'(zeta) + rho omega^2 u(zeta) = 0
+    with a = Gc(1+i xi), b = beta(1+i xi), has two independent series
+    solutions u_even (symmetric about zeta=0) and u_odd (antisymmetric).
+    The general u = A u_even + B u_odd; A and B are fixed by the two
+    boundary conditions u(-L/2) = u0 and u(L/2) = 0.
+
+    Because u_even(-z) = u_even(z) and u_odd(-z) = -u_odd(z),
+        u(-L/2) = A u_even(L/2) - B u_odd(L/2) = u0
+        u(+L/2) = A u_even(L/2) + B u_odd(L/2) = 0
+    so A = u0 / (2 u_even(L/2)),  B = -u0 / (2 u_odd(L/2)).
+    """
+    a    = p.Gc   * (1.0 + 1j * p.xi)
+    b    = p.beta * (1.0 + 1j * p.xi)
+    rhsq = p.rho  * p.omega ** 2
+
+    zeta_field = x - 0.5 * p.L
+    z_half     = np.array([0.5 * p.L], dtype=float)
+    u_e_field, u_o_field = _power_series_solution(zeta_field, a, b, rhsq, n_terms)
+    u_e_h,     u_o_h     = _power_series_solution(z_half,     a, b, rhsq, n_terms)
+    A =  u0 / (2.0 * u_e_h[0])
+    B = -u0 / (2.0 * u_o_h[0])
+    return A * u_e_field + B * u_o_field
+
+
+def numerical_solution_smooth_symmetric(
+    N: int, p: SmoothSymmetricBrainParams, u0: complex = 1.0
+) -> tuple[np.ndarray, np.ndarray]:
+    """FD solver for the smooth symmetric problem, Dirichlet u(0)=u0, u(L)=0."""
+    x  = np.linspace(0.0, p.L, N)
+    dx = x[1] - x[0]
+    G  = G_profile_smooth_symmetric(x, p)
+
+    G_half_p = 0.5 * (G + np.roll(G, -1))
+    G_half_m = 0.5 * (G + np.roll(G, 1))
+    diag_main  = (G_half_p + G_half_m) / dx ** 2 - p.rho * p.omega ** 2
+    diag_upper = -G_half_p / dx ** 2
+    diag_lower = -G_half_m / dx ** 2
+
+    from scipy.sparse import diags as _diags
+    from scipy.sparse.linalg import spsolve as _spsolve
+
+    A = _diags(
+        [diag_lower[1:].astype(complex), diag_main.astype(complex),
+         diag_upper[:-1].astype(complex)],
+        offsets=[-1, 0, 1], format="lil", dtype=complex,
+    )
+    A[0, :] = 0;  A[0, 0]   = 1.0
+    A[-1, :] = 0; A[-1, -1] = 1.0
+    A = A.tocsr()
+
+    rhs = np.zeros(N, dtype=complex)
+    rhs[0]  = u0
+    rhs[-1] = 0.0
+    u = _spsolve(A, rhs)
+    return x, u
 
 
 # ── analytical solution ──────────────────────────────────────────────────────

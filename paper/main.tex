@@ -293,6 +293,40 @@ last 10 epochs, indicating no over-fitting at this training-set size. The
 retraining and serves as the verifiable anchor against which the 2D
 operator's behaviour is calibrated.
 
+\textbf{A smooth symmetric profile as a separate analytical anchor.}
+The mirrored Euler profile of equation~\eqref{eq:G-sym} is symmetric but
+$C^{0}$ at the centre: $G'$ has a sign jump at $x = L/2$ from the
+absolute-value term. To verify that the FD solver and the operator
+handle a strictly $C^{\infty}$ profile, we introduce a second symmetric
+brain-scale model with no absolute values,
+\begin{equation}
+G_{\mathrm{sm}}(x) \;=\; \bigl(G_{c}+\beta(x-L/2)^{2}\bigr)(1+i\xi),
+\label{eq:G-smooth}
+\end{equation}
+for which $G_{\mathrm{sm}}'(x) = 2\beta(x-L/2)$ is continuous and zero
+at the centre, and $G_{\mathrm{sm}}''(x) = 2\beta$ is constant.
+Substituting $\zeta = x - L/2$ and $a = G_{c}(1+i\xi)$,
+$b = \beta(1+i\xi)$, the wave equation becomes
+\begin{equation}
+(a + b\zeta^{2})\,u''(\zeta) + 2 b \zeta\,u'(\zeta) + \rho\omega^{2}\,u(\zeta) = 0,
+\label{eq:legendre}
+\end{equation}
+which is a Legendre-type ODE in disguise. Equation~\eqref{eq:legendre}
+admits a closed-form power-series solution with the recurrence
+$c_{k+2} = -\bigl(b\,k(k+1) + \rho\omega^{2}\bigr)/\bigl(a(k+2)(k+1)\bigr)\,c_{k}$,
+yielding an even branch ($c_{0}=1, c_{1}=0$) and an odd branch
+($c_{0}=0, c_{1}=1$). The Dirichlet boundary conditions
+$u(-L/2)=u_{0}$, $u(L/2)=0$ fix the two coefficients by parity:
+$A=u_{0}/[2 u_{e}(L/2)]$, $B=-u_{0}/[2 u_{o}(L/2)]$. The series converges
+on $|\zeta|<\sqrt{|a/b|}$; for the brain-scale defaults
+$G_{c}\!=\!2.0$~kPa, $G_{b}\!=\!2.4$~kPa, $L\!=\!16$~cm the radius is
+$17.9$~cm, comfortably covering the half-domain. The FD solver
+matches this analytical reference at second order, reaching relative
+$L^{2}$ error $1.8\!\times\!10^{-4}$ at $N=2048$
+(Fig.~\ref{fig:smooth-symmetric}). The smooth profile thus provides a
+second, independent analytical anchor for the 1D pipeline, with $G'$ and
+$G''$ both continuous and no piecewise structure.
+
 \textbf{Out-of-distribution stress test on symmetric profiles.}
 The 1D operator was trained exclusively on \emph{monotonic} power-law
 profiles. To probe how its inductive bias transfers to a structurally
@@ -771,6 +805,16 @@ convergence. See legend below.}
 \end{figure}
 }{}
 
+\IfFileExists{figures/fig7_smooth_symmetric.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig7_smooth_symmetric.png}
+\caption{Smooth symmetric brain-scale profile $G(x)=G_c+\beta(x-L/2)^2$:
+$C^\infty$, no absolute-value kink.}
+\label{fig:smooth-symmetric}
+\end{figure}
+}{}
+
 \IfFileExists{figures/fig3_symmetric.png}{%
 \begin{figure}[!ht]
 \centering
@@ -844,7 +888,19 @@ brain-scale parameter prior. (b) Four held-out samples: ground-truth
 and predicted real (top row) and imaginary (bottom row) parts of
 $G(x)$; the FNO recovers both the smooth ramp and the loss component.
 
-\textbf{Figure 3. Symmetric mirrored-Euler stress test.}
+\textbf{Figure 3. Smooth symmetric profile
+$G(x)=G_c+\beta(x-L/2)^2$.}
+(a) Complex shear modulus across the head (real and imaginary parts).
+(b) First derivative $\mathrm{d}G/\mathrm{d}x$ continuous and zero at
+$x=L/2$; second derivative $G''=2\beta$ constant. No
+absolute-value-induced discontinuities. (c) Forward solution at
+$f=50$~Hz: analytical power series (line) and FD solver (markers,
+$N=512$) agree pointwise. (d) Spatial convergence of the FD solver:
+$\mathcal{O}(N^{-2})$ to relative $L^{2}$ error
+$1.8\!\times\!10^{-4}$ at $N=2048$. (e) Imaginary part of the analytical
+and FD solutions. (f) Pointwise residual at $N=512$.
+
+\textbf{Figure 4. Symmetric mirrored-Euler stress test.}
 The 1D FNO is evaluated zero-shot on the symmetric profile
 $G_{\mathrm{sym}}(x)=G_{c}(1+\alpha|x-L/2|)^{2}(1+i\xi)$. (a) Two
 representative symmetric profiles, real parts. (b) Analytical solution
@@ -859,7 +915,7 @@ is FNO real-part prediction, red is FNO imaginary-part prediction; the
 broad shape and the imaginary component are recovered while the kink at
 $x=L/2$ is smoothed.
 
-\textbf{Figure 4. Mixed-distribution training closes the symmetric gap.}
+\textbf{Figure 5. Mixed-distribution training closes the symmetric gap.}
 Retraining the same 23k-parameter 1D FNO on a 50/50 mixture of
 asymmetric and symmetric samples. (a) Training loss and held-out
 validation loss tracked separately on each family. (b) Mean per-sample
@@ -870,7 +926,7 @@ symmetric gap is fully closed at the cost of a $2\!\times$ degradation
 on the asymmetric family. (c) Four mixed-trained predictions on
 symmetric samples; the kink at $x=L/2$ is now resolved.
 
-\textbf{Figure 5. Architecture and loss-function ablation: FNO vs SIREN
+\textbf{Figure 6. Architecture and loss-function ablation: FNO vs SIREN
 with four loss functions.}
 Both architectures (FNO with 23k params, SIREN with 19k params) trained
 on identical 1{,}500 asymmetric brain-scale samples for 15 epochs.
@@ -884,23 +940,23 @@ symmetric-OOD error (0.139), while FNO+RL$^2$+$\lambda$\,PDE is the best
 FNO configuration. Pure PDE residual is under-constrained as a sole
 loss and plateaus at RL$^2\!\approx\!0.7$ for both architectures.
 
-\textbf{Figure 6. TSM-FNO architecture.}
+\textbf{Figure 7. TSM-FNO architecture.}
 Schematic of the four-block 2D Fourier neural operator with the
 $4+2$-channel input lift, spectral convolutions truncated to 16 Fourier
 modes per dimension, and the three task heads ($G$, $\eps$, $A$).
 
-\textbf{Figure 7. Acoustoelastic phantom physics.}
+\textbf{Figure 8. Acoustoelastic phantom physics.}
 (a) Lam\'e analytical pre-stress field $\Dsig(\xvec)$ around a pressurised
 elliptical inclusion. (b) Perilesional shell mask used in the ring loss.
 (c) Resulting wave field $\mathrm{Re}\,u$ at 80~Hz with directional
 filtering. (d) Ground-truth strain field $\eps_{\mathrm{latent}}$.
 
-\textbf{Figure 8. Phase-A phantom validation.}
+\textbf{Figure 9. Phase-A phantom validation.}
 Four-panel comparison on the deterministic static 2D phantom:
 ground-truth $G$, TSM-FNO $G_{\mathrm{pred}}$, direct inversion $G_{\mathrm{DI}}$,
 and TSM-FNO $\eps_{\mathrm{pred}}$. White contour marks the lesion boundary.
 
-\textbf{Figure 9. Synthetic cohort performance.}
+\textbf{Figure 10. Synthetic cohort performance.}
 (a) Stiffness recovery RL$^{2}$ stratified by lesion pressure, contrast
 $G_{\mathrm{lesion}}/\Gbg$, and equivalent radius across 5{,}000 held-out
 samples. (b) Perilesional-shell RL$^{2}$ on $\eps$ versus pressure bin --
