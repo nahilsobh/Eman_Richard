@@ -1,0 +1,36 @@
+{
+  "tests": [
+    "asym (training)",
+    "sym Euler-kink (Fig 4)",
+    "sym SMOOTH (Fig 3, new)"
+  ],
+  "models": [
+    "FNO + asym-only",
+    "FNO + mixed",
+    "SIREN + asym-only",
+    "SIREN + mixed"
+  ],
+  "rl2": {
+    "FNO + asym-only": {
+      "asym (training)": 0.04274652525782585,
+      "sym Euler-kink (Fig 4)": 0.2049054056406021,
+      "sym SMOOTH (Fig 3, new)": 0.24381667375564575
+    },
+    "FNO + mixed": {
+      "asym (training)": 0.08776499330997467,
+      "sym Euler-kink (Fig 4)": 0.046401187777519226,
+      "sym SMOOTH (Fig 3, new)": 0.07695682346820831
+    },
+    "SIREN + asym-only": {
+      "asym (training)": 0.07067395746707916,
+      "sym Euler-kink (Fig 4)": 0.13944000005722046,
+      "sym SMOOTH (Fig 3, new)": 0.1578802615404129
+    },
+    "SIREN + mixed": {
+      "asym (training)": 0.07688603550195694,
+      "sym Euler-kink (Fig 4)": 0.07853579521179199,
+      "sym SMOOTH (Fig 3, new)": 0.08953330665826797
+    }
+  },
+  "n_samples_per_test": 300
+}

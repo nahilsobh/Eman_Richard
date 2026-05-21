@@ -327,6 +327,27 @@ $L^{2}$ error $1.8\!\times\!10^{-4}$ at $N=2048$
 second, independent analytical anchor for the 1D pipeline, with $G'$ and
 $G''$ both continuous and no piecewise structure.
 
+\textbf{Zero-shot evaluation across three test distributions.}
+The smooth profile of equation~\eqref{eq:G-smooth} is a third test
+family for the trained operators: structurally different from the
+monotonic asymmetric ramps the asym-only models saw, and from the
+mirrored-Euler V-shape with the central kink that the mixed models
+saw. We evaluate all four trained models -- FNO-asym, FNO-mixed,
+SIREN-asym, SIREN-mixed -- zero-shot on 300 samples each from the
+three test distributions (Fig.~\ref{fig:smooth-inverse}). Two
+observations: (i) the mixed-trained models generalise to the unseen
+smooth family with modest degradation
+(FNO-mixed RL$^{2}=0.077$, SIREN-mixed $=0.090$), substantially better
+than the asym-only models on this family (FNO-asym $=0.244$,
+SIREN-asym $=0.158$). Distribution \emph{diversity} during training
+transfers to a structurally novel third distribution, even when neither
+training family resembles it. (ii) The asym-only models degrade more
+on the smooth profile than on the kinked profile
+(FNO: $0.205\!\to\!0.244$, SIREN: $0.139\!\to\!0.158$), because the
+piecewise-linear ramps in their training distribution share a
+local-linear structure with the kinked V-shape that the smooth
+quadratic does not have.
+
 \textbf{Out-of-distribution stress test on symmetric profiles.}
 The 1D operator was trained exclusively on \emph{monotonic} power-law
 profiles. To probe how its inductive bias transfers to a structurally
@@ -815,6 +836,16 @@ $C^\infty$, no absolute-value kink.}
 \end{figure}
 }{}
 
+\IfFileExists{figures/fig8_smooth_inverse.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig8_smooth_inverse.png}
+\caption{Zero-shot evaluation on the smooth symmetric distribution
+across four trained models and three test families.}
+\label{fig:smooth-inverse}
+\end{figure}
+}{}
+
 \IfFileExists{figures/fig3_symmetric.png}{%
 \begin{figure}[!ht]
 \centering
@@ -900,7 +931,23 @@ $\mathcal{O}(N^{-2})$ to relative $L^{2}$ error
 $1.8\!\times\!10^{-4}$ at $N=2048$. (e) Imaginary part of the analytical
 and FD solutions. (f) Pointwise residual at $N=512$.
 
-\textbf{Figure 4. Symmetric mirrored-Euler stress test.}
+\textbf{Figure 4. Zero-shot inverse on the smooth symmetric
+distribution.}
+(a) Three sample profiles drawn from
+$G(x)=G_c+\beta(x-L/2)^2$, $G_c\!\sim\!U(0.8,2.5)$~kPa,
+$G_b\!\sim\!U(1.5,4.5)$~kPa, $\xi\!\sim\!U(0.05,0.20)$, $f=50$~Hz.
+(b) Mean per-sample RL$^{2}$ across four trained models (FNO-asym,
+FNO-mixed, SIREN-asym, SIREN-mixed) on three held-out test families
+(asym ramp, mirrored-Euler V-shape with central kink, and the new
+smooth quadratic). 300 samples per test set; no fine-tuning. FNO-mixed
+achieves the lowest error on the smooth distribution despite never
+having seen a smooth quadratic during training. (c--e) Per-sample
+predictions from FNO-asym, FNO-mixed, and SIREN-asym on the same
+held-out smooth sample; the mixed-trained model recovers both the
+overall curvature and the imaginary (loss) component, the asym-only
+models smear or miss the central minimum.
+
+\textbf{Figure 5. Symmetric mirrored-Euler stress test.}
 The 1D FNO is evaluated zero-shot on the symmetric profile
 $G_{\mathrm{sym}}(x)=G_{c}(1+\alpha|x-L/2|)^{2}(1+i\xi)$. (a) Two
 representative symmetric profiles, real parts. (b) Analytical solution
@@ -915,7 +962,7 @@ is FNO real-part prediction, red is FNO imaginary-part prediction; the
 broad shape and the imaginary component are recovered while the kink at
 $x=L/2$ is smoothed.
 
-\textbf{Figure 5. Mixed-distribution training closes the symmetric gap.}
+\textbf{Figure 6. Mixed-distribution training closes the symmetric gap.}
 Retraining the same 23k-parameter 1D FNO on a 50/50 mixture of
 asymmetric and symmetric samples. (a) Training loss and held-out
 validation loss tracked separately on each family. (b) Mean per-sample
@@ -926,7 +973,7 @@ symmetric gap is fully closed at the cost of a $2\!\times$ degradation
 on the asymmetric family. (c) Four mixed-trained predictions on
 symmetric samples; the kink at $x=L/2$ is now resolved.
 
-\textbf{Figure 6. Architecture and loss-function ablation: FNO vs SIREN
+\textbf{Figure 7. Architecture and loss-function ablation: FNO vs SIREN
 with four loss functions.}
 Both architectures (FNO with 23k params, SIREN with 19k params) trained
 on identical 1{,}500 asymmetric brain-scale samples for 15 epochs.
@@ -940,23 +987,23 @@ symmetric-OOD error (0.139), while FNO+RL$^2$+$\lambda$\,PDE is the best
 FNO configuration. Pure PDE residual is under-constrained as a sole
 loss and plateaus at RL$^2\!\approx\!0.7$ for both architectures.
 
-\textbf{Figure 7. TSM-FNO architecture.}
+\textbf{Figure 8. TSM-FNO architecture.}
 Schematic of the four-block 2D Fourier neural operator with the
 $4+2$-channel input lift, spectral convolutions truncated to 16 Fourier
 modes per dimension, and the three task heads ($G$, $\eps$, $A$).
 
-\textbf{Figure 8. Acoustoelastic phantom physics.}
+\textbf{Figure 9. Acoustoelastic phantom physics.}
 (a) Lam\'e analytical pre-stress field $\Dsig(\xvec)$ around a pressurised
 elliptical inclusion. (b) Perilesional shell mask used in the ring loss.
 (c) Resulting wave field $\mathrm{Re}\,u$ at 80~Hz with directional
 filtering. (d) Ground-truth strain field $\eps_{\mathrm{latent}}$.
 
-\textbf{Figure 9. Phase-A phantom validation.}
+\textbf{Figure 10. Phase-A phantom validation.}
 Four-panel comparison on the deterministic static 2D phantom:
 ground-truth $G$, TSM-FNO $G_{\mathrm{pred}}$, direct inversion $G_{\mathrm{DI}}$,
 and TSM-FNO $\eps_{\mathrm{pred}}$. White contour marks the lesion boundary.
 
-\textbf{Figure 10. Synthetic cohort performance.}
+\textbf{Figure 11. Synthetic cohort performance.}
 (a) Stiffness recovery RL$^{2}$ stratified by lesion pressure, contrast
 $G_{\mathrm{lesion}}/\Gbg$, and equivalent radius across 5{,}000 held-out
 samples. (b) Perilesional-shell RL$^{2}$ on $\eps$ versus pressure bin --
