@@ -316,6 +316,29 @@ operator degrades gracefully rather than catastrophically: the broad
 shape and magnitude are recovered, but the kink is smoothed. This
 quantifies the cost of training-distribution narrowness.
 
+\textbf{Architecture and loss-function ablation.}
+The 1D problem also lets us isolate which inductive bias does the work.
+We trained the same 1D operator with two architectures and four loss
+functions: relative $L^2$ (RL$^2$), MSE, the Helmholtz residual on the
+predicted $G$ (a ground-truth-free physics loss), and the composite
+RL$^2$+$\lambda$\,PDE with $\lambda=0.05$. The two architectures are an
+FNO (23k parameters, spectral convolutions) and a 1D-convolutional SIREN
+(19k parameters, $\sin(\omega_{0}\!\cdot)$ activations with SIREN
+initialisation, $\omega_{0}\!=\!30$). All eight configurations train on
+the same 1{,}500 asymmetric samples for 15 epochs and are evaluated on the
+same held-out asymmetric and symmetric test sets
+(Fig.~\ref{fig:arch-loss}). Three findings: (i) the pure PDE residual is
+under-constrained as a sole loss -- both architectures plateau at
+RL$^{2}\!\approx\!0.7$, recovering only the overall amplitude; (ii) on
+the asymmetric in-distribution test, every loss except pure PDE produces
+RL$^{2}<0.11$, so the choice of supervision matters less than expected;
+(iii) SIREN+RL$^{2}$ achieves the best symmetric-OOD performance
+(RL$^{2}=0.14$, $1.7\!\times\!$ better than FNO+RL$^{2}$), while
+FNO benefits substantially from the composite loss
+($0.236\!\to\!0.202$ on sym). The data-driven $\sin$-activation prior is
+itself a strong implicit regulariser for wave inversion, and explicit
+physics regularisation closes some -- but not all -- of the gap to it.
+
 \textbf{Mixed training closes the symmetric gap.}
 Retraining the same 23k-parameter architecture on a 50/50 mixture of
 asymmetric and symmetric samples (same total training-set size,
@@ -494,6 +517,39 @@ $\xi=0.10$, $\rho=10^{3}$~kg/m$^{3}$, $f=50$~Hz, $u_{0}=1$ (unit driver).
 These match the white-matter / deep-grey transition and pneumatic-driver
 frequencies used in the brain MRE
 literature~\cite{murphy2024lowfreq,herasrivera2025onli}.
+
+\paragraph{1D ablation: architectures and loss functions.}
+\label{sec:methods-1d-ablation}
+The ablation in Fig.~\ref{fig:arch-loss} crosses two architectures and
+four loss functions. \emph{Architectures.} The FNO is identical to the
+one trained for Fig.~\ref{fig:brain-inverse} (3 spectral-conv blocks,
+width 24, 12 Fourier modes, 23{,}282 parameters). The SIREN is a 1D
+convolutional sinusoidal representation network: a $1\!\times\!1$ lift
+to width 24, then three layers of \texttt{Conv1d(kernel\,=\,11)} each
+followed by $\sin(\omega_{0}\cdot)$ activation with $\omega_{0}=30$ and
+SIREN initialisation (first layer uniform in
+$[-1/n_{\text{in}},1/n_{\text{in}}]$, subsequent layers uniform in
+$[-\sqrt{6/n_{\text{in}}}/\omega_{0},+\sqrt{6/n_{\text{in}}}/\omega_{0}]$),
+ending in a linear $1\!\times\!1$ projection to the two-channel output.
+This gives 19{,}226 parameters, $\approx 0.83\times$ the FNO budget.
+\emph{Losses.} (i) Per-sample relative $L^{2}$ on the normalised $G$
+(the default in Figs.~\ref{fig:brain-inverse}--\ref{fig:mixed-training}).
+(ii) Mean-squared error on the normalised $G$. (iii) The 1D Helmholtz
+residual on the predicted $G$,
+\[
+\mathcal{L}_{\mathrm{pde}}=
+\Bigl\langle\bigl|\,G_{\mathrm{pred}}\cdot\Delta_{x}u
+       + \rho\omega^{2}u\,\bigr|\,\big/\,
+\bigl(\rho\omega^{2}|u|+\epsilon_{0}\bigr)\Bigr\rangle_{\text{interior}},
+\]
+with $\Delta_{x}$ the three-point FD Laplacian on the same grid as the
+forward solver; this loss requires no ground-truth $G$ and rescales the
+prediction by $G_{\text{scale}}$ before evaluation. (iv) The composite
+$\mathcal{L}_{\mathrm{rl2}}+\lambda_{\mathrm{pde}}\mathcal{L}_{\mathrm{pde}}$
+with $\lambda_{\mathrm{pde}}=0.05$, matching the weight used in the 2D
+pipeline. All eight configurations share the data, batch size, optimiser
+(AdamW, $\mathrm{lr}=10^{-3}$, cosine schedule to $10^{-5}$), and
+training-set size; only the architecture and loss differ.
 
 \paragraph{1D FNO inversion.}
 \label{sec:methods-1d-fno}
@@ -736,6 +792,18 @@ agreement (a--c) and zero-shot FNO inverse evaluation (d, e--h).}
 \end{figure}
 }{}
 
+\IfFileExists{figures/fig5b_arch_loss_heatmap.png}{%
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fig5a_arch_loss_curves.png}\\[6pt]
+\includegraphics[width=\linewidth]{figures/fig5b_arch_loss_heatmap.png}\\[6pt]
+\includegraphics[width=\linewidth]{figures/fig5c_arch_loss_predict.png}
+\caption{Architecture and loss-function ablation: FNO vs SIREN with four
+loss functions.}
+\label{fig:arch-loss}
+\end{figure}
+}{}
+
 \begin{figure}[!ht]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig4_phaseA.png}
@@ -802,23 +870,37 @@ symmetric gap is fully closed at the cost of a $2\!\times$ degradation
 on the asymmetric family. (c) Four mixed-trained predictions on
 symmetric samples; the kink at $x=L/2$ is now resolved.
 
-\textbf{Figure 5. TSM-FNO architecture.}
+\textbf{Figure 5. Architecture and loss-function ablation: FNO vs SIREN
+with four loss functions.}
+Both architectures (FNO with 23k params, SIREN with 19k params) trained
+on identical 1{,}500 asymmetric brain-scale samples for 15 epochs.
+(a) Validation RL$^2$ vs epoch on the asymmetric (left) and symmetric
+(right) test sets, eight curves coloured by architecture and
+line-styled by loss. (b) Final mean RL$^2$ heatmaps for the two test
+sets across the 2$\times$4 grid. (c) Per-sample predictions for the
+four most informative configurations on one asymmetric (top) and one
+symmetric (bottom) held-out sample. SIREN+RL$^2$ achieves the lowest
+symmetric-OOD error (0.139), while FNO+RL$^2$+$\lambda$\,PDE is the best
+FNO configuration. Pure PDE residual is under-constrained as a sole
+loss and plateaus at RL$^2\!\approx\!0.7$ for both architectures.
+
+\textbf{Figure 6. TSM-FNO architecture.}
 Schematic of the four-block 2D Fourier neural operator with the
 $4+2$-channel input lift, spectral convolutions truncated to 16 Fourier
 modes per dimension, and the three task heads ($G$, $\eps$, $A$).
 
-\textbf{Figure 6. Acoustoelastic phantom physics.}
+\textbf{Figure 7. Acoustoelastic phantom physics.}
 (a) Lam\'e analytical pre-stress field $\Dsig(\xvec)$ around a pressurised
 elliptical inclusion. (b) Perilesional shell mask used in the ring loss.
 (c) Resulting wave field $\mathrm{Re}\,u$ at 80~Hz with directional
 filtering. (d) Ground-truth strain field $\eps_{\mathrm{latent}}$.
 
-\textbf{Figure 7. Phase-A phantom validation.}
+\textbf{Figure 8. Phase-A phantom validation.}
 Four-panel comparison on the deterministic static 2D phantom:
 ground-truth $G$, TSM-FNO $G_{\mathrm{pred}}$, direct inversion $G_{\mathrm{DI}}$,
 and TSM-FNO $\eps_{\mathrm{pred}}$. White contour marks the lesion boundary.
 
-\textbf{Figure 8. Synthetic cohort performance.}
+\textbf{Figure 9. Synthetic cohort performance.}
 (a) Stiffness recovery RL$^{2}$ stratified by lesion pressure, contrast
 $G_{\mathrm{lesion}}/\Gbg$, and equivalent radius across 5{,}000 held-out
 samples. (b) Perilesional-shell RL$^{2}$ on $\eps$ versus pressure bin --

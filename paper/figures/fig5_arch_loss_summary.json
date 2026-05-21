@@ -1,0 +1,58 @@
+{
+  "fno_rl2": {
+    "arch": "fno",
+    "loss": "rl2",
+    "params": 23282,
+    "val_asym_final": 0.09769753366708755,
+    "val_sym_final": 0.2357444316148758
+  },
+  "fno_mse": {
+    "arch": "fno",
+    "loss": "mse",
+    "params": 23282,
+    "val_asym_final": 0.10087703168392181,
+    "val_sym_final": 0.22446507215499878
+  },
+  "fno_pde": {
+    "arch": "fno",
+    "loss": "pde",
+    "params": 23282,
+    "val_asym_final": 0.7682964205741882,
+    "val_sym_final": 0.6834504008293152
+  },
+  "fno_composite": {
+    "arch": "fno",
+    "loss": "composite",
+    "params": 23282,
+    "val_asym_final": 0.07252389937639236,
+    "val_sym_final": 0.20174671709537506
+  },
+  "siren_rl2": {
+    "arch": "siren",
+    "loss": "rl2",
+    "params": 19226,
+    "val_asym_final": 0.07067395746707916,
+    "val_sym_final": 0.13944000005722046
+  },
+  "siren_mse": {
+    "arch": "siren",
+    "loss": "mse",
+    "params": 19226,
+    "val_asym_final": 0.08670791983604431,
+    "val_sym_final": 0.16473506391048431
+  },
+  "siren_pde": {
+    "arch": "siren",
+    "loss": "pde",
+    "params": 19226,
+    "val_asym_final": 0.7486202716827393,
+    "val_sym_final": 0.6922361254692078
+  },
+  "siren_composite": {
+    "arch": "siren",
+    "loss": "composite",
+    "params": 19226,
+    "val_asym_final": 0.07750254124403,
+    "val_sym_final": 0.14986459910869598
+  }
+}
