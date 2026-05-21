@@ -207,80 +207,119 @@ def extract_to_h5(out_path: Path, subjects: list[str],
     The HDF5 has fixed-size datasets (chunked) under the names listed in
     the module docstring.  Returns a dict of summary statistics.
     """
+    import gc
+
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Two-pass for clean preallocation: first count slices, then write.
-    # The acquisitions are independent so we just iterate.
-    records: list[dict] = []
-    skipped: list[tuple[str, int, str]] = []
-    for subj in subjects:
-        for f in freqs:
-            acq = _acq_paths(root, subj, f)
-            missing = [name for name, p in
-                        [("disp_re", acq.disp_re),
-                         ("disp_im", acq.disp_im),
-                         ("shear_re", acq.shear_re),
-                         ("shear_im", acq.shear_im),
-                         ("mask",    acq.mask)]
-                       if not p.exists()]
-            if missing:
-                skipped.append((subj, f, ",".join(missing)))
-                continue
-            try:
-                for rec in axial_slices(
-                        acq, disp_channel=disp_channel,
-                        min_brain_frac=min_brain_frac,
-                        target_grid=target_grid):
-                    records.append(rec)
-                if verbose:
-                    print(f"  {subj}  {f} Hz : appended  (running total "
-                          f"{len(records)} slices, "
-                          f"{len(skipped)} acquisitions skipped)",
-                          flush=True)
-            except Exception as e:
-                skipped.append((subj, f, repr(e)))
+    # Pre-allocate growable HDF5 datasets and append slices per-acquisition
+    # so memory usage stays bounded by a single subject's NIfTI volumes
+    # (~1 GB) rather than the full 17k slice corpus (~5+ GB).
+    with h5py.File(out_path, "w") as h:
+        TG = target_grid
+        ds_X      = h.create_dataset("X",      shape=(0, 2, TG, TG),
+                                      maxshape=(None, 2, TG, TG),
+                                      dtype=np.float32, chunks=(64, 2, TG, TG),
+                                      compression="gzip", compression_opts=4)
+        ds_Y_re   = h.create_dataset("Y_G_re", shape=(0, TG, TG),
+                                      maxshape=(None, TG, TG),
+                                      dtype=np.float32, chunks=(64, TG, TG),
+                                      compression="gzip", compression_opts=4)
+        ds_Y_im   = h.create_dataset("Y_G_im", shape=(0, TG, TG),
+                                      maxshape=(None, TG, TG),
+                                      dtype=np.float32, chunks=(64, TG, TG),
+                                      compression="gzip", compression_opts=4)
+        ds_mask   = h.create_dataset("mask",   shape=(0, TG, TG),
+                                      maxshape=(None, TG, TG),
+                                      dtype=np.bool_, chunks=(64, TG, TG),
+                                      compression="gzip", compression_opts=4)
+        ds_subj = h.create_dataset("meta/subject", shape=(0,),
+                                    maxshape=(None,), dtype="S32")
+        ds_freq = h.create_dataset("meta/freq",    shape=(0,),
+                                    maxshape=(None,), dtype=np.int32)
+        ds_z    = h.create_dataset("meta/z_idx",   shape=(0,),
+                                    maxshape=(None,), dtype=np.int32)
 
-    n = len(records)
-    if n == 0:
+        skipped: list[tuple[str, int, str]] = []
+        n_subjects_kept: set[str] = set()
+        n_total = 0
+        for subj in subjects:
+            for f in freqs:
+                acq = _acq_paths(root, subj, f)
+                missing = [name for name, p in
+                            [("disp_re", acq.disp_re),
+                             ("disp_im", acq.disp_im),
+                             ("shear_re", acq.shear_re),
+                             ("shear_im", acq.shear_im),
+                             ("mask",    acq.mask)]
+                           if not p.exists()]
+                if missing:
+                    skipped.append((subj, f, ",".join(missing)))
+                    continue
+                try:
+                    buf_X    = []
+                    buf_Y_re = []
+                    buf_Y_im = []
+                    buf_m    = []
+                    buf_subj = []
+                    buf_freq = []
+                    buf_z    = []
+                    for rec in axial_slices(
+                            acq, disp_channel=disp_channel,
+                            min_brain_frac=min_brain_frac,
+                            target_grid=target_grid):
+                        buf_X.append(np.stack([rec["u_re"], rec["u_im"]]))
+                        buf_Y_re.append(rec["G_re"])
+                        buf_Y_im.append(rec["G_im"])
+                        buf_m.append(rec["mask"])
+                        buf_subj.append(rec["subject"].encode("ascii"))
+                        buf_freq.append(rec["freq_hz"])
+                        buf_z.append(rec["z_idx"])
+                    if not buf_X:
+                        continue
+                    n_new = len(buf_X)
+                    # Resize + append all six datasets.
+                    for ds in (ds_X, ds_Y_re, ds_Y_im, ds_mask):
+                        ds.resize((ds.shape[0] + n_new,) + ds.shape[1:])
+                    for ds in (ds_subj, ds_freq, ds_z):
+                        ds.resize((ds.shape[0] + n_new,))
+                    ds_X[-n_new:]    = np.stack(buf_X)
+                    ds_Y_re[-n_new:] = np.stack(buf_Y_re)
+                    ds_Y_im[-n_new:] = np.stack(buf_Y_im)
+                    ds_mask[-n_new:] = np.stack(buf_m)
+                    ds_subj[-n_new:] = np.array(buf_subj, dtype="S32")
+                    ds_freq[-n_new:] = np.array(buf_freq, dtype=np.int32)
+                    ds_z[-n_new:]    = np.array(buf_z,    dtype=np.int32)
+                    n_total += n_new
+                    n_subjects_kept.add(subj)
+                    if verbose:
+                        print(f"  {subj}  {f} Hz : appended {n_new:3d} "
+                              f"(running total {n_total} slices, "
+                              f"{len(skipped)} skipped)",
+                              flush=True)
+                    # Free the per-acquisition NIfTI memory before next iter
+                    del buf_X, buf_Y_re, buf_Y_im, buf_m
+                    del buf_subj, buf_freq, buf_z
+                    gc.collect()
+                except Exception as e:
+                    skipped.append((subj, f, repr(e)))
+
+        h.attrs["target_grid"]    = target_grid
+        h.attrs["disp_channel"]   = disp_channel
+        h.attrs["min_brain_frac"] = min_brain_frac
+        h.attrs["udel_freqs"]     = list(freqs)
+        h.attrs["n_subjects"]     = len(n_subjects_kept)
+
+    if n_total == 0:
         raise RuntimeError("No slices extracted")
 
-    X      = np.stack([np.stack([r["u_re"], r["u_im"]]) for r in records])
-    Y_re   = np.stack([r["G_re"] for r in records])
-    Y_im   = np.stack([r["G_im"] for r in records])
-    mask   = np.stack([r["mask"] for r in records])
-    subj_b = np.array([r["subject"].encode("ascii") for r in records],
-                       dtype="S32")
-    freq   = np.array([r["freq_hz"] for r in records], dtype=np.int32)
-    z_idx  = np.array([r["z_idx"]   for r in records], dtype=np.int32)
-
-    with h5py.File(out_path, "w") as h:
-        h.create_dataset("X",      data=X,    compression="gzip",
-                          compression_opts=4, chunks=(64, 2, target_grid, target_grid))
-        h.create_dataset("Y_G_re", data=Y_re, compression="gzip",
-                          compression_opts=4, chunks=(64, target_grid, target_grid))
-        h.create_dataset("Y_G_im", data=Y_im, compression="gzip",
-                          compression_opts=4, chunks=(64, target_grid, target_grid))
-        h.create_dataset("mask",   data=mask, compression="gzip",
-                          compression_opts=4, chunks=(64, target_grid, target_grid))
-        g = h.create_group("meta")
-        g.create_dataset("subject", data=subj_b)
-        g.create_dataset("freq",    data=freq)
-        g.create_dataset("z_idx",   data=z_idx)
-        h.attrs["target_grid"]  = target_grid
-        h.attrs["disp_channel"] = disp_channel
-        h.attrs["min_brain_frac"] = min_brain_frac
-        h.attrs["udel_freqs"]   = list(freqs)
-        h.attrs["n_subjects"]   = len(set(r["subject"] for r in records))
-
-    summary = {
-        "n_slices":    n,
-        "n_subjects":  len(set(r["subject"] for r in records)),
+    return {
+        "n_slices":               n_total,
+        "n_subjects":             len(n_subjects_kept),
         "n_acquisitions_skipped": len(skipped),
-        "skipped":     skipped,
-        "out_path":    str(out_path),
+        "skipped":                skipped,
+        "out_path":               str(out_path),
     }
-    return summary
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
