@@ -1,0 +1,39 @@
+{
+  "tests": [
+    "asym (Fig 2 in-dist)",
+    "mixed asym+euler (Fig 6 in)",
+    "sym Euler (Fig 4 dist)",
+    "sym smooth (Fig 4 dist)",
+    "embedded (Fig 9 in-dist)"
+  ],
+  "models": [
+    "S",
+    "S",
+    "S"
+  ],
+  "rl2": {
+    "SIREN + asym-only (Fig 2)": {
+      "asym (Fig 2 in-dist)": 0.07289429754018784,
+      "mixed asym+euler (Fig 6 in)": 0.10782893002033234,
+      "sym Euler (Fig 4 dist)": 0.15042762458324432,
+      "sym smooth (Fig 4 dist)": 0.15309390425682068,
+      "embedded (Fig 9 in-dist)": 0.3117881119251251
+    },
+    "SIREN + mixed (Fig 6)": {
+      "asym (Fig 2 in-dist)": 0.0796598345041275,
+      "mixed asym+euler (Fig 6 in)": 0.08118744194507599,
+      "sym Euler (Fig 4 dist)": 0.08009025454521179,
+      "sym smooth (Fig 4 dist)": 0.08976034820079803,
+      "embedded (Fig 9 in-dist)": 0.3074128329753876
+    },
+    "SIREN + embedded (new)": {
+      "asym (Fig 2 in-dist)": 0.157512366771698,
+      "mixed asym+euler (Fig 6 in)": 0.14449897408485413,
+      "sym Euler (Fig 4 dist)": 0.13499554991722107,
+      "sym smooth (Fig 4 dist)": 0.14205457270145416,
+      "embedded (Fig 9 in-dist)": 0.14438621699810028
+    }
+  },
+  "n_params": 19226,
+  "n_train": 1500
+}
