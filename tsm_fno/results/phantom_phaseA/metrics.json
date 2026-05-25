@@ -1,0 +1,45 @@
+{
+  "phantom": {
+    "G_bg": 1500.0,
+    "G_lesion": 5000.0,
+    "a_vox": 12.0,
+    "b_vox": 12.0,
+    "pressure": 0.0,
+    "freq_hz": 80.0,
+    "N": 80
+  },
+  "fno": {
+    "pearson_r_whole": 0.9994668364524841,
+    "pearson_r_inside": NaN,
+    "pearson_r_outside": NaN,
+    "rl2_whole": 0.02630632400675902,
+    "rl2_inside": 0.025822598121279763,
+    "G_pred_inside_mean": 4904.7978515625,
+    "G_pred_outside_mean": 1463.9993896484375
+  },
+  "di": {
+    "pearson_r_whole": 0.6607762575149536,
+    "pearson_r_inside": NaN,
+    "rl2_whole": 0.5724488035365705
+  },
+  "fno_vs_di": {
+    "pearson_r_whole": 0.66096431016922
+  },
+  "eps": {
+    "max_abs": 0.017374148592352867,
+    "mean_abs": 0.004346721805632114,
+    "outside_mean_abs": 0.004668220411986113
+  },
+  "A_pred": -2.7585105895996094,
+  "phase_a_pass": {
+    "criterion_1_r_geq_0p85": {
+      "passed": true,
+      "value": 0.9994668364524841
+    },
+    "criterion_2_eps_outside_leq_0p05": {
+      "passed": true,
+      "value": 0.004668220411986113
+    },
+    "overall_pass": true
+  }
+}

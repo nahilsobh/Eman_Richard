@@ -1,0 +1,7 @@
+{
+  "n_params": 24936,
+  "n_train_used": 20000,
+  "n_val_used": 2000,
+  "final_train_nce": 3.0952667624522476,
+  "final_val_nce": 5.382388782501221
+}
