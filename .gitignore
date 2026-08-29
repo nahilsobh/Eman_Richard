@@ -28,6 +28,7 @@ htmlcov/
 *.pt
 *.npy
 *.npz
+*.tar.gz
 runs/
 data/chunks/
 
