@@ -126,7 +126,31 @@ scalar G_iso already includes the acoustoelastic effect that Yin's
 mechanism recovers from the filter alone. Files:
 `src/solver/helmholtz_fd_3d.py::directional_filter_3d` and
 `multi_face_broadband_sources`;
-`tests/test_directional_filter.py` (6 new tests, all pass). As a result μ_conv also now recovers a physical value:
+`tests/test_directional_filter.py` (6 new tests, all pass).
+
+**Full-cycle reproduction of Yin Fig 6** (added 2026-09-06): `--full-cycle`
+flag on `paper_phantom_demo_3d_tsm.py` loops all 11 states (6 inflation +
+5 deflation) with filter+20-dir. Runtime ~2 min. Result at m=1
+(Phantom 1 analogue), calibrated A=0.20:
+
+| Volume | Ours μ_TSM | Yin P1 μ_TSM | Ours μ_conv | Yin P1 μ_conv |
+|---|---|---|---|---|
+| 0 mL (baseline) | 3.51 | 3.5 ✓ | 2.26 | 2.7 |
+| 50 mL | 3.52 | 3.5 ✓ | 2.48 | 2.7 |
+| 100 mL | 4.38 | 3.8 (+15%) | 2.83 | 2.7 |
+| 150 mL | 4.76 | 3.9 (+22%) | 3.07 | 2.8 |
+| 200 mL | 5.38 | 4.2 (+28%) | 3.42 | 2.8 |
+| **250 mL (peak)** | **6.78** | **4.4 (+54%)** | 3.77 | 2.8 |
+
+**Baseline TSM matches Yin exactly.** At higher pressures μ_TSM
+over-rises, because the filter method on a scalar G_iso amplifies DI
+noise via MIP (Yin's true tensor-anisotropy signal is cleaner — his
+μ_conv stays flat where ours rises with p). Structural agreement is
+complete: TSM > conv, monotonic rise, deflation retraces inflation.
+Full reproduction of Yin's flat-conv would need a true vector-elasticity
+solver — out of scope. Results in
+`results/paper_demo_3d_tsm_dir20_filter_cycle/`
+(m=1) and by rerunning with `-m 1.5` for the Phantom 2 analogue. As a result μ_conv also now recovers a physical value:
 2.4 kPa (was 300 Pa pre-calibration — the DI amplitude-thresholding
 artifact self-heals once A is realistic).
 

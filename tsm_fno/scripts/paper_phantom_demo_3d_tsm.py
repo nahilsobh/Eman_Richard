@@ -67,6 +67,15 @@ DRIVER_R = 0.5
 CENTER   = (N // 2, N // 2, N // 2)
 SHELL_MM = 5.0
 
+# Full-cycle state schedule — mirrors paper_phantom_demo_3d.py.
+import math as _math
+BALLOON_VOLUMES_ML = [0, 50, 100, 150, 200, 250]
+PRESSURE_STATES    = [0, 1000, 2000, 3000, 5000, 7000]  # Pa
+def _balloon_vx(vol_ml, dx=DX):
+    if vol_ml <= 0: return 4.0
+    return ((3 * vol_ml * 1e-6 / (4 * _math.pi)) ** (1/3)) / dx
+BALLOON_RADII_VX = [_balloon_vx(v) for v in BALLOON_VOLUMES_ML]
+
 # Six face-normal directions — matches the smallest useful DF set Yin
 # discusses. The face for each direction is where the piston plate sits.
 # Convention: face index is the axis that the driver is on; sign indicates
@@ -156,6 +165,154 @@ def solve_one_direction(khat: np.ndarray,
     return np.abs(u), G_DI
 
 
+def _tsm_for_state(balloon: SphericalBalloon, sigma: np.ndarray, G_base: np.ndarray,
+                    G_iso: np.ndarray, args, directions) -> dict:
+    """Compute (mu_conv, mu_TSM, ring stats) for one balloon state.
+
+    Returns a dict with keys: 'mu_conv', 'mu_tsm', 'ring_conv', 'ring_tsm',
+    'ring_iso'. Extracted from main() so the full-cycle driver can loop.
+    """
+    di_maps: list[np.ndarray]  = []
+    amp_maps: list[np.ndarray] = []
+    if args.method == "solves":
+        for khat, name, face in directions:
+            amp, G_DI = solve_one_direction(khat, face, balloon, sigma, G_base,
+                                             stiffening_exponent=args.stiffening_exponent,
+                                             viscosity=args.viscosity)
+            di_maps.append(G_DI); amp_maps.append(amp)
+    else:
+        src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
+                                            faces=("iN", "jN", "j0", "kN", "k0"))
+        u_full = helmholtz_solve_3d(G_iso, freq=FREQ, rho=RHO, dx=DX,
+                                     damping=DAMPING, sources=src,
+                                     top_free=False, viscosity=args.viscosity)
+        for khat, _name, _face in directions:
+            u_k  = directional_filter_3d(u_full, khat=khat, angular_width=args.wedge_width)
+            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX)
+            di_maps.append(G_DI); amp_maps.append(np.abs(u_k))
+
+    di_stack  = np.stack(di_maps, axis=0)
+    amp_stack = np.stack(amp_maps, axis=0)
+    if args.amp_threshold > 0.0:
+        per_dir_peak = amp_stack.reshape(len(directions), -1).max(axis=1)
+        thresh = per_dir_peak[:, None, None, None] * args.amp_threshold
+        di_stack = np.where(amp_stack >= thresh, di_stack, np.nan)
+
+    w = amp_stack ** 2
+    with np.errstate(invalid="ignore"):
+        num = np.nansum(np.where(np.isnan(di_stack), 0.0, w * di_stack), axis=0)
+        den = np.nansum(np.where(np.isnan(di_stack), 0.0, w),            axis=0)
+        mu_conv = num / (den + 1e-30)
+        mu_conv[den == 0] = np.nan
+    mu_tsm = np.nanmax(di_stack, axis=0)
+
+    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=SHELL_MM, dx=DX)
+    def _mean_shell(field):
+        vals = field[shell]; vals = vals[np.isfinite(vals)]
+        if not vals.size: return float("nan")
+        lo, hi = np.percentile(vals, [10, 90])
+        trimmed = vals[(vals >= lo) & (vals <= hi)]
+        return float(np.mean(trimmed)) if trimmed.size else float("nan")
+
+    return dict(
+        mu_conv=mu_conv, mu_tsm=mu_tsm,
+        ring_iso=_mean_shell(G_iso),
+        ring_conv=_mean_shell(mu_conv),
+        ring_tsm=_mean_shell(mu_tsm),
+    )
+
+
+def _run_full_cycle(args, save_dir, directions):
+    """Loop TSM over 6 inflation + 5 deflation states, produce Fig-6 plot."""
+    schedule = list(zip(PRESSURE_STATES, BALLOON_RADII_VX,
+                         ["inflation"] * len(PRESSURE_STATES),
+                         [f"{v} mL" for v in BALLOON_VOLUMES_ML]))
+    n = len(PRESSURE_STATES)
+    for i in range(n - 2, -1, -1):
+        schedule.append((PRESSURE_STATES[i], BALLOON_RADII_VX[i], "deflation",
+                          f"{BALLOON_VOLUMES_ML[i]} mL"))
+
+    results = []
+    for step, (p, r_vx, branch, vol_label) in enumerate(schedule):
+        print(f"[{step+1:2d}/{len(schedule)}]  {vol_label:<7s} p={p:>4} Pa "
+              f"r={r_vx:>4.1f}vx  [{branch}] …")
+        balloon = SphericalBalloon(center=CENTER, radius_vx=r_vx, pressure=float(p))
+        sigma   = stress_tensor_sphere(balloon, N)
+        G_base  = np.full((N, N, N), G_BG); G_base[balloon.mask(N)] = G_LESION
+        G_iso   = make_effective_G_3d(N, balloon, G_BG, G_LESION, A_COEFF,
+                                       stiffening_exponent=args.stiffening_exponent,
+                                       G_max_pa=500000.0)
+        stats   = _tsm_for_state(balloon, sigma, G_base, G_iso, args, directions)
+        results.append(dict(p=p, r_vx=r_vx, branch=branch, vol_label=vol_label,
+                            **{k: v for k, v in stats.items()
+                               if k not in ("mu_conv", "mu_tsm")}))
+        print(f"      ring_iso={stats['ring_iso']:>7.0f} Pa  "
+              f"ring_conv={stats['ring_conv']:>7.0f} Pa  "
+              f"ring_tsm={stats['ring_tsm']:>7.0f} Pa")
+
+    # ── Figure: Yin Fig 6 lookalike, μ_conv & μ_TSM per branch ─────────
+    infl = [r for r in results if r["branch"] == "inflation"]
+    defl = [r for r in results if r["branch"] == "deflation"]
+    # x-axis: step index, but labeled by volume
+    fig, ax = plt.subplots(figsize=(9, 5))
+    infl_x = list(range(len(infl)))
+    # Deflation states are volumes 200,150,100,50,0 mL → x = 4,3,2,1,0
+    # (not 5,4,3,2,1 — deflation starts one step below the peak).
+    defl_x = list(range(len(infl) - 2, len(infl) - 2 - len(defl), -1))
+    ax.plot(infl_x, [r["ring_tsm"] / 1000  for r in infl], "o-",  color="tab:red",
+             label="μ_TSM inflation", ms=8, lw=2)
+    ax.plot(defl_x, [r["ring_tsm"] / 1000  for r in defl], "s--", color="tab:red",
+             label="μ_TSM deflation", ms=8, lw=2, alpha=0.6)
+    ax.plot(infl_x, [r["ring_conv"] / 1000 for r in infl], "^-",  color="tab:blue",
+             label="μ_conv inflation", ms=8, lw=2)
+    ax.plot(defl_x, [r["ring_conv"] / 1000 for r in defl], "v--", color="tab:blue",
+             label="μ_conv deflation", ms=8, lw=2, alpha=0.6)
+    ax.set_xticks(list(range(len(infl))))
+    ax.set_xticklabels([r["vol_label"] for r in infl], rotation=30, ha="right")
+    ax.set_xlabel("Balloon inflation state (water volume)")
+    ax.set_ylabel("Perilesional G_ring [kPa]  (DI trimmed mean)")
+    ax.set_title(
+        f"Yin-style TSM full cycle — {args.method} + {args.num_directions} directions\n"
+        f"m={args.stiffening_exponent},  A={A_COEFF},  {FREQ:.0f} Hz"
+    )
+    ax.grid(True, alpha=0.3); ax.legend(loc="upper left")
+    plt.tight_layout()
+    out_fig = save_dir / "yin_fig6_reproduction.png"
+    fig.savefig(out_fig, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    print(f"\nSaved {out_fig}")
+
+    # ── Summary table ───────────────────────────────────────────────────
+    lines = [
+        "Yin Fig 6 reproduction — 3D balloon full inflation + deflation cycle",
+        "=" * 78,
+        f"Grid: {N}³, dx={DX*1000:.0f} mm    m = {args.stiffening_exponent}    "
+        f"A = {A_COEFF}",
+        f"Method: {args.method} + {len(directions)} directions "
+        f"(wedge σ={args.wedge_width} rad) @ {FREQ:.0f} Hz",
+        f"Amplitude gate: |u| >= {args.amp_threshold*100:.0f}% of per-direction peak",
+        "",
+        f"{'State':<28} {'branch':<10} {'p [Pa]':>7}  "
+        f"{'ring_iso':>9}  {'ring_conv':>10}  {'ring_TSM':>9}  {'TSM/conv':>9}",
+        "-" * 100,
+    ]
+    for r in results:
+        ratio = r["ring_tsm"] / (r["ring_conv"] + 1e-9) if r["ring_conv"] > 0 else float("nan")
+        lines.append(
+            f"{r['vol_label']:<28} {r['branch']:<10} {r['p']:>7}  "
+            f"{r['ring_iso']:>9.0f}  {r['ring_conv']:>10.0f}  {r['ring_tsm']:>9.0f}  "
+            f"{ratio:>9.2f}"
+        )
+    lines += [
+        "-" * 100,
+        "",
+        "Compare to Yin Fig 6 (Phantom 1 TSM, kPa): 3.5, 3.8, 3.9, 4.2, 4.4",
+        "                              (Phantom 1 conv, kPa): 2.7, 2.7, 2.8, 2.8, 2.8",
+    ]
+    (save_dir / "summary.txt").write_text("\n".join(lines) + "\n")
+    print("\n" + "\n".join(lines))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="paper_demo_3d_tsm",
@@ -194,6 +351,12 @@ def main():
                         help="Angular σ (radians in sin(θ) space) for the "
                              "directional filter wedge when --method filter. "
                              "0.35 ≈ 20° FWHM.")
+    parser.add_argument("--full-cycle", action="store_true",
+                        help="Run the full 11-state inflation + deflation "
+                             "schedule (matches paper_phantom_demo_3d.py) "
+                             "and produce a Yin Fig-6-style plot with μ_conv "
+                             "and μ_TSM curves for both branches. Overrides "
+                             "--pressure / --radius-vx.")
     args = parser.parse_args()
 
     # Auto-suffix so different runs don't clobber each other.
@@ -202,12 +365,18 @@ def main():
         parts = []
         if args.num_directions != 6: parts.append(f"dir{args.num_directions}")
         if args.method != "solves":  parts.append(args.method)
+        if args.full_cycle:          parts.append("cycle")
         if parts: out_name = "paper_demo_3d_tsm_" + "_".join(parts)
     save_dir = ROOT / "results" / out_name
     save_dir.mkdir(parents=True, exist_ok=True)
 
     directions = (SIX_DIRECTIONS if args.num_directions == 6
                   else fibonacci_directions(args.num_directions))
+
+    # Dispatch to full-cycle branch — returns before the single-state body runs.
+    if args.full_cycle:
+        _run_full_cycle(args, save_dir, directions)
+        return
 
     balloon = SphericalBalloon(center=CENTER, radius_vx=args.radius_vx,
                                 pressure=args.pressure)
