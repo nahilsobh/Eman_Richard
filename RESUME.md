@@ -9,7 +9,7 @@
 ```bash
 cd /u/sobh/Eman_Richard
 claude
-# then /resume  →  pick the entry whose first prompt is "status so far"
+# then /resume  →  pick the entry titled "Resume Ehman visit"
 ```
 
 ## State snapshot (all intact as of 2026-09-06)
