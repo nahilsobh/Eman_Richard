@@ -4,22 +4,23 @@ Grid: 32³, dx=3 mm  →  FOV 9.6×9.6×9.6 cm
 G_bg=2500 Pa  G_lesion=2000 Pa  A_coeff=5.0
 Frequency: 60 Hz    Damping ξ=0.05
 Driver: bottom-face disk, radius = 8.0 vx (24 mm)
-Constitutive law: G_eff = G_base · (1 + A·Δσ/G_base)^m,  m=1.0  [linear, memoryless]
+Constitutive law: G_eff = G_base · (1 + A·Δσ/G_base)^m,  m=1.0  [linear]
+Memoryless: p_eff = p_applied at every step
 
-State                                            branch      p (Pa)   G_ring DI mean    G_ring DI median
----------------------------------------------------------------------------------------------------------
-Baseline (0 mL)         r=12 mm                  inflation        0           2517.0              2500.0
-+50 mL   (p=1 kPa)      r=23 mm                  inflation     1000           7437.0              7555.9
-+100 mL  (p=2 kPa)      r=29 mm                  inflation     2000          12281.3             12970.6
-+150 mL  (p=3 kPa)      r=33 mm                  inflation     3000          20104.7             20078.2
-+200 mL  (p=5 kPa)      r=36 mm                  inflation     5000          22741.7             21089.2
-+250 mL  (p=7 kPa)      r=39 mm                  inflation     7000          44607.8             35169.1
-+200 mL  (p=5 kPa)      r=36 mm  [defl.]         deflation     5000          22741.7             21089.2
-+150 mL  (p=3 kPa)      r=33 mm  [defl.]         deflation     3000          20104.7             20078.2
-+100 mL  (p=2 kPa)      r=29 mm  [defl.]         deflation     2000          12281.3             12970.6
-+50 mL   (p=1 kPa)      r=23 mm  [defl.]         deflation     1000           7437.0              7555.9
-Baseline (0 mL)         r=12 mm  [defl.]         deflation        0           2517.0              2500.0
----------------------------------------------------------------------------------------------------------
+State                                            branch      p_appl     p_eff   G_ring DI mean    G_ring DI median
+----------------------------------------------------------------------------------------------------------------------
+Baseline (0 mL)         r=12 mm                  inflation        0       0.0           2517.0              2500.0
++50 mL   (p=1 kPa)      r=23 mm                  inflation     1000    1000.0           7437.0              7555.9
++100 mL  (p=2 kPa)      r=29 mm                  inflation     2000    2000.0          12281.3             12970.6
++150 mL  (p=3 kPa)      r=33 mm                  inflation     3000    3000.0          20104.7             20078.2
++200 mL  (p=5 kPa)      r=36 mm                  inflation     5000    5000.0          22741.7             21089.2
++250 mL  (p=7 kPa)      r=39 mm                  inflation     7000    7000.0          44607.8             35169.1
++200 mL  (p=5 kPa)      r=36 mm  [defl.]         deflation     5000    5000.0          22741.7             21089.2
++150 mL  (p=3 kPa)      r=33 mm  [defl.]         deflation     3000    3000.0          20104.7             20078.2
++100 mL  (p=2 kPa)      r=29 mm  [defl.]         deflation     2000    2000.0          12281.3             12970.6
++50 mL   (p=1 kPa)      r=23 mm  [defl.]         deflation     1000    1000.0           7437.0              7555.9
+Baseline (0 mL)         r=12 mm  [defl.]         deflation        0       0.0           2517.0              2500.0
+----------------------------------------------------------------------------------------------------------------------
 
 Notes:
   - Stiffness estimator: local direct inversion (DI). No FNO — a 3D
@@ -29,11 +30,8 @@ Notes:
   - Compare 2D vs 3D G_ring @ baseline (0 Pa) as the reference for
     the sim-dimensionality gap.
   - Deflation branch is included. The constitutive law is
-    memoryless (whether m=1 linear or m>1 hyperelastic power-law),
-    so deflation numbers must equal inflation numbers at the same
-    pressure — cross-check with the reversibility diff above.
-    Hyperelasticity bends the G(p) curve but does NOT produce
-    hysteresis; that requires a viscoelastic G*(ω) with a
-    time-domain memory kernel — out of scope for this demo.
-  - Yin's real gel shows slight hysteresis from viscoelastic
-    creep during scan pauses; our Helmholtz solver does not.
+    memoryless (linear or hyperelastic), so deflation numbers
+    equal inflation numbers at the same applied pressure —
+    cross-check with the reversibility diff above.
+  - Yin's real gel shows hysteresis from viscoelastic creep;
+    enable it with --viscoelastic-tau <seconds>.

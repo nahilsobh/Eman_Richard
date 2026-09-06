@@ -1,0 +1,38 @@
+3D Balloon Phantom Demo — spherical inclusion, open top, bottom driver
+==============================================================================
+Grid: 32³, dx=3 mm  →  FOV 9.6×9.6×9.6 cm
+G_bg=2500 Pa  G_lesion=2000 Pa  A_coeff=5.0
+Frequency: 60 Hz    Damping ξ=0.05
+Driver: bottom-face disk, radius = 8.0 vx (24 mm)
+Constitutive law: G_eff = G_base · (1 + A·Δσ/G_base)^m,  m=2.0  [hyperelastic strain-stiffening]
+Viscoelastic (SLS): τ=60s, scan pause=45s  →  history-dependent p_eff
+
+State                                            branch      p_appl     p_eff   G_ring DI mean    G_ring DI median
+----------------------------------------------------------------------------------------------------------------------
+Baseline (0 mL)         r=12 mm                  inflation        0       0.0           2517.0              2500.0
++50 mL   (p=1 kPa)      r=23 mm                  inflation     1000     527.6          10234.2             10127.0
++100 mL  (p=2 kPa)      r=29 mm                  inflation     2000    1304.5          22293.3             25734.5
++150 mL  (p=3 kPa)      r=33 mm                  inflation     3000    2199.1          51437.3             50975.8
++200 mL  (p=5 kPa)      r=36 mm                  inflation     5000    3677.0         100304.2             73253.6
++250 mL  (p=7 kPa)      r=39 mm                  inflation     7000    5430.3          18104.2             49326.3
++200 mL  (p=5 kPa)      r=36 mm  [defl.]         deflation     5000    5203.3          69047.0             74417.4
++150 mL  (p=3 kPa)      r=33 mm  [defl.]         deflation     3000    4040.7         169050.7            138920.6
++100 mL  (p=2 kPa)      r=29 mm  [defl.]         deflation     2000    2964.0          33633.5             25466.4
++50 mL   (p=1 kPa)      r=23 mm  [defl.]         deflation     1000    1927.7          16030.5             11251.9
+Baseline (0 mL)         r=12 mm  [defl.]         deflation        0     910.6           3207.9              1515.9
+----------------------------------------------------------------------------------------------------------------------
+
+Notes:
+  - Stiffness estimator: local direct inversion (DI). No FNO — a 3D
+    FNO_TSM would need its own training pipeline (see RESUME.md).
+  - DI is noisy near sources and at the free surface; trimmed mean
+    uses the 10–90 percentile band within the perilesional shell.
+  - Compare 2D vs 3D G_ring @ baseline (0 Pa) as the reference for
+    the sim-dimensionality gap.
+  - Deflation branch is included, with SLS viscoelasticity.
+    Effective pressure lags applied pressure: inflation p_eff
+    stays below applied, deflation p_eff stays above applied,
+    so the two branches SEPARATE — that separation is the
+    hysteresis loop Yin reports for Phantom 1 & 2.
+  - This is a lumped-parameter model of gel creep; the wave-
+    scale damping ξ handles frequency-domain losses separately.

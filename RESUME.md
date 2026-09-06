@@ -75,9 +75,31 @@ reinforced flavor). At m=2, G_ring at 1 kPa is 68 % higher than the
 linear case (12.5 vs 7.4 kPa) and rises super-linearly until the
 G_max_pa=500 kPa clip saturates it around 3–7 kPa. Results live in
 `results/paper_demo_3d_hyper2/`; the linear baseline stays in
-`results/paper_demo_3d/`. Deflation identity still bit-exact —
-hyperelasticity bends the G(p) curve but doesn't produce hysteresis
-(that still requires viscoelasticity).
+`results/paper_demo_3d/`.
+
+**Viscoelastic SLS hysteresis** (added 2026-09-06): `--viscoelastic-tau τ`
+(seconds) + `--scan-pause dt` (default 45 s) applies a standard-linear-solid
+relaxation to the applied-pressure schedule. The effective pressure driving
+the pre-stress field follows
+`p_eff[k] = p_new + (p_eff[k-1] − p_new)·exp(-Δt/τ)`, so on inflation the
+gel lags below applied and on deflation it lags above applied — producing
+the two separated curves Yin reports.
+
+`src/phantom/viscoelastic.py` holds the analytical SLS closed form
+(no ODE integration). At τ=60 s and pause=45 s (linear m=1):
+
+| Applied | Inflation G_ring | Deflation G_ring | Δ (kPa) |
+|---|---|---|---|
+| 0 | 2.5 | 6.2 | +3.7 (gel not fully relaxed) |
+| 1 kPa | 5.2 | 10.6 | +5.4 |
+| 2 kPa | 9.2 | 15.2 | +6.0 |
+| 3 kPa | 15.0 | 23.7 | **+8.7** (max hysteresis) |
+| 5 kPa | 18.8 | 23.2 | +4.4 |
+
+Results: `results/paper_demo_3d_visc60/` (linear + visc),
+`results/paper_demo_3d_hyper2_visc60/` (hyperelastic + visc).
+Note the wave-scale damping ξ handles frequency-domain losses
+separately; this SLS handles quasi-static creep between scans.
 
 **Next step to consider:** train a `FNO_TSM_3D` on a 3D dataset (5k
 volumes). Needs GPU time on Delta; scaffold in `helmholtz_fd_3d.py`

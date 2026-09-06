@@ -40,6 +40,7 @@ from src.phantom.geometry_3d import (
     make_effective_G_3d,
     perilesional_shell_3d,
 )
+from src.phantom.viscoelastic import sls_effective_pressures
 from src.solver.helmholtz_fd_3d import (
     bottom_plate_driver_sources_3d,
     direct_inversion_3d,
@@ -131,12 +132,30 @@ def main():
                              "G_eff = G_base·(1 + A·Δσ/G_base)^m. Default 1.0 "
                              "= linear (Phantom 1 flavor). Try 2.0 for a "
                              "Phantom 2 (cellulose-reinforced) analogue.")
+    parser.add_argument("--viscoelastic-tau", type=float, default=None,
+                        help="If set, apply an SLS viscoelastic relaxation to "
+                             "the applied-pressure schedule. Value is the "
+                             "gel relaxation time τ [s]. Typical gelatin: "
+                             "30–120 s. Requires --scan-pause. Effective "
+                             "pre-stress at each measurement is "
+                             "p_eff[k] = p_applied[k] + (p_eff[k-1] - p_applied[k])·exp(-Δt/τ). "
+                             "Produces genuine inflation/deflation hysteresis.")
+    parser.add_argument("--scan-pause", type=float, default=45.0,
+                        help="Wait time between each injection step and the "
+                             "MRE measurement [s]. Only used with --viscoelastic-tau. "
+                             "Yin's protocol ~30–60 s.")
     args = parser.parse_args()
 
     out_name = args.out
-    if out_name == "paper_demo_3d" and args.stiffening_exponent != 1.0:
-        # Auto-suffix so hyperelastic runs don't clobber the linear baseline.
-        out_name = f"paper_demo_3d_hyper{args.stiffening_exponent:g}"
+    if out_name == "paper_demo_3d":
+        # Auto-suffix so specialized runs don't clobber the linear baseline.
+        parts = []
+        if args.stiffening_exponent != 1.0:
+            parts.append(f"hyper{args.stiffening_exponent:g}")
+        if args.viscoelastic_tau is not None:
+            parts.append(f"visc{args.viscoelastic_tau:g}")
+        if parts:
+            out_name = "paper_demo_3d_" + "_".join(parts)
     save_dir = ROOT / "results" / out_name
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -150,14 +169,31 @@ def main():
             schedule.append((STATE_LABELS[i] + "  [defl.]",
                              PRESSURE_STATES[i], BALLOON_RADII_VX[i], "deflation"))
 
+    # Viscoelastic effective-pressure sequence.
+    applied_seq = [float(s[1]) for s in schedule]
+    if args.viscoelastic_tau is not None:
+        pauses = [float(args.scan_pause)] * len(schedule)
+        p_eff_seq = sls_effective_pressures(applied_seq, pauses,
+                                             tau=float(args.viscoelastic_tau)).tolist()
+        print(f"\nViscoelastic on: τ={args.viscoelastic_tau}s, pause={args.scan_pause}s")
+        print("  step | branch     | p_applied | p_effective")
+        for k, (label, p, _, br) in enumerate(schedule):
+            print(f"  {k+1:>4} | {br:<10} | {applied_seq[k]:>9.0f} | {p_eff_seq[k]:>11.1f}")
+    else:
+        p_eff_seq = applied_seq  # memoryless fallback
+
     states = []
-    for label, p, r_vx, branch in schedule:
-        print(f"\n{label}  (r={r_vx:.1f} vx, p={p} Pa)  [{branch}]")
-        balloon = SphericalBalloon(center=CENTER, radius_vx=r_vx, pressure=float(p))
+    for (label, p_applied, r_vx, branch), p_eff in zip(schedule, p_eff_seq):
+        print(f"\n{label}  (r={r_vx:.1f} vx, p_applied={p_applied} Pa, "
+              f"p_eff={p_eff:.1f} Pa)  [{branch}]")
+        # Balloon geometry follows applied volume/pressure (fast latex).
+        # But the Δσ field the gel actually sees uses p_eff (viscoelastic lag).
+        balloon = SphericalBalloon(center=CENTER, radius_vx=r_vx, pressure=float(p_eff))
         u, G_true, G_di = solve_state(balloon, stiffening_exponent=args.stiffening_exponent)
         mean_r, med_r   = ring_stats(G_di, balloon)
         states.append(dict(
-            label=label, p=p, radius_vx=r_vx, balloon=balloon, branch=branch,
+            label=label, p=p_applied, p_eff=p_eff, radius_vx=r_vx,
+            balloon=balloon, branch=branch,
             u=u, G_true=G_true, G_di=G_di,
             ring_mean_di=mean_r, ring_median_di=med_r,
         ))
@@ -227,8 +263,12 @@ def main():
         ax.set_xticklabels([f"{p} Pa" for p in PRESSURE_STATES], rotation=30, ha="right")
         ax.set_xlabel("Balloon inflation state (pressure)")
         ax.set_ylabel("Perilesional G_ring [kPa]  (DI trimmed mean)")
+        subtitle = (f"SLS viscoelastic (τ={args.viscoelastic_tau:g}s, "
+                    f"pause={args.scan_pause:g}s) → hysteresis loop"
+                    if args.viscoelastic_tau is not None
+                    else "Memoryless model → curves overlay by construction")
         ax.set_title(f"3D balloon inflation → deflation cycle ({FREQ:.0f} Hz)\n"
-                     "Linear-elastic model → curves must overlay by construction")
+                     + subtitle)
         ax.grid(True, alpha=0.3)
         ax.legend()
         plt.tight_layout()
@@ -237,10 +277,12 @@ def main():
         plt.close(fig2)
         print(f"Saved {out_fig2}")
 
-        # Numerical reversibility check.
+        # Hysteresis measurement (or reversibility check if memoryless).
         max_abs_diff = max(abs(a - b) for a, b in zip(infl_y, defl_y[::-1]))
-        print(f"\nReversibility check: max |ΔG_ring| between "
-              f"inflation & deflation at matched pressure = {max_abs_diff*1000:.2f} Pa")
+        label = ("Hysteresis" if args.viscoelastic_tau is not None
+                 else "Reversibility check")
+        print(f"\n{label}: max |ΔG_ring| between inflation & deflation "
+              f"at matched applied p = {max_abs_diff*1000:.2f} Pa")
 
     # ── Summary table ───────────────────────────────────────────────────────
     lines = [
@@ -251,19 +293,24 @@ def main():
         f"Frequency: {FREQ:.0f} Hz    Damping ξ={DAMPING}",
         f"Driver: bottom-face disk, radius = {DRIVER_R*N/2:.1f} vx ({DRIVER_R*N/2*DX*1000:.0f} mm)",
         f"Constitutive law: G_eff = G_base · (1 + A·Δσ/G_base)^m,  m={args.stiffening_exponent}"
-        + ("  [linear, memoryless]" if args.stiffening_exponent == 1.0
-           else "  [hyperelastic strain-stiffening, still memoryless]"),
+        + ("  [linear]" if args.stiffening_exponent == 1.0
+           else "  [hyperelastic strain-stiffening]"),
+        (f"Viscoelastic (SLS): τ={args.viscoelastic_tau:g}s, "
+         f"scan pause={args.scan_pause:g}s  →  history-dependent p_eff"
+         if args.viscoelastic_tau is not None
+         else "Memoryless: p_eff = p_applied at every step"),
         "",
-        f"{'State':<48} {'branch':<10} {'p (Pa)':>7}  {'G_ring DI mean':>15}  {'G_ring DI median':>18}",
-        "-" * 105,
+        f"{'State':<48} {'branch':<10} {'p_appl':>7}  {'p_eff':>8}  {'G_ring DI mean':>15}  {'G_ring DI median':>18}",
+        "-" * 118,
     ]
     for s in states:
         lines.append(
             f"{s['label']:<48} {s['branch']:<10} {s['p']:>7}  "
+            f"{s['p_eff']:>8.1f}  "
             f"{s['ring_mean_di']:>15.1f}  {s['ring_median_di']:>18.1f}"
         )
     lines += [
-        "-" * 105,
+        "-" * 118,
         "",
         "Notes:",
         "  - Stiffness estimator: local direct inversion (DI). No FNO — a 3D",
@@ -274,17 +321,25 @@ def main():
         "    the sim-dimensionality gap.",
     ]
     if args.deflation:
-        lines += [
-            "  - Deflation branch is included. The constitutive law is",
-            "    memoryless (whether m=1 linear or m>1 hyperelastic power-law),",
-            "    so deflation numbers must equal inflation numbers at the same",
-            "    pressure — cross-check with the reversibility diff above.",
-            "    Hyperelasticity bends the G(p) curve but does NOT produce",
-            "    hysteresis; that requires a viscoelastic G*(ω) with a",
-            "    time-domain memory kernel — out of scope for this demo.",
-            "  - Yin's real gel shows slight hysteresis from viscoelastic",
-            "    creep during scan pauses; our Helmholtz solver does not.",
-        ]
+        if args.viscoelastic_tau is not None:
+            lines += [
+                "  - Deflation branch is included, with SLS viscoelasticity.",
+                "    Effective pressure lags applied pressure: inflation p_eff",
+                "    stays below applied, deflation p_eff stays above applied,",
+                "    so the two branches SEPARATE — that separation is the",
+                "    hysteresis loop Yin reports for Phantom 1 & 2.",
+                "  - This is a lumped-parameter model of gel creep; the wave-",
+                "    scale damping ξ handles frequency-domain losses separately.",
+            ]
+        else:
+            lines += [
+                "  - Deflation branch is included. The constitutive law is",
+                "    memoryless (linear or hyperelastic), so deflation numbers",
+                "    equal inflation numbers at the same applied pressure —",
+                "    cross-check with the reversibility diff above.",
+                "  - Yin's real gel shows hysteresis from viscoelastic creep;",
+                "    enable it with --viscoelastic-tau <seconds>.",
+            ]
     summary = save_dir / "summary.txt"
     summary.write_text("\n".join(lines) + "\n")
     print(f"Saved {summary}")
