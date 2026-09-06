@@ -137,6 +137,98 @@ def helmholtz_solve_3d(
     return u_flat.reshape(N, N, N)
 
 
+def directional_filter_3d(
+    u: np.ndarray,
+    khat: np.ndarray,
+    angular_width: float = 0.35,
+    kmin_frac: float = 0.02,
+    kmax_frac: float = 0.45,
+) -> np.ndarray:
+    """Isolate the ±k̂-propagating component of a complex 3D wave field.
+
+    Implements the k-space wedge filter that underlies Yin's directional
+    filtering step. In Fourier space, keeps K-vectors whose direction is
+    close to ±k̂ (symmetric because ±K are the same physical wave) and
+    within a band-pass |K| range.
+
+    The angular weight is a smooth Gaussian in ``sin²(θ)``:
+        W_ang(K) = exp( -(1 - (K̂·k̂)²) / angular_width² )
+    where K̂ = K/|K|. The band-pass keeps normalised |K|/K_Nyquist in
+    [kmin_frac, kmax_frac] — excludes DC (kmin) and grid-aliasing (kmax).
+
+    Parameters
+    ----------
+    u : (N, N, N) complex ndarray
+    khat : (3,) unit vector — filter direction
+    angular_width : Gaussian σ in sin(θ) space. Smaller = narrower wedge.
+        0.35 rad ≈ 20° full-width half-max, typical for MRE DF sets.
+    kmin_frac, kmax_frac : band-pass corners as fraction of Nyquist.
+
+    Returns
+    -------
+    u_khat : (N, N, N) complex field, the k̂-propagating component.
+    """
+    khat = np.asarray(khat, dtype=np.float64)
+    khat = khat / (np.linalg.norm(khat) + 1e-30)
+    N = u.shape[0]
+    U = np.fft.fftn(u)
+    # k-space grid: fftshift-natural ordering, values in [-π/dx, π/dx].
+    kk = np.fft.fftfreq(N)          # in cycles/voxel, range [-0.5, 0.5)
+    Kx, Ky, Kz = np.meshgrid(kk, kk, kk, indexing="ij")
+    K_norm = np.sqrt(Kx ** 2 + Ky ** 2 + Kz ** 2)
+    # Unit-vector K̂; zero norm → keep zero (DC gets killed by band-pass anyway).
+    safe = np.maximum(K_norm, 1e-30)
+    dot  = (Kx * khat[0] + Ky * khat[1] + Kz * khat[2]) / safe
+    # Angular weight — Gaussian in sin²(θ). |dot|² = cos², so 1 - |dot|² = sin².
+    sin2 = np.clip(1.0 - dot ** 2, 0.0, 1.0)
+    W_ang = np.exp(-sin2 / (angular_width ** 2 + 1e-30))
+    # Band-pass |K|.
+    band = ((K_norm >= kmin_frac) & (K_norm <= kmax_frac)).astype(float)
+    mask = W_ang * band
+    return np.fft.ifftn(U * mask)
+
+
+def multi_face_broadband_sources(
+    N: int,
+    radius_frac: float = 0.5,
+    faces: tuple[str, ...] = ("iN", "jN", "j0", "kN", "k0"),
+) -> list[tuple[int, int, int, complex]]:
+    """Coherent-phase source disks on multiple faces at once.
+
+    Launches a naturally multi-directional wave field for the filter-based
+    TSM pipeline (contrast to the per-direction bottom-plate driver used in
+    the N-solves pipeline). Default keeps the bottom face (iN) as the
+    primary driver and adds four side faces; ``i0`` is intentionally
+    omitted to leave the "top" as the free/reflecting surface if the caller
+    uses ``top_free=True``.
+
+    Face codes: 'iN' = i=N-1 (bottom), 'i0' = i=0 (top),
+                'jN' = j=N-1,   'j0' = j=0,
+                'kN' = k=N-1,   'k0' = k=0.
+    """
+    cy = (N - 1) / 2.0
+    r_max = (N / 2.0) * radius_frac
+    face_map = {
+        "i0": ("i", 0), "iN": ("i", N - 1),
+        "j0": ("j", 0), "jN": ("j", N - 1),
+        "k0": ("k", 0), "kN": ("k", N - 1),
+    }
+    src = []
+    for f in faces:
+        axis, idx = face_map[f]
+        for a in range(N):
+            for b in range(N):
+                if (a - cy) ** 2 + (b - cy) ** 2 > r_max ** 2:
+                    continue
+                if axis == "i":
+                    src.append((idx, a, b, 1.0 + 0.0j))
+                elif axis == "j":
+                    src.append((a, idx, b, 1.0 + 0.0j))
+                else:  # k
+                    src.append((a, b, idx, 1.0 + 0.0j))
+    return src
+
+
 def bottom_plate_driver_sources_3d(
     N: int,
     radius_frac: float = 0.5,

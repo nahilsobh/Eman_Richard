@@ -47,7 +47,9 @@ from src.phantom.geometry_3d import (
 from src.solver.helmholtz_fd_3d import (
     bottom_plate_driver_sources_3d,
     direct_inversion_3d,
+    directional_filter_3d,
     helmholtz_solve_3d,
+    multi_face_broadband_sources,
 )
 
 
@@ -180,12 +182,27 @@ def main():
                              "directional filter set. 20 gives finer angular "
                              "coverage → stronger tangential-stiffening TSM "
                              "signal but ~3–4× more compute per state.")
+    parser.add_argument("--method", choices=("solves", "filter"), default="solves",
+                        help="TSM combining method. 'solves' (default): N "
+                             "independent solves, each with a direction-"
+                             "dependent G_eff, then MIP. 'filter': ONE solve "
+                             "with broadband multi-face sources on the "
+                             "direction-averaged G_eff, then apply k-space "
+                             "wedge filter to isolate each direction — Yin's "
+                             "actual algorithm. Much faster (1 solve vs N).")
+    parser.add_argument("--wedge-width", type=float, default=0.35,
+                        help="Angular σ (radians in sin(θ) space) for the "
+                             "directional filter wedge when --method filter. "
+                             "0.35 ≈ 20° FWHM.")
     args = parser.parse_args()
 
-    # Auto-suffix so different direction counts don't clobber each other.
+    # Auto-suffix so different runs don't clobber each other.
     out_name = args.out
-    if out_name == "paper_demo_3d_tsm" and args.num_directions != 6:
-        out_name = f"paper_demo_3d_tsm_dir{args.num_directions}"
+    if out_name == "paper_demo_3d_tsm":
+        parts = []
+        if args.num_directions != 6: parts.append(f"dir{args.num_directions}")
+        if args.method != "solves":  parts.append(args.method)
+        if parts: out_name = "paper_demo_3d_tsm_" + "_".join(parts)
     save_dir = ROOT / "results" / out_name
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -206,16 +223,37 @@ def main():
                                  stiffening_exponent=args.stiffening_exponent,
                                  G_max_pa=500000.0)
 
-    # Sweep directions.
+    # Direction-specific G_DI and |u| stacks.
     di_maps = []
     amp_maps = []
-    for khat, name, face in directions:
-        print(f"solving direction {name}  k̂={khat.tolist()}")
-        amp, G_DI = solve_one_direction(khat, face, balloon, sigma, G_base,
-                                         stiffening_exponent=args.stiffening_exponent,
-                                         viscosity=args.viscosity)
-        di_maps.append(G_DI)
-        amp_maps.append(amp)
+
+    if args.method == "solves":
+        # N independent solves, each with a direction-dependent G_eff.
+        for khat, name, face in directions:
+            print(f"solving direction {name}  k̂={khat.tolist()}")
+            amp, G_DI = solve_one_direction(khat, face, balloon, sigma, G_base,
+                                             stiffening_exponent=args.stiffening_exponent,
+                                             viscosity=args.viscosity)
+            di_maps.append(G_DI)
+            amp_maps.append(amp)
+    else:
+        # method == "filter": ONE solve on the isotropic-average G_eff with
+        # broadband multi-face sources, then k-space directional filter to
+        # isolate each k̂ component before DI. This is Yin's algorithm.
+        print("solving ONE broadband multi-face source on isotropic-avg G_eff …")
+        src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
+                                            faces=("iN", "jN", "j0", "kN", "k0"))
+        u_full = helmholtz_solve_3d(G_iso, freq=FREQ, rho=RHO, dx=DX,
+                                     damping=DAMPING, sources=src,
+                                     top_free=False, viscosity=args.viscosity)
+        print(f"  |u_full|max = {np.max(np.abs(u_full)):.3f}")
+        for khat, name, _face in directions:
+            u_k = directional_filter_3d(u_full, khat=khat,
+                                         angular_width=args.wedge_width)
+            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX)
+            print(f"filtered {name}  |u_k|max = {np.max(np.abs(u_k)):.4f}")
+            di_maps.append(G_DI)
+            amp_maps.append(np.abs(u_k))
 
     di_stack  = np.stack(di_maps,  axis=0)   # (6, N, N, N)
     amp_stack = np.stack(amp_maps, axis=0)
@@ -309,6 +347,9 @@ def main():
         f"Directions: {len(directions)} " + (
             "face normals (±i, ±j, ±k)" if args.num_directions == 6
             else f"Fibonacci-lattice unit vectors (Yin-style {args.num_directions}-direction DF)"),
+        f"Method: {args.method}" + (" (N solves with direction-dependent G_eff)"
+                                    if args.method == "solves"
+                                    else f" (1 broadband solve + k-space wedge filter, σ={args.wedge_width})"),
         f"Amplitude gate: |u| >= {args.amp_threshold*100:.0f}% of per-direction "
         f"peak (Yin-style)",
         "",

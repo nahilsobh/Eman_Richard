@@ -103,10 +103,30 @@ G_bg=2.7 kPa; Yin explicitly notes this in the paper Discussion.
 **Amplitude-thresholded TSM MIP** (added 2026-09-06): `--amp-threshold 0.15`
 in `paper_phantom_demo_3d_tsm.py` matches Yin's semi-automatic gate
 (mask G_DI where |u| < 15 % of per-direction peak before combining).
-Marginal improvement — TSM/conv ratio 1.15 → 1.29 (Yin: 1.57). Remaining
-gap is our 6 face-normal directions vs Yin's 20-direction 3D DF set;
-adding more directions is the next lever (costs 3–4× more compute per
-state). As a result μ_conv also now recovers a physical value:
+Marginal improvement in isolation — TSM/conv 1.15 → 1.29 (Yin: 1.57).
+
+**k-space directional filter** (added 2026-09-06, commit `c205a10` +): the
+Yin-faithful method — `--method filter` runs ONE broadband multi-face
+solve on the isotropic-averaged G_eff, then applies a Gaussian
+angular wedge in k-space (`directional_filter_3d(u, k̂, σ)`) to isolate
+each direction's component before DI. Combined with `--num-directions 20`
+this matches Yin's TSM signal in **17 seconds** (vs 175 s for solves):
+
+| Method | # dirs | μ_conv | μ_TSM | Ratio | Runtime |
+|---|---|---|---|---|---|
+| solves | 6 | 2.28 | 2.93 | 1.29 | 60 s |
+| solves | 20 | 2.45 | 3.19 | 1.30 | 175 s |
+| filter | 6 | 3.45 | 3.89 | 1.13 | 14 s |
+| **filter** | **20** | **3.77** | **6.77** | **1.80** | **17 s** |
+| Yin Phantom 1 | 20 | 2.8 | 4.4 | **1.57** | — |
+
+Filter+20 reproduces Yin's anisotropy ratio (1.80 vs 1.57, 15% high) at
+10× the speed. Absolute μ_TSM is elevated (6.77 vs 4.4) because our
+scalar G_iso already includes the acoustoelastic effect that Yin's
+mechanism recovers from the filter alone. Files:
+`src/solver/helmholtz_fd_3d.py::directional_filter_3d` and
+`multi_face_broadband_sources`;
+`tests/test_directional_filter.py` (6 new tests, all pass). As a result μ_conv also now recovers a physical value:
 2.4 kPa (was 300 Pa pre-calibration — the DI amplitude-thresholding
 artifact self-heals once A is realistic).
 
