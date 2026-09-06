@@ -69,7 +69,7 @@ SHELL_MM = 5.0
 # discusses. The face for each direction is where the piston plate sits.
 # Convention: face index is the axis that the driver is on; sign indicates
 # +/- side of the cube.
-DIRECTIONS = [
+SIX_DIRECTIONS = [
     (np.array([ 1., 0, 0]), "+i (bottom)",  ("i", N - 1)),
     (np.array([-1., 0, 0]), "-i (top)",     ("i", 0)),
     (np.array([0.,  1, 0]), "+j (right)",   ("j", N - 1)),
@@ -77,6 +77,42 @@ DIRECTIONS = [
     (np.array([0., 0,  1]), "+k (back)",    ("k", N - 1)),
     (np.array([0., 0, -1]), "-k (front)",   ("k", 0)),
 ]
+
+
+def _closest_face(khat: np.ndarray) -> tuple[str, int]:
+    """Return the cube face (axis, index) whose outward normal is most
+    opposite k̂ — the physically-sensible face to place a source on so the
+    wave enters the domain propagating along k̂. Ties broken by axis order."""
+    # Outward normals: (axis, index, normal-vector)
+    faces = [
+        ("i", 0,     np.array([-1., 0, 0])),
+        ("i", N - 1, np.array([ 1., 0, 0])),
+        ("j", 0,     np.array([ 0.,-1, 0])),
+        ("j", N - 1, np.array([ 0., 1, 0])),
+        ("k", 0,     np.array([ 0., 0,-1])),
+        ("k", N - 1, np.array([ 0., 0, 1])),
+    ]
+    # Want the face whose outward normal is most anti-parallel to k̂,
+    # i.e. minimises k̂ · n̂ (most negative dot product).
+    best = min(faces, key=lambda f: float(np.dot(khat, f[2])))
+    return best[0], best[1]
+
+
+def fibonacci_directions(n: int) -> list[tuple[np.ndarray, str, tuple[str, int]]]:
+    """n unit vectors uniformly on the sphere (Fibonacci lattice) with
+    source face assigned to each via `_closest_face`. Used for the 20-
+    direction Yin-style DF set (or any n)."""
+    phi = (1.0 + np.sqrt(5.0)) / 2.0
+    out = []
+    for i in range(n):
+        z     = 1.0 - (2.0 * i + 1.0) / n
+        theta = 2.0 * np.pi * i / phi
+        r     = np.sqrt(max(0.0, 1.0 - z * z))
+        khat  = np.array([r * np.cos(theta), r * np.sin(theta), z])
+        khat  = khat / (np.linalg.norm(khat) + 1e-30)
+        face  = _closest_face(khat)
+        out.append((khat, f"d{i:02d} ({khat[0]:+.2f},{khat[1]:+.2f},{khat[2]:+.2f})", face))
+    return out
 
 
 def plate_sources(face_axis: str, face_idx: int) -> list[tuple[int, int, int, complex]]:
@@ -136,10 +172,25 @@ def main():
                              "before MIP / amp-weighted combining. Matches Yin's "
                              "semi-automatic amplitude gate. Default 0.15; "
                              "set 0.0 to disable.")
+    parser.add_argument("--num-directions", type=int, default=6,
+                        choices=(6, 20),
+                        help="Number of propagation directions to sweep. 6 = "
+                             "cube face normals (±i,±j,±k). 20 = Fibonacci-"
+                             "sphere sampling matching Yin's 20-direction 3D "
+                             "directional filter set. 20 gives finer angular "
+                             "coverage → stronger tangential-stiffening TSM "
+                             "signal but ~3–4× more compute per state.")
     args = parser.parse_args()
 
-    save_dir = ROOT / "results" / args.out
+    # Auto-suffix so different direction counts don't clobber each other.
+    out_name = args.out
+    if out_name == "paper_demo_3d_tsm" and args.num_directions != 6:
+        out_name = f"paper_demo_3d_tsm_dir{args.num_directions}"
+    save_dir = ROOT / "results" / out_name
     save_dir.mkdir(parents=True, exist_ok=True)
+
+    directions = (SIX_DIRECTIONS if args.num_directions == 6
+                  else fibonacci_directions(args.num_directions))
 
     balloon = SphericalBalloon(center=CENTER, radius_vx=args.radius_vx,
                                 pressure=args.pressure)
@@ -158,7 +209,7 @@ def main():
     # Sweep directions.
     di_maps = []
     amp_maps = []
-    for khat, name, face in DIRECTIONS:
+    for khat, name, face in directions:
         print(f"solving direction {name}  k̂={khat.tolist()}")
         amp, G_DI = solve_one_direction(khat, face, balloon, sigma, G_base,
                                          stiffening_exponent=args.stiffening_exponent,
@@ -173,7 +224,7 @@ def main():
     # peak. Matches Yin: "amplitude cutoff was applied prior to MIP to
     # exclude unreliable inversions in low-amplitude regions".
     if args.amp_threshold > 0.0:
-        per_dir_peak = amp_stack.reshape(len(DIRECTIONS), -1).max(axis=1)
+        per_dir_peak = amp_stack.reshape(len(directions), -1).max(axis=1)
         thresh = per_dir_peak[:, None, None, None] * args.amp_threshold
         di_stack = np.where(amp_stack >= thresh, di_stack, np.nan)
 
@@ -223,9 +274,10 @@ def main():
         ax.axis("off"); ax.set_title(title, fontsize=10)
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
-    # Per-direction G_DI mid-slice for the interesting ones.
-    for col, dir_idx in enumerate([0, 2, 4]):  # +i, +j, +k
-        khat, name, _ = DIRECTIONS[dir_idx]
+    # Per-direction G_DI mid-slice for a spread of directions.
+    show_idx = [0, len(directions) // 2, len(directions) - 1]
+    for col, dir_idx in enumerate(show_idx):
+        khat, name, _ = directions[dir_idx]
         ax = axes[1, col]
         di_mid = di_maps[dir_idx][mid]
         finite = di_mid[np.isfinite(di_mid)]
@@ -254,7 +306,9 @@ def main():
         f"r_vx = {args.radius_vx}    m = {args.stiffening_exponent}",
         f"Frequency: {FREQ:.0f} Hz    η = {args.viscosity or 0} Pa·s "
         f"(damping ξ = {DAMPING})",
-        f"Directions: {len(DIRECTIONS)} face normals (±i, ±j, ±k)",
+        f"Directions: {len(directions)} " + (
+            "face normals (±i, ±j, ±k)" if args.num_directions == 6
+            else f"Fibonacci-lattice unit vectors (Yin-style {args.num_directions}-direction DF)"),
         f"Amplitude gate: |u| >= {args.amp_threshold*100:.0f}% of per-direction "
         f"peak (Yin-style)",
         "",
