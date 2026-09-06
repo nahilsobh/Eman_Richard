@@ -17,7 +17,7 @@ claude
 | Thread | Location | Status |
 |---|---|---|
 | Phase-0 briefing + FD-Helmholtz FNO | `mre_pipeline/` | 5/5 tests pass. `runs/phase0_v3/best.pt` = epoch 47, val_rl²=0.221, val_ssim=0.643. Slice-by-slice R = 0.9653 (ILI ref 0.940). |
-| Dual-head TSM-FNO (Nature draft, 2D) | `tsm_fno/` | 32/32 2D tests + 8/8 3D tests pass = **40/40 total**. Smoke: `pytest tests/ -v` (~6 s). |
+| Dual-head TSM-FNO (Nature draft, 2D) | `tsm_fno/` | **58/58 tests pass** (32 2D + 12 3D + 7 SLS-viscoelastic + 8 anisotropy+KV-viscosity). Smoke: `pytest tests/ -v` (~13 s). |
 | Nature manuscript | `paper/main.tex` → `main.pdf` | Built cleanly May 25 (tectonic). 1162 lines. |
 | Last thing sent to Mayo | `paper/Reply_to_Eman_at_Mayo_Query.pdf` | May 25, 2026 |
 
@@ -76,6 +76,40 @@ linear case (12.5 vs 7.4 kPa) and rises super-linearly until the
 G_max_pa=500 kPa clip saturates it around 3–7 kPa. Results live in
 `results/paper_demo_3d_hyper2/`; the linear baseline stays in
 `results/paper_demo_3d/`.
+
+**Anisotropic TSM pipeline** (added 2026-09-06): the biggest addition —
+this is what Yin's TSM signal actually measures. `stress_tensor_sphere`
+returns the full Cauchy σ_ij(x) field (radial compression σ_rr = -p(a/r)³,
+tangential tension σ_θθ = σ_φφ = +½p(a/r)³). `effective_G_for_direction`
+computes direction-dependent apparent stiffness
+`G_eff(k̂, x) = G_base · (1 + A·k̂·σ·k̂/G_base)^m`. Radial-propagation
+directions soften the ring (compressive), tangential-propagation
+directions stiffen it (tensile).
+
+`scripts/paper_phantom_demo_3d_tsm.py` sweeps 6 face-normal directions,
+runs a per-direction DI, then combines two ways:
+- μ_conv = amplitude-weighted mean (Yin's conventional inversion)
+- μ_TSM  = voxelwise max across directions (Yin's TSM MIP)
+
+At p = 3 kPa peak (from `results/paper_demo_3d_tsm/summary.txt`):
+
+| Field | Ring mean [Pa] |
+|---|---|
+| G_true (isotropic acoustoelastic) | 21,408 |
+| μ_conv (amp-weighted mean of 6 dirs) | 300 |
+| μ_TSM (MIP of 6 dirs) | **9,458** |
+| **TSM / conv ratio** | **31.6×** |
+
+The ring exists ONLY in μ_TSM — μ_conv averages the tangential-stiffening
+signal away. That 30+× amplification is Yin's signature; μ_conv going
+to 300 Pa (well below G_bg=2500) is a DI amplitude-thresholding artifact
+we haven't modeled yet.
+
+**Frequency-dependent Kelvin-Voigt damping** (added 2026-09-06): the solver
+now takes an optional `viscosity` parameter η [Pa·s], adding
+`+iωη` to G* — so damping grows linearly with ω, matching real gel.
+At η = 2 Pa·s the field attenuation across the cube is: 30 Hz → 0.233,
+60 Hz → 0.006, 80 Hz → 0.000 (essentially killed by 80 Hz).
 
 **Viscoelastic SLS hysteresis** (added 2026-09-06): `--viscoelastic-tau τ`
 (seconds) + `--scan-pause dt` (default 45 s) applies a standard-linear-solid

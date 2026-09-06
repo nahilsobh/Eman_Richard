@@ -60,6 +60,86 @@ def lame_field_sphere(balloon: SphericalBalloon, N: int) -> np.ndarray:
     return field.astype(np.float64)
 
 
+def stress_tensor_sphere(balloon: SphericalBalloon, N: int) -> np.ndarray:
+    """Cauchy pre-stress tensor σ_ij(x) for a pressurised sphere.
+
+    In spherical coordinates centred on the balloon, the classical Lamé
+    solution outside a pressurised spherical inclusion gives
+        σ_rr(r)  = -p · (a/r)^3        (radial compression)
+        σ_θθ(r)  = σ_φφ(r) = +½ p · (a/r)^3   (tangential tension)
+    with all off-diagonal components zero in the spherical frame.
+
+    Converting to Cartesian via r̂ = x/|x|:
+        σ_ij(x) = σ_rr(r) · r̂_i r̂_j + σ_θθ(r) · (δ_ij − r̂_i r̂_j)
+    Inside the balloon, σ_ij = p · δ_ij (uniform isotropic).
+
+    Returns
+    -------
+    (N, N, N, 3, 3) ndarray of stress tensors [Pa].
+    """
+    if balloon.pressure == 0.0:
+        return np.zeros((N, N, N, 3, 3), dtype=np.float64)
+
+    di, dj, dk = balloon._coords(N)
+    r = np.sqrt(di ** 2 + dj ** 2 + dk ** 2)
+    a = balloon.radius_vx
+    safe_r = np.maximum(r, 1e-12)
+    rhat = np.stack([di / safe_r, dj / safe_r, dk / safe_r], axis=-1)  # (N,N,N,3)
+
+    outside_r = np.maximum(r, a)
+    sigma_rr = -balloon.pressure * (a / outside_r) ** 3
+    sigma_tt =  0.5 * balloon.pressure * (a / outside_r) ** 3
+
+    # σ_ij = σ_rr r̂_i r̂_j + σ_θθ (δ_ij − r̂_i r̂_j)
+    rr = rhat[..., :, None] * rhat[..., None, :]           # (N,N,N,3,3)
+    delta = np.eye(3)                                       # (3,3)
+    sigma = (sigma_rr[..., None, None] * rr
+             + sigma_tt[..., None, None] * (delta - rr))
+
+    # Inside the balloon: uniform isotropic pressure σ_ij = p·δ_ij.
+    inside = balloon.mask(N)
+    sigma[inside] = balloon.pressure * delta
+    return sigma.astype(np.float64)
+
+
+def effective_G_for_direction(
+    sigma: np.ndarray,
+    khat: np.ndarray,
+    G_base: np.ndarray,
+    A_coeff: float,
+    stiffening_exponent: float = 1.0,
+) -> np.ndarray:
+    """Direction-dependent acoustoelastic G_eff for wave propagating along k̂.
+
+    Shear-wave apparent modulus for waves propagating along unit direction
+    ``khat`` and polarised perpendicular to it depends on the *normal*
+    component of the pre-stress in that direction:
+
+        G_eff(k̂, x) = G_base(x) · (1 + A_coeff · (k̂·σ·k̂)(x) / G_base(x))^m
+
+    where m is the hyperelastic exponent (default 1 = linear). Since Δσ
+    can be negative in the radial direction, G_eff can drop *below*
+    G_base — the physical softening a shear wave sees when propagating
+    along a compression axis (Yin's radial-propagation case).
+
+    Parameters
+    ----------
+    sigma : (N, N, N, 3, 3) stress tensor field
+    khat  : (3,) unit vector (propagation direction)
+    G_base : (N, N, N) baseline stiffness
+    A_coeff : acoustoelastic constant
+    stiffening_exponent : hyperelastic exponent
+    """
+    khat = np.asarray(khat, dtype=np.float64)
+    khat = khat / (np.linalg.norm(khat) + 1e-30)
+    # k·σ·k contraction (scalar field).
+    k_sigma_k = np.einsum("i,xyzij,j->xyz", khat, sigma, khat)
+    ratio = 1.0 + float(A_coeff) * k_sigma_k / G_base
+    # Guard against negative ratios (extreme compression) before the power.
+    ratio = np.maximum(ratio, 1e-6)
+    return G_base * np.power(ratio, float(stiffening_exponent))
+
+
 def make_effective_G_3d(N: int, balloon: SphericalBalloon,
                          G_bg: float, G_lesion: float,
                          A_coeff: float,

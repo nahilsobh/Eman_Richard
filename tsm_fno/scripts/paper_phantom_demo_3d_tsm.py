@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""3D TSM (tissue strain mapping) demo — the Yin-style multi-direction pipeline.
+
+For each of ``N_dirs`` propagation directions k̂:
+  1. Compute direction-dependent effective stiffness
+       G_eff(k̂, x) = G_base(x) · (1 + A · k̂·σ·k̂ / G_base(x))^m
+     from the anisotropic Lamé stress tensor. Radial propagation sees the
+     softened (compressed) radial direction; tangential propagation sees
+     the stiffened (stretched) tangential direction.
+  2. Place a coherent piston-plate source on the face perpendicular to k̂
+     (matching how Yin drives the phantom).
+  3. Solve the 3D Helmholtz for the complex displacement field u_k̂.
+  4. Run direct inversion (DI) to get a direction-specific stiffness map
+     G_DI(k̂, x).
+
+Then combine the direction-specific maps two ways:
+  * μ_conv  = amplitude-weighted mean across directions (conventional MRE)
+  * μ_TSM   = voxelwise maximum across directions (Yin's TSM MIP)
+
+μ_TSM should show a perilesional stiffening ring; μ_conv should not.
+
+This is a single-inflation-state demo (peak by default) because the
+6-direction sweep is 6× slower than the memoryless demo. Runs in ~1 min
+at N=32.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from src.phantom.geometry_3d import (
+    SphericalBalloon,
+    effective_G_for_direction,
+    make_effective_G_3d,
+    perilesional_shell_3d,
+    stress_tensor_sphere,
+)
+from src.solver.helmholtz_fd_3d import (
+    bottom_plate_driver_sources_3d,
+    direct_inversion_3d,
+    helmholtz_solve_3d,
+)
+
+
+# ── Configuration ────────────────────────────────────────────────────────
+N        = 32
+DX       = 0.003
+FREQ     = 60.0
+RHO      = 1000.0
+DAMPING  = 0.05
+G_BG     = 2500.0
+G_LESION = 2000.0
+A_COEFF  = 5.0
+DRIVER_R = 0.5
+CENTER   = (N // 2, N // 2, N // 2)
+SHELL_MM = 5.0
+
+# Six face-normal directions — matches the smallest useful DF set Yin
+# discusses. The face for each direction is where the piston plate sits.
+# Convention: face index is the axis that the driver is on; sign indicates
+# +/- side of the cube.
+DIRECTIONS = [
+    (np.array([ 1., 0, 0]), "+i (bottom)",  ("i", N - 1)),
+    (np.array([-1., 0, 0]), "-i (top)",     ("i", 0)),
+    (np.array([0.,  1, 0]), "+j (right)",   ("j", N - 1)),
+    (np.array([0., -1, 0]), "-j (left)",    ("j", 0)),
+    (np.array([0., 0,  1]), "+k (back)",    ("k", N - 1)),
+    (np.array([0., 0, -1]), "-k (front)",   ("k", 0)),
+]
+
+
+def plate_sources(face_axis: str, face_idx: int) -> list[tuple[int, int, int, complex]]:
+    """Coherent disk source on a specified face of the cube."""
+    cy = (N - 1) / 2.0
+    r_max = (N / 2.0) * DRIVER_R
+    src = []
+    for a in range(N):
+        for b in range(N):
+            if (a - cy) ** 2 + (b - cy) ** 2 > r_max ** 2:
+                continue
+            if face_axis == "i":
+                src.append((face_idx, a, b, 1.0 + 0.0j))
+            elif face_axis == "j":
+                src.append((a, face_idx, b, 1.0 + 0.0j))
+            elif face_axis == "k":
+                src.append((a, b, face_idx, 1.0 + 0.0j))
+    return src
+
+
+def solve_one_direction(khat: np.ndarray,
+                         face: tuple[str, int],
+                         balloon: SphericalBalloon,
+                         sigma: np.ndarray,
+                         G_base: np.ndarray,
+                         stiffening_exponent: float,
+                         viscosity: float | None) -> tuple[np.ndarray, np.ndarray]:
+    """Returns (|u|, G_DI) for one propagation direction."""
+    G_eff = effective_G_for_direction(sigma, khat, G_base,
+                                       A_coeff=A_COEFF,
+                                       stiffening_exponent=stiffening_exponent)
+    G_eff = np.clip(G_eff, 200.0, 500000.0)
+    src   = plate_sources(*face)
+    u     = helmholtz_solve_3d(G_eff, freq=FREQ, rho=RHO, dx=DX,
+                                damping=DAMPING, sources=src,
+                                top_free=False,
+                                viscosity=viscosity)
+    G_DI  = direct_inversion_3d(u, freq=FREQ, rho=RHO, dx=DX)
+    return np.abs(u), G_DI
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", default="paper_demo_3d_tsm",
+                        help="Result subdir under tsm_fno/results/")
+    parser.add_argument("--pressure", type=float, default=3000.0,
+                        help="Balloon pressure [Pa] for this single-state demo.")
+    parser.add_argument("--radius-vx", type=float, default=11.0,
+                        help="Balloon radius [voxels] (matches ~150 mL inflation).")
+    parser.add_argument("--stiffening-exponent", "-m", type=float, default=1.0)
+    parser.add_argument("--viscosity", type=float, default=None,
+                        help="Kelvin-Voigt viscosity η [Pa·s]. If set, damping "
+                             "grows linearly with ω (frequency-dependent).")
+    args = parser.parse_args()
+
+    save_dir = ROOT / "results" / args.out
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    balloon = SphericalBalloon(center=CENTER, radius_vx=args.radius_vx,
+                                pressure=args.pressure)
+    sigma   = stress_tensor_sphere(balloon, N)
+
+    # G_base = intrinsic (no acoustoelastic) — the tensor field encodes σ.
+    G_base = np.full((N, N, N), G_BG, dtype=np.float64)
+    G_base[balloon.mask(N)] = G_LESION
+
+    # For reference: the isotropic-scalar effective G (what the memoryless
+    # demo uses) — this is the "everyone-agrees" baseline for μ_conv.
+    G_iso = make_effective_G_3d(N, balloon, G_BG, G_LESION, A_COEFF,
+                                 stiffening_exponent=args.stiffening_exponent,
+                                 G_max_pa=500000.0)
+
+    # Sweep directions.
+    di_maps = []
+    amp_maps = []
+    for khat, name, face in DIRECTIONS:
+        print(f"solving direction {name}  k̂={khat.tolist()}")
+        amp, G_DI = solve_one_direction(khat, face, balloon, sigma, G_base,
+                                         stiffening_exponent=args.stiffening_exponent,
+                                         viscosity=args.viscosity)
+        di_maps.append(G_DI)
+        amp_maps.append(amp)
+
+    di_stack  = np.stack(di_maps,  axis=0)   # (6, N, N, N)
+    amp_stack = np.stack(amp_maps, axis=0)
+
+    # μ_conv = amplitude-weighted average (Yin's "conventional" combiner).
+    w = amp_stack ** 2
+    with np.errstate(invalid="ignore"):
+        mu_conv = np.nansum(w * di_stack, axis=0) / (np.nansum(w, axis=0) + 1e-30)
+    # μ_TSM = voxelwise max across directions (Yin's MIP TSM combiner).
+    mu_tsm = np.nanmax(di_stack, axis=0)
+
+    # Ring statistics.
+    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=SHELL_MM, dx=DX)
+
+    def _mean_shell(field):
+        vals = field[shell]
+        vals = vals[np.isfinite(vals)]
+        lo, hi = np.percentile(vals, [10, 90]) if vals.size else (0, 0)
+        trimmed = vals[(vals >= lo) & (vals <= hi)]
+        return float(np.mean(trimmed)) if trimmed.size else float("nan")
+
+    ring_iso  = _mean_shell(G_iso)
+    ring_conv = _mean_shell(mu_conv)
+    ring_tsm  = _mean_shell(mu_tsm)
+
+    print("\n─── Perilesional shell mean stiffness ───")
+    print(f"  G_true (isotropic acoustoelastic)  = {ring_iso:>8.0f} Pa")
+    print(f"  μ_conv (amplitude-weighted mean)   = {ring_conv:>8.0f} Pa")
+    print(f"  μ_TSM  (MIP over 6 directions)     = {ring_tsm:>8.0f} Pa")
+    print(f"  TSM / conv ratio (Yin's key signal)= {ring_tsm/ring_conv:>8.2f}")
+
+    # ── Figure: mid-slice comparison ────────────────────────────────────────
+    mid = N // 2
+    fig, axes = plt.subplots(2, 3, figsize=(11, 7))
+    vmin_iso, vmax_iso = np.percentile(G_iso[mid], [5, 99])
+    vmin_tsm = min(vmin_iso, np.nanpercentile(mu_tsm[mid], 5))
+    vmax_tsm = max(vmax_iso, np.nanpercentile(mu_tsm[mid], 99))
+    for ax, field, title in [
+        (axes[0, 0], G_iso[mid],   "G_true  (isotropic acoustoelastic)"),
+        (axes[0, 1], mu_conv[mid], "μ_conv  (amp-weighted mean)"),
+        (axes[0, 2], mu_tsm[mid],  "μ_TSM   (MIP over 6 directions)"),
+    ]:
+        im = ax.imshow(field, cmap="hot", vmin=vmin_tsm, vmax=vmax_tsm)
+        ax.axis("off"); ax.set_title(title, fontsize=10)
+        plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+    # Per-direction G_DI mid-slice for the interesting ones.
+    for col, dir_idx in enumerate([0, 2, 4]):  # +i, +j, +k
+        khat, name, _ = DIRECTIONS[dir_idx]
+        ax = axes[1, col]
+        di_mid = di_maps[dir_idx][mid]
+        finite = di_mid[np.isfinite(di_mid)]
+        vmn, vmx = np.percentile(finite, [5, 99]) if finite.size else (0, 1)
+        im = ax.imshow(di_mid, cmap="hot", vmin=vmn, vmax=vmx)
+        ax.axis("off"); ax.set_title(f"G_DI along {name}", fontsize=9)
+        plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+    plt.suptitle(
+        f"Yin-style TSM pipeline — spherical balloon @ p={args.pressure:.0f} Pa, "
+        f"m={args.stiffening_exponent}\n"
+        f"Top: isotropic reference vs μ_conv vs μ_TSM (ring should live in μ_TSM only). "
+        f"Bottom: 3 of 6 direction-specific DI maps.",
+        fontsize=10,
+    )
+    plt.tight_layout()
+    out_fig = save_dir / "tsm_comparison.png"
+    fig.savefig(out_fig, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    print(f"\nSaved {out_fig}")
+
+    lines = [
+        "3D TSM Pipeline Demo — spherical balloon @ single inflation state",
+        "=" * 78,
+        f"Grid: {N}³, dx={DX*1000:.0f} mm    p = {args.pressure} Pa    "
+        f"r_vx = {args.radius_vx}    m = {args.stiffening_exponent}",
+        f"Frequency: {FREQ:.0f} Hz    η = {args.viscosity or 0} Pa·s "
+        f"(damping ξ = {DAMPING})",
+        f"Directions: {len(DIRECTIONS)} face normals (±i, ±j, ±k)",
+        "",
+        f"{'Field':<40} {'ring mean (Pa)':>18}",
+        "-" * 62,
+        f"{'G_true (isotropic acoustoelastic)':<40} {ring_iso:>18.0f}",
+        f"{'μ_conv (amplitude-weighted mean)':<40} {ring_conv:>18.0f}",
+        f"{'μ_TSM  (MIP over directions)':<40} {ring_tsm:>18.0f}",
+        "-" * 62,
+        f"{'TSM / conv ratio':<40} {ring_tsm/ring_conv:>18.2f}",
+        "",
+        "Notes:",
+        "  - Radial-propagation directions (into the balloon) sense the",
+        "    softened radial pre-stress → lower G_DI along those axes.",
+        "  - Tangential-propagation directions sense the stiffened",
+        "    circumferential pre-stress → higher G_DI in the perilesional",
+        "    shell. MIP over directions picks up those high values.",
+        "  - μ_conv (weighted mean) averages away most of the anisotropy",
+        "    signal, matching what conventional MRE inversion reports.",
+        "  - This is the essence of Yin's TSM signature: the ring exists",
+        "    ONLY when you combine direction-specific inversions with MIP.",
+    ]
+    (save_dir / "summary.txt").write_text("\n".join(lines) + "\n")
+    print("\n" + "\n".join(lines))
+
+
+if __name__ == "__main__":
+    main()

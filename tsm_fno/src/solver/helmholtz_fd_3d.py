@@ -31,6 +31,7 @@ def helmholtz_solve_3d(
     damping: float = 0.05,
     sources: list[tuple[int, int, int, complex]] | None = None,
     top_free: bool = False,
+    viscosity: float | None = None,
 ) -> np.ndarray:
     """Solve the 3D scalar Helmholtz equation for the complex shear field u.
 
@@ -39,17 +40,28 @@ def helmholtz_solve_3d(
     G : (N, N, N) ndarray
         Spatially varying shear modulus [Pa].
     freq, rho, dx, damping : same as ``helmholtz_solve`` (2D).
+        ``damping`` gives a hysteretic (frequency-independent Q) loss via
+        ``G*(x) = G(x)·(1 + i·damping)``.
     sources : list of (i, j, k, complex_amplitude), optional
         Dirichlet overrides. When None, no sources are placed — user must
         supply them explicitly for a 3D run (no meaningful default here).
     top_free : bool
         If True, the top face (i = 0, non-edge) uses ∂u/∂z = 0
         (ghost-node mirror) instead of Dirichlet u = 0.
+    viscosity : float, optional
+        Kelvin-Voigt dynamic viscosity η [Pa·s]. When set, adds a
+        frequency-dependent damping term:
+            G*(x, ω) = G(x)·(1 + i·damping) + i·ω·η
+        This makes the effective loss grow linearly with ω, matching real
+        soft tissue at low-MHz-and-below. Typical gelatin η ≈ 0.5–2 Pa·s
+        (→ ξ_KV ≈ 0.075 at 60 Hz for G_bg=2500 Pa).
     """
     N = G.shape[0]
     assert G.shape == (N, N, N), f"expected cube, got {G.shape}"
     omega = 2.0 * np.pi * freq
     Gc = G * (1.0 + 1j * damping)
+    if viscosity is not None:
+        Gc = Gc + 1j * omega * float(viscosity)
 
     def idx(i, j, k):
         return (i * N + j) * N + k
