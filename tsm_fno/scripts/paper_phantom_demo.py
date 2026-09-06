@@ -33,7 +33,11 @@ sys.path.insert(0, str(ROOT))
 
 from src.phantom.geometry import LesionGeometry, compute_lame_field, perilesional_shell
 from src.phantom.acoustoelastic import make_effective_G, make_latent_strain
-from src.solver.helmholtz_fd import solve_two_frequencies, random_sources
+from src.solver.helmholtz_fd import (
+    bottom_driver_sources,
+    random_sources,
+    solve_two_frequencies,
+)
 from src.model.fno_tsm import FNO_TSM
 
 # ── Paper-matched phantom parameters ────────────────────────────────────────
@@ -88,12 +92,23 @@ def make_geometry(pressure: float, radius_vx: float) -> LesionGeometry:
 
 
 def build_input(geom: LesionGeometry, rng: np.random.Generator,
-                top_free: bool = False) -> np.ndarray:
-    """Assemble X (6, N, N) for one phantom state."""
+                top_free: bool = False,
+                driver: str = "random") -> np.ndarray:
+    """Assemble X (6, N, N) for one phantom state.
+
+    ``driver='random'`` reproduces the training distribution's multi-patch
+    random-phase sources. ``driver='bottom'`` places a coherent piston-plate
+    source on the bottom edge, matching a real MRE mechanical actuator.
+    """
     G_eff = make_effective_G(N, DX, geom, G_BG, G_LESION, A_COEFF)
     eps   = make_latent_strain(N, DX, geom, G_BG)
 
-    sources = random_sources(N, rng, skip_top=top_free)
+    if driver == "bottom":
+        sources = bottom_driver_sources(N, width_frac=0.5)
+    elif driver == "random":
+        sources = random_sources(N, rng, skip_top=top_free)
+    else:
+        raise ValueError(f"unknown driver: {driver!r}")
     u60, u120 = solve_two_frequencies(
         G_eff, freq1=60.0, freq2=120.0,
         rho=RHO, dx=DX, damping=DAMPING, sources=sources,
@@ -151,12 +166,21 @@ def main():
     parser.add_argument(
         "--top-free", action="store_true",
         help="Use traction-free (Neumann) top boundary — models a container "
-             "open at the top, as in the Yin gelatin-cylinder experiment. "
-             "Writes to results/paper_demo_freetop/ instead of results/paper_demo/.",
+             "open at the top, as in the Yin gelatin-cylinder experiment.",
+    )
+    parser.add_argument(
+        "--driver", choices=("random", "bottom"), default="random",
+        help="Source layout. 'random' (default) = multi-patch random-phase "
+             "sources matching the training distribution. 'bottom' = coherent "
+             "piston-plate source on the bottom edge, matching a real MRE "
+             "mechanical actuator.",
     )
     args = parser.parse_args()
 
-    suffix = "_freetop" if args.top_free else ""
+    suffix_parts = []
+    if args.top_free:       suffix_parts.append("freetop")
+    if args.driver != "random": suffix_parts.append(f"{args.driver}drive")
+    suffix = ("_" + "_".join(suffix_parts)) if suffix_parts else ""
     save_dir = ROOT / "results" / f"paper_demo{suffix}"
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -172,7 +196,7 @@ def main():
     for pressure, label, r_vx in zip(PRESSURE_STATES, STATE_LABELS, BALLOON_RADII_VX):
         rng   = np.random.default_rng(RNG_SEED)
         geom  = make_geometry(pressure, r_vx)
-        X, G_true, eps_true = build_input(geom, rng, top_free=args.top_free)
+        X, G_true, eps_true = build_input(geom, rng, top_free=args.top_free, driver=args.driver)
         G_pred, eps_pred, A_pred = predict(model, X, device)
         ring  = perilesional_shell(geom.mask(N), shell_mm=SHELL_MM, dx=DX)
         states.append(dict(
@@ -188,7 +212,7 @@ def main():
     rng_ctrl = np.random.default_rng(RNG_SEED)
     geom_ctrl = make_geometry(pressure=0, radius_vx=BALLOON_RADII_VX[0])
     X_ctrl, G_true_ctrl, eps_true_ctrl = build_input(
-        geom_ctrl, rng_ctrl, top_free=args.top_free,
+        geom_ctrl, rng_ctrl, top_free=args.top_free, driver=args.driver,
     )
     G_pred_ctrl, eps_pred_ctrl, A_pred_ctrl = predict(model, X_ctrl, device)
     ring_ctrl = perilesional_shell(geom_ctrl.mask(N), shell_mm=SHELL_MM, dx=DX)
@@ -323,14 +347,21 @@ def main():
         f"  - Top boundary: {'Neumann (traction-free)' if args.top_free else 'Dirichlet u=0 (clamped)'}"
         + (" — open-top container, matches Yin gelatin-cylinder physics." if args.top_free
            else ""),
+        f"  - Driver: {'coherent bottom-edge piston plate (width_frac=0.5)' if args.driver == 'bottom' else 'multi-patch random-phase (training distribution)'}",
     ]
+    ood = []
     if args.top_free:
+        ood.append("free-top BC")
+    if args.driver != "random":
+        ood.append(f"{args.driver}-driver source layout")
+    if ood:
         lines += [
             "",
-            "OOD caveat: the FNO was trained with clamped-top waves.",
-            "Running on free-top waves is an out-of-distribution BC test —",
-            "expected to shift ε_ring and G_ring values. Compare against",
-            "results/paper_demo/summary.txt to quantify the BC sensitivity.",
+            "OOD caveat: the FNO was trained with clamped-top waves and",
+            "multi-patch random-phase sources. This run uses "
+            + " + ".join(ood) + " — an",
+            "out-of-distribution test. Compare against results/paper_demo/summary.txt",
+            "(clamped + random) to quantify the sensitivity to physical setup.",
         ]
 
     summary_path = save_dir / "summary.txt"

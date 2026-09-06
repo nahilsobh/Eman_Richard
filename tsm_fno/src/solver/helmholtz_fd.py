@@ -246,6 +246,31 @@ def solve_two_frequencies(
     return u1, u2
 
 
+def bottom_driver_sources(
+    N: int,
+    width_frac: float = 0.5,
+    amp: complex = 1.0 + 0.0j,
+) -> list[tuple[int, int, complex]]:
+    """Coherent-phase source patch on the bottom edge (i = N-1).
+
+    Mimics a real MRE mechanical driver: a rigid piston plate sitting under
+    the phantom, driving all its contact nodes at the same complex amplitude
+    (single frequency, single phase). Centred on the bottom edge and spanning
+    ``width_frac`` of the grid width.
+
+    Parameters
+    ----------
+    N : grid size (assumes N × N).
+    width_frac : fraction of the bottom edge covered by the driver.
+    amp : complex amplitude applied uniformly to every driver node.
+    """
+    if not (0.0 < width_frac <= 1.0):
+        raise ValueError(f"width_frac must be in (0, 1], got {width_frac}")
+    patch_len = max(1, int(round(width_frac * N)))
+    start = (N - patch_len) // 2
+    return [(N - 1, start + k, complex(amp)) for k in range(patch_len)]
+
+
 def random_sources(
     N: int,
     rng: np.random.Generator,

@@ -10,7 +10,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.solver.helmholtz_fd import helmholtz_solve, random_sources
+from src.solver.helmholtz_fd import (
+    bottom_driver_sources,
+    helmholtz_solve,
+    random_sources,
+)
 
 
 def _uniform_G(N: int = 32, G_val: float = 2500.0) -> np.ndarray:
@@ -110,6 +114,43 @@ def test_top_free_matches_dirichlet_when_source_on_top():
     u = helmholtz_solve(G, freq=60.0, dx=0.003, sources=src, top_free=True)
     assert np.isclose(u[0, 10], 1.0 + 0.0j), \
         f"source override not honored under top_free; got u[0,10]={u[0, 10]}"
+
+
+def test_bottom_driver_geometry():
+    N = 80
+    src = bottom_driver_sources(N, width_frac=0.5)
+    # All nodes on the bottom row.
+    assert all(i == N - 1 for (i, _, _) in src), \
+        "bottom driver must place all sources on i = N-1"
+    # Exactly 40 nodes for width_frac=0.5, N=80.
+    assert len(src) == 40, f"expected 40 nodes, got {len(src)}"
+    # Centred: columns span [20, 59].
+    cols = sorted(j for (_, j, _) in src)
+    assert cols == list(range(20, 60)), f"columns wrong: {cols[:3]}...{cols[-3:]}"
+    # Coherent phase — all amps identical.
+    amps = {a for (_, _, a) in src}
+    assert amps == {1.0 + 0.0j}, f"driver phase not coherent: {amps}"
+
+
+def test_bottom_driver_produces_upward_wave():
+    # With a bottom driver and a free top, the wave should propagate upward
+    # from row N-1 toward row 0 — expect meaningful field amplitude across
+    # the whole interior, not just near the driver.
+    G = _uniform_G(N=64)
+    src = bottom_driver_sources(64, width_frac=0.5)
+    u = helmholtz_solve(G, freq=60.0, dx=0.003, sources=src, top_free=True)
+    # Amplitude near the driver (row 60).
+    near = np.max(np.abs(u[60, 2:62]))
+    # Amplitude in the middle (row 32).
+    mid  = np.max(np.abs(u[32, 2:62]))
+    # Amplitude near the free top (row 3).
+    far  = np.max(np.abs(u[3,  2:62]))
+    assert near > 0.5, f"near-driver amplitude too small: {near:.3g}"
+    # Wave must reach the middle at meaningful amplitude.
+    assert mid > 0.05 * near, \
+        f"wave not propagating: mid/near = {mid/near:.3g}"
+    # And should still show at the free top (soft reflection = antinode).
+    assert far > 1e-3, f"no field at free top: {far:.3g}"
 
 
 if __name__ == "__main__":

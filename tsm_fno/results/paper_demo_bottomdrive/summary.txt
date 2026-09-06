@@ -1,0 +1,30 @@
+Paper Phantom Demo — Yin et al. 2026 Simulation
+======================================================================
+G_bg=2500 Pa  G_lesion=2000 Pa  A_coeff=5.0
+Lesion: circular, r=15–39 mm across inflation states, centred at (40.0,40.0)
+Grid: 80×80, dx=3 mm  →  FOV 24.0×24.0 cm  (paper: 24×24 cm)
+
+State                                   p (Pa)   max(ε_pred ring)   mean(G_pred ring) Pa   A_pred
+----------------------------------------------------------------------------------------------------
+Baseline (0 mL)                              0             0.0000                 3298.3   -2.719
++50 mL  (r≈23mm, p=1kPa)                  1000             0.7929                 2904.1   -2.719
++100 mL (r≈29mm, p=2kPa)                  2000             1.5280                 4637.5   -2.719
++150 mL (r≈33mm, p=3kPa)                  3000             2.3710                 8336.6   -2.719
++200 mL (r≈36mm, p=5kPa)                  5000             2.9995                12674.5   -2.719
++250 mL (r≈39mm, p=7kPa)                  7000             3.0000                16247.7   -2.719
+----------------------------------------------------------------------------------------------------
+
+CONTROL (p=0, Phantom 3 analogue):
+  max(ε_pred in ring) = 0.0000  (target ≈ 0)
+
+Notes:
+  - Frequency: 60+120 Hz (training distribution; paper uses 80 Hz)
+  - Resolution: 3 mm/voxel (paper: 0.9 mm clinical)
+  - Lamé prior is provided exactly (advantage vs real MRE)
+  - Top boundary: Dirichlet u=0 (clamped)
+  - Driver: coherent bottom-edge piston plate (width_frac=0.5)
+
+OOD caveat: the FNO was trained with clamped-top waves and
+multi-patch random-phase sources. This run uses bottom-driver source layout — an
+out-of-distribution test. Compare against results/paper_demo/summary.txt
+(clamped + random) to quantify the sensitivity to physical setup.
