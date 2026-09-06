@@ -62,12 +62,35 @@ def lame_field_sphere(balloon: SphericalBalloon, N: int) -> np.ndarray:
 
 def make_effective_G_3d(N: int, balloon: SphericalBalloon,
                          G_bg: float, G_lesion: float,
-                         A_coeff: float) -> np.ndarray:
-    """G_eff(x) = G_bg + A_coeff · Δσ(x)/G_bg · G_bg — same convention as 2D."""
-    G = np.full((N, N, N), float(G_bg), dtype=np.float64)
-    G[balloon.mask(N)] = float(G_lesion)
-    G += float(A_coeff) * lame_field_sphere(balloon, N)
-    return np.clip(G, G_MIN_PA, G_MAX_PA)
+                         A_coeff: float,
+                         stiffening_exponent: float = 1.0,
+                         G_max_pa: float = G_MAX_PA) -> np.ndarray:
+    """Acoustoelastic-effective shear modulus for a pressurised spherical balloon.
+
+    ``stiffening_exponent = 1.0`` (default) reproduces the original linear model
+        G_eff(x) = G_base(x) + A_coeff · Δσ(x)
+                 = G_base(x) · (1 + A_coeff · Δσ(x) / G_base(x))
+    with G_base = G_lesion inside the balloon, G_bg outside.
+
+    ``stiffening_exponent > 1`` gives a phenomenological hyperelastic
+    strain-stiffening law
+        G_eff(x) = G_base(x) · (1 + A_coeff · Δσ(x) / G_base(x))^m
+    for m = stiffening_exponent. This bends the G_eff-vs-pressure curve super-
+    linearly and approximates the Phantom 2 (cellulose-reinforced) behavior
+    Yin reports; m = 1 approximates Phantom 1 (pure gelatin). Common ballpark:
+    m ≈ 1.5–2.5 for soft biological tissue.
+
+    Note: this is still a memoryless (no-viscoelasticity) constitutive law, so
+    inflation and deflation traces at the same pressure will still match
+    exactly. Producing genuine hysteresis needs a viscoelastic G*(ω) with a
+    time-domain memory kernel — out of scope for this demo.
+    """
+    G_base = np.full((N, N, N), float(G_bg), dtype=np.float64)
+    G_base[balloon.mask(N)] = float(G_lesion)
+    dsig = lame_field_sphere(balloon, N)
+    ratio = 1.0 + float(A_coeff) * dsig / G_base
+    G_eff = G_base * np.power(ratio, float(stiffening_exponent))
+    return np.clip(G_eff, G_MIN_PA, float(G_max_pa))
 
 
 def perilesional_shell_3d(lesion_mask: np.ndarray, shell_mm: float,

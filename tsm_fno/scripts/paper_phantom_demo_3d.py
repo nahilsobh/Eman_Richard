@@ -84,9 +84,14 @@ STATE_LABELS     = [
 ]
 
 
-def solve_state(balloon: SphericalBalloon) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def solve_state(balloon: SphericalBalloon,
+                stiffening_exponent: float = 1.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Returns (u, G_true, G_di) for one balloon inflation state."""
-    G_true = make_effective_G_3d(N, balloon, G_BG, G_LESION, A_COEFF)
+    # 500 kPa cap: enough headroom for hyperelastic runs at high pressure.
+    # The DI baseline doesn't share the 2D FNO's training-distribution cap.
+    G_true = make_effective_G_3d(N, balloon, G_BG, G_LESION, A_COEFF,
+                                  stiffening_exponent=stiffening_exponent,
+                                  G_max_pa=500000.0)
     src    = bottom_plate_driver_sources_3d(N, radius_frac=DRIVER_R)
     t0     = time.time()
     u      = helmholtz_solve_3d(G_true, freq=FREQ, rho=RHO, dx=DX,
@@ -116,13 +121,23 @@ def main():
     parser.add_argument("--deflation", action="store_true",
                         help="After inflating to peak, run the deflation branch "
                              "(peak → baseline). Doubles the run time. Because the "
-                             "forward model is linear-elastic, deflation numerically "
-                             "matches inflation at each pressure — running it produces "
-                             "a Yin-style Fig. 6 lookalike and doubles as a regression "
-                             "test of that identity.")
+                             "forward model is memoryless (linear or hyperelastic, "
+                             "no viscoelasticity), deflation matches inflation "
+                             "at each pressure — Yin Fig. 6 lookalike + identity "
+                             "regression test.")
+    parser.add_argument("--stiffening-exponent", "-m", type=float, default=1.0,
+                        help="Hyperelastic power-law exponent for the "
+                             "acoustoelastic effective stiffness "
+                             "G_eff = G_base·(1 + A·Δσ/G_base)^m. Default 1.0 "
+                             "= linear (Phantom 1 flavor). Try 2.0 for a "
+                             "Phantom 2 (cellulose-reinforced) analogue.")
     args = parser.parse_args()
 
-    save_dir = ROOT / "results" / args.out
+    out_name = args.out
+    if out_name == "paper_demo_3d" and args.stiffening_exponent != 1.0:
+        # Auto-suffix so hyperelastic runs don't clobber the linear baseline.
+        out_name = f"paper_demo_3d_hyper{args.stiffening_exponent:g}"
+    save_dir = ROOT / "results" / out_name
     save_dir.mkdir(parents=True, exist_ok=True)
 
     # Build the state schedule. Inflation is always 0→peak; deflation retraces
@@ -139,7 +154,7 @@ def main():
     for label, p, r_vx, branch in schedule:
         print(f"\n{label}  (r={r_vx:.1f} vx, p={p} Pa)  [{branch}]")
         balloon = SphericalBalloon(center=CENTER, radius_vx=r_vx, pressure=float(p))
-        u, G_true, G_di = solve_state(balloon)
+        u, G_true, G_di = solve_state(balloon, stiffening_exponent=args.stiffening_exponent)
         mean_r, med_r   = ring_stats(G_di, balloon)
         states.append(dict(
             label=label, p=p, radius_vx=r_vx, balloon=balloon, branch=branch,
@@ -235,6 +250,9 @@ def main():
         f"G_bg={G_BG:.0f} Pa  G_lesion={G_LESION:.0f} Pa  A_coeff={A_COEFF}",
         f"Frequency: {FREQ:.0f} Hz    Damping ξ={DAMPING}",
         f"Driver: bottom-face disk, radius = {DRIVER_R*N/2:.1f} vx ({DRIVER_R*N/2*DX*1000:.0f} mm)",
+        f"Constitutive law: G_eff = G_base · (1 + A·Δσ/G_base)^m,  m={args.stiffening_exponent}"
+        + ("  [linear, memoryless]" if args.stiffening_exponent == 1.0
+           else "  [hyperelastic strain-stiffening, still memoryless]"),
         "",
         f"{'State':<48} {'branch':<10} {'p (Pa)':>7}  {'G_ring DI mean':>15}  {'G_ring DI median':>18}",
         "-" * 105,
@@ -257,11 +275,14 @@ def main():
     ]
     if args.deflation:
         lines += [
-            "  - Deflation branch is included. The forward model is purely",
-            "    linear-elastic (G_eff = G_bg + A·Δσ, no hysteresis), so the",
-            "    deflation numbers must equal the inflation numbers at the same",
+            "  - Deflation branch is included. The constitutive law is",
+            "    memoryless (whether m=1 linear or m>1 hyperelastic power-law),",
+            "    so deflation numbers must equal inflation numbers at the same",
             "    pressure — cross-check with the reversibility diff above.",
-            "  - Yin's real gel shows slight hysteresis due to viscoelastic",
+            "    Hyperelasticity bends the G(p) curve but does NOT produce",
+            "    hysteresis; that requires a viscoelastic G*(ω) with a",
+            "    time-domain memory kernel — out of scope for this demo.",
+            "  - Yin's real gel shows slight hysteresis from viscoelastic",
             "    creep during scan pauses; our Helmholtz solver does not.",
         ]
     summary = save_dir / "summary.txt"

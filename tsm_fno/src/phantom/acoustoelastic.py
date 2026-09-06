@@ -45,15 +45,23 @@ def make_effective_G(N: int,
                      geometry: LesionGeometry,
                      G_bg: float,
                      G_lesion: float,
-                     A_coeff: float) -> np.ndarray:
-    """Effective shear modulus G_eff(x,y) [Pa] seen by the wave solver."""
-    G = np.full((N, N), float(G_bg), dtype=np.float64)
-    G[geometry.mask(N)] = float(G_lesion)
-    lame = compute_lame_field(geometry, N, dx, G_background=1.0)
-    # lame here has units of Pa (Δσ); A_coeff is dimensionless; convert to Pa
-    # via G_bg in the convention G_eff = G_bg + A_coeff · (Δσ / G_bg) · G_bg
-    G += float(A_coeff) * lame
-    return np.clip(G, G_MIN_PA, G_MAX_PA)
+                     A_coeff: float,
+                     stiffening_exponent: float = 1.0) -> np.ndarray:
+    """Effective shear modulus G_eff(x,y) [Pa] seen by the wave solver.
+
+    ``stiffening_exponent = 1.0`` (default) → linear model
+        G_eff = G_base · (1 + A · Δσ/G_base) = G_base + A · Δσ  (as before).
+    ``stiffening_exponent = m > 1`` → hyperelastic power-law strain-stiffening
+        G_eff = G_base · (1 + A · Δσ/G_base)^m
+    memoryless (no viscoelastic hysteresis). Companion to
+    ``make_effective_G_3d``; see there for the constitutive-model rationale.
+    """
+    G_base = np.full((N, N), float(G_bg), dtype=np.float64)
+    G_base[geometry.mask(N)] = float(G_lesion)
+    dsig = compute_lame_field(geometry, N, dx, G_background=1.0)  # Δσ in Pa
+    ratio = 1.0 + float(A_coeff) * dsig / G_base
+    G_eff = G_base * np.power(ratio, float(stiffening_exponent))
+    return np.clip(G_eff, G_MIN_PA, G_MAX_PA)
 
 
 def make_latent_strain(N: int, dx: float, geometry: LesionGeometry,

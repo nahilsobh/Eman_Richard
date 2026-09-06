@@ -116,6 +116,46 @@ def test_effective_G_stiffens_around_balloon():
         "pressurised balloon must produce a stiffer shell"
 
 
+def test_stiffening_exponent_default_matches_linear():
+    # m = 1.0 must reproduce the original linear form exactly.
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=3000.0)
+    G_default = make_effective_G_3d(N, balloon, G_bg=2500, G_lesion=2000, A_coeff=5.0)
+    G_m1      = make_effective_G_3d(N, balloon, G_bg=2500, G_lesion=2000, A_coeff=5.0,
+                                     stiffening_exponent=1.0)
+    assert np.allclose(G_default, G_m1), "m=1 must equal default (linear) form"
+
+
+def test_stiffening_exponent_superlinear():
+    # m = 2 must give a strictly stiffer shell than m = 1 wherever Δσ > 0.
+    N = 32
+    balloon = SphericalBalloon((16, 16, 16), 6.0, pressure=3000.0)
+    G_lin = make_effective_G_3d(N, balloon, 2500, 2000, 5.0, stiffening_exponent=1.0)
+    G_hyp = make_effective_G_3d(N, balloon, 2500, 2000, 5.0, stiffening_exponent=2.0)
+    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=8.0, dx=0.003)
+    # In the ring, Δσ > 0 → hyperelastic is strictly greater (up to the clip).
+    ring_lin = G_lin[shell]
+    ring_hyp = G_hyp[shell]
+    # Every voxel in the ring should satisfy G_hyp >= G_lin.
+    assert np.all(ring_hyp >= ring_lin - 1e-6), \
+        "hyperelastic G must dominate linear G in the pre-stressed ring"
+    # And the shell mean should be strictly greater by a wide margin.
+    assert ring_hyp.mean() > 1.5 * ring_lin.mean(), \
+        f"expected >1.5x ring mean, got {ring_hyp.mean()/ring_lin.mean():.2f}"
+
+
+def test_stiffening_exponent_pressure_zero_invariant():
+    # With p = 0, Δσ ≡ 0 → G_eff is independent of the exponent.
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=0.0)
+    for m in (1.0, 1.5, 2.5, 3.0):
+        G = make_effective_G_3d(N, balloon, 2500, 2000, 5.0, stiffening_exponent=m)
+        # Background voxels stay at G_bg regardless of m.
+        outside = ~balloon.mask(N)
+        assert np.allclose(G[outside], 2500.0), \
+            f"m={m}: background changed at p=0 ({G[outside].mean():.1f} vs 2500)"
+
+
 def test_direct_inversion_recovers_uniform_G():
     N = 16
     G_true = 2500.0

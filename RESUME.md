@@ -58,13 +58,26 @@ python scripts/paper_phantom_demo_3d.py --deflation # inflation + deflation (~11
 ```
 
 **Inflation + deflation:** running with `--deflation` retraces peak→baseline
-after the inflation branch. The forward model is purely linear-elastic
-(no viscoelastic memory), so deflation numbers are **bit-exact** to
-inflation numbers at matched pressure — the reversibility check reports
-max |ΔG_ring| = 0.00 Pa across all 5 shared pressures. The output
+after the inflation branch. The forward model is **memoryless** (linear or
+hyperelastic, neither has viscoelastic memory), so deflation numbers are
+**bit-exact** to inflation numbers at matched pressure — reversibility
+check reports max |ΔG_ring| = 0.00 Pa across all 5 shared pressures.
 `hysteresis_curve.png` is a Yin-style Figure 6 lookalike with the two
-curves overlaid. To model Yin's slight real-gel hysteresis we would need
-a viscoelastic G* — out of scope for this demo.
+curves overlaid. Real gel shows slight hysteresis from viscoelastic
+creep between scan pauses; modeling that needs a Kelvin-Voigt G*(ω)
+with a time-domain memory kernel — out of scope for this demo.
+
+**Hyperelastic strain-stiffening** (added 2026-09-06): `--stiffening-exponent m`
+switches the acoustoelastic law from linear
+`G_eff = G_base + A·Δσ` (m=1, Phantom 1 flavor) to power-law
+`G_eff = G_base · (1 + A·Δσ/G_base)^m` for m > 1 (Phantom 2 / cellulose-
+reinforced flavor). At m=2, G_ring at 1 kPa is 68 % higher than the
+linear case (12.5 vs 7.4 kPa) and rises super-linearly until the
+G_max_pa=500 kPa clip saturates it around 3–7 kPa. Results live in
+`results/paper_demo_3d_hyper2/`; the linear baseline stays in
+`results/paper_demo_3d/`. Deflation identity still bit-exact —
+hyperelasticity bends the G(p) curve but doesn't produce hysteresis
+(that still requires viscoelasticity).
 
 **Next step to consider:** train a `FNO_TSM_3D` on a 3D dataset (5k
 volumes). Needs GPU time on Delta; scaffold in `helmholtz_fd_3d.py`

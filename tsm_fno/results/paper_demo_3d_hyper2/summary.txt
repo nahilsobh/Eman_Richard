@@ -4,20 +4,20 @@ Grid: 32³, dx=3 mm  →  FOV 9.6×9.6×9.6 cm
 G_bg=2500 Pa  G_lesion=2000 Pa  A_coeff=5.0
 Frequency: 60 Hz    Damping ξ=0.05
 Driver: bottom-face disk, radius = 8.0 vx (24 mm)
-Constitutive law: G_eff = G_base · (1 + A·Δσ/G_base)^m,  m=1.0  [linear, memoryless]
+Constitutive law: G_eff = G_base · (1 + A·Δσ/G_base)^m,  m=2.0  [hyperelastic strain-stiffening, still memoryless]
 
 State                                            branch      p (Pa)   G_ring DI mean    G_ring DI median
 ---------------------------------------------------------------------------------------------------------
 Baseline (0 mL)         r=12 mm                  inflation        0           2517.0              2500.0
-+50 mL   (p=1 kPa)      r=23 mm                  inflation     1000           7437.0              7555.9
-+100 mL  (p=2 kPa)      r=29 mm                  inflation     2000          12281.3             12970.6
-+150 mL  (p=3 kPa)      r=33 mm                  inflation     3000          20104.7             20078.2
-+200 mL  (p=5 kPa)      r=36 mm                  inflation     5000          22741.7             21089.2
-+250 mL  (p=7 kPa)      r=39 mm                  inflation     7000          44607.8             35169.1
-+200 mL  (p=5 kPa)      r=36 mm  [defl.]         deflation     5000          22741.7             21089.2
-+150 mL  (p=3 kPa)      r=33 mm  [defl.]         deflation     3000          20104.7             20078.2
-+100 mL  (p=2 kPa)      r=29 mm  [defl.]         deflation     2000          12281.3             12970.6
-+50 mL   (p=1 kPa)      r=23 mm  [defl.]         deflation     1000           7437.0              7555.9
++50 mL   (p=1 kPa)      r=23 mm                  inflation     1000          12522.3             11815.1
++100 mL  (p=2 kPa)      r=29 mm                  inflation     2000          51299.7             49821.9
++150 mL  (p=3 kPa)      r=33 mm                  inflation     3000          47183.7             40966.2
++200 mL  (p=5 kPa)      r=36 mm                  inflation     5000          48527.2             64499.0
++250 mL  (p=7 kPa)      r=39 mm                  inflation     7000         500000.0            500000.0
++200 mL  (p=5 kPa)      r=36 mm  [defl.]         deflation     5000          48527.2             64499.0
++150 mL  (p=3 kPa)      r=33 mm  [defl.]         deflation     3000          47183.7             40966.2
++100 mL  (p=2 kPa)      r=29 mm  [defl.]         deflation     2000          51299.7             49821.9
++50 mL   (p=1 kPa)      r=23 mm  [defl.]         deflation     1000          12522.3             11815.1
 Baseline (0 mL)         r=12 mm  [defl.]         deflation        0           2517.0              2500.0
 ---------------------------------------------------------------------------------------------------------
 
