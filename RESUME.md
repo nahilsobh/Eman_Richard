@@ -53,8 +53,18 @@ most of the 9.6 cm FOV, so those numbers are approximate.
 To re-run:
 ```bash
 cd /u/sobh/Eman_Richard/tsm_fno
-python scripts/paper_phantom_demo_3d.py
+python scripts/paper_phantom_demo_3d.py             # inflation only (~90 s)
+python scripts/paper_phantom_demo_3d.py --deflation # inflation + deflation (~110 s)
 ```
+
+**Inflation + deflation:** running with `--deflation` retraces peak→baseline
+after the inflation branch. The forward model is purely linear-elastic
+(no viscoelastic memory), so deflation numbers are **bit-exact** to
+inflation numbers at matched pressure — the reversibility check reports
+max |ΔG_ring| = 0.00 Pa across all 5 shared pressures. The output
+`hysteresis_curve.png` is a Yin-style Figure 6 lookalike with the two
+curves overlaid. To model Yin's slight real-gel hysteresis we would need
+a viscoelastic G* — out of scope for this demo.
 
 **Next step to consider:** train a `FNO_TSM_3D` on a 3D dataset (5k
 volumes). Needs GPU time on Delta; scaffold in `helmholtz_fd_3d.py`

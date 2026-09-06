@@ -5,15 +5,20 @@ G_bg=2500 Pa  G_lesion=2000 Pa  A_coeff=5.0
 Frequency: 60 Hz    Damping ξ=0.05
 Driver: bottom-face disk, radius = 8.0 vx (24 mm)
 
-State                                          p (Pa)   G_ring DI mean    G_ring DI median
-------------------------------------------------------------------------------------------
-Baseline (0 mL)         r=12 mm                     0           2517.0              2500.0
-+50 mL   (p=1 kPa)      r=23 mm                  1000           7437.0              7555.9
-+100 mL  (p=2 kPa)      r=29 mm                  2000          12281.3             12970.6
-+150 mL  (p=3 kPa)      r=33 mm                  3000          20104.7             20078.2
-+200 mL  (p=5 kPa)      r=36 mm                  5000          22741.7             21089.2
-+250 mL  (p=7 kPa)      r=39 mm                  7000          44607.8             35169.1
-------------------------------------------------------------------------------------------
+State                                            branch      p (Pa)   G_ring DI mean    G_ring DI median
+---------------------------------------------------------------------------------------------------------
+Baseline (0 mL)         r=12 mm                  inflation        0           2517.0              2500.0
++50 mL   (p=1 kPa)      r=23 mm                  inflation     1000           7437.0              7555.9
++100 mL  (p=2 kPa)      r=29 mm                  inflation     2000          12281.3             12970.6
++150 mL  (p=3 kPa)      r=33 mm                  inflation     3000          20104.7             20078.2
++200 mL  (p=5 kPa)      r=36 mm                  inflation     5000          22741.7             21089.2
++250 mL  (p=7 kPa)      r=39 mm                  inflation     7000          44607.8             35169.1
++200 mL  (p=5 kPa)      r=36 mm  [defl.]         deflation     5000          22741.7             21089.2
++150 mL  (p=3 kPa)      r=33 mm  [defl.]         deflation     3000          20104.7             20078.2
++100 mL  (p=2 kPa)      r=29 mm  [defl.]         deflation     2000          12281.3             12970.6
++50 mL   (p=1 kPa)      r=23 mm  [defl.]         deflation     1000           7437.0              7555.9
+Baseline (0 mL)         r=12 mm  [defl.]         deflation        0           2517.0              2500.0
+---------------------------------------------------------------------------------------------------------
 
 Notes:
   - Stiffness estimator: local direct inversion (DI). No FNO — a 3D
@@ -22,3 +27,9 @@ Notes:
     uses the 10–90 percentile band within the perilesional shell.
   - Compare 2D vs 3D G_ring @ baseline (0 Pa) as the reference for
     the sim-dimensionality gap.
+  - Deflation branch is included. The forward model is purely
+    linear-elastic (G_eff = G_bg + A·Δσ, no hysteresis), so the
+    deflation numbers must equal the inflation numbers at the same
+    pressure — cross-check with the reversibility diff above.
+  - Yin's real gel shows slight hysteresis due to viscoelastic
+    creep during scan pauses; our Helmholtz solver does not.

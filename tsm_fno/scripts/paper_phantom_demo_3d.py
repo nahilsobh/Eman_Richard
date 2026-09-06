@@ -113,19 +113,36 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="paper_demo_3d",
                         help="Result subdir name under tsm_fno/results/")
+    parser.add_argument("--deflation", action="store_true",
+                        help="After inflating to peak, run the deflation branch "
+                             "(peak → baseline). Doubles the run time. Because the "
+                             "forward model is linear-elastic, deflation numerically "
+                             "matches inflation at each pressure — running it produces "
+                             "a Yin-style Fig. 6 lookalike and doubles as a regression "
+                             "test of that identity.")
     args = parser.parse_args()
 
     save_dir = ROOT / "results" / args.out
     save_dir.mkdir(parents=True, exist_ok=True)
 
+    # Build the state schedule. Inflation is always 0→peak; deflation retraces
+    # peak−1 → 0 (skipping the peak duplicate).
+    schedule = list(zip(STATE_LABELS, PRESSURE_STATES, BALLOON_RADII_VX,
+                        ["inflation"] * len(PRESSURE_STATES)))
+    if args.deflation:
+        n = len(PRESSURE_STATES)
+        for i in range(n - 2, -1, -1):
+            schedule.append((STATE_LABELS[i] + "  [defl.]",
+                             PRESSURE_STATES[i], BALLOON_RADII_VX[i], "deflation"))
+
     states = []
-    for label, p, r_vx in zip(STATE_LABELS, PRESSURE_STATES, BALLOON_RADII_VX):
-        print(f"\n{label}  (r={r_vx:.1f} vx, p={p} Pa)")
+    for label, p, r_vx, branch in schedule:
+        print(f"\n{label}  (r={r_vx:.1f} vx, p={p} Pa)  [{branch}]")
         balloon = SphericalBalloon(center=CENTER, radius_vx=r_vx, pressure=float(p))
         u, G_true, G_di = solve_state(balloon)
         mean_r, med_r   = ring_stats(G_di, balloon)
         states.append(dict(
-            label=label, p=p, radius_vx=r_vx, balloon=balloon,
+            label=label, p=p, radius_vx=r_vx, balloon=balloon, branch=branch,
             u=u, G_true=G_true, G_di=G_di,
             ring_mean_di=mean_r, ring_median_di=med_r,
         ))
@@ -177,6 +194,39 @@ def main():
     plt.close(fig)
     print(f"\nSaved {out_fig}")
 
+    # ── Figure 2: G_ring vs step, inflation + deflation (Yin Fig 6 lookalike) ─
+    if args.deflation:
+        infl = [s for s in states if s["branch"] == "inflation"]
+        defl = [s for s in states if s["branch"] == "deflation"]
+        infl_x = list(range(len(infl)))
+        defl_x = list(range(len(infl) - 1, len(infl) - 1 - len(defl), -1))
+        infl_y = [s["ring_mean_di"] / 1000.0 for s in infl]     # kPa
+        defl_y = [s["ring_mean_di"] / 1000.0 for s in defl]
+
+        fig2, ax = plt.subplots(figsize=(7, 4.5))
+        ax.plot(infl_x, infl_y, "o-",  color="tab:red",  label="Inflation",
+                markersize=8, linewidth=2)
+        ax.plot(defl_x, defl_y, "s--", color="tab:blue", label="Deflation",
+                markersize=8, linewidth=2)
+        ax.set_xticks(list(range(len(infl))))
+        ax.set_xticklabels([f"{p} Pa" for p in PRESSURE_STATES], rotation=30, ha="right")
+        ax.set_xlabel("Balloon inflation state (pressure)")
+        ax.set_ylabel("Perilesional G_ring [kPa]  (DI trimmed mean)")
+        ax.set_title(f"3D balloon inflation → deflation cycle ({FREQ:.0f} Hz)\n"
+                     "Linear-elastic model → curves must overlay by construction")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        plt.tight_layout()
+        out_fig2 = save_dir / "hysteresis_curve.png"
+        fig2.savefig(out_fig2, dpi=130, bbox_inches="tight")
+        plt.close(fig2)
+        print(f"Saved {out_fig2}")
+
+        # Numerical reversibility check.
+        max_abs_diff = max(abs(a - b) for a, b in zip(infl_y, defl_y[::-1]))
+        print(f"\nReversibility check: max |ΔG_ring| between "
+              f"inflation & deflation at matched pressure = {max_abs_diff*1000:.2f} Pa")
+
     # ── Summary table ───────────────────────────────────────────────────────
     lines = [
         "3D Balloon Phantom Demo — spherical inclusion, open top, bottom driver",
@@ -186,16 +236,16 @@ def main():
         f"Frequency: {FREQ:.0f} Hz    Damping ξ={DAMPING}",
         f"Driver: bottom-face disk, radius = {DRIVER_R*N/2:.1f} vx ({DRIVER_R*N/2*DX*1000:.0f} mm)",
         "",
-        f"{'State':<45} {'p (Pa)':>7}  {'G_ring DI mean':>15}  {'G_ring DI median':>18}",
-        "-" * 90,
+        f"{'State':<48} {'branch':<10} {'p (Pa)':>7}  {'G_ring DI mean':>15}  {'G_ring DI median':>18}",
+        "-" * 105,
     ]
     for s in states:
         lines.append(
-            f"{s['label']:<45} {s['p']:>7}  {s['ring_mean_di']:>15.1f}  "
-            f"{s['ring_median_di']:>18.1f}"
+            f"{s['label']:<48} {s['branch']:<10} {s['p']:>7}  "
+            f"{s['ring_mean_di']:>15.1f}  {s['ring_median_di']:>18.1f}"
         )
     lines += [
-        "-" * 90,
+        "-" * 105,
         "",
         "Notes:",
         "  - Stiffness estimator: local direct inversion (DI). No FNO — a 3D",
@@ -205,6 +255,15 @@ def main():
         "  - Compare 2D vs 3D G_ring @ baseline (0 Pa) as the reference for",
         "    the sim-dimensionality gap.",
     ]
+    if args.deflation:
+        lines += [
+            "  - Deflation branch is included. The forward model is purely",
+            "    linear-elastic (G_eff = G_bg + A·Δσ, no hysteresis), so the",
+            "    deflation numbers must equal the inflation numbers at the same",
+            "    pressure — cross-check with the reversibility diff above.",
+            "  - Yin's real gel shows slight hysteresis due to viscoelastic",
+            "    creep during scan pauses; our Helmholtz solver does not.",
+        ]
     summary = save_dir / "summary.txt"
     summary.write_text("\n".join(lines) + "\n")
     print(f"Saved {summary}")
