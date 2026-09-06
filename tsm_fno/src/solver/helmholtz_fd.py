@@ -8,8 +8,11 @@ the TSM training distribution.
     ∇·(G* ∇u) + ρω² u = 0,   G* = G(1 + iξ)
 
 with second-order finite differences and half-point harmonic averaging
-at material interfaces. All boundaries are Dirichlet; non-source
-boundary nodes are u = 0.
+at material interfaces. By default, all boundaries are Dirichlet;
+non-source boundary nodes are u = 0. Pass ``top_free=True`` to switch
+the top row (i = 0, excluding corners) to a Neumann (traction-free)
+condition ∂u/∂z = 0 — a container open at the top. Corners remain
+Dirichlet u = 0 to keep the corner behavior well-defined.
 """
 from __future__ import annotations
 
@@ -25,6 +28,7 @@ def helmholtz_solve(
     dx: float = 0.002,
     damping: float = 0.05,
     sources: list[tuple[int, int, complex]] | None = None,
+    top_free: bool = False,
 ) -> np.ndarray:
     """Solve the 2D scalar Helmholtz equation for the complex shear field u.
 
@@ -43,6 +47,12 @@ def helmholtz_solve(
     sources : list of (i, j, complex_amplitude), optional
         Dirichlet point sources (or patch nodes). When None the legacy
         Phase 0 left-column source u = 1 is used.
+    top_free : bool
+        If True, the top row (i = 0, excluding corners) uses a
+        traction-free Neumann condition ∂u/∂z = 0 (ghost-node mirror)
+        instead of Dirichlet u = 0. Models a container open at the top.
+        Sources placed on the top edge remain honored as Dirichlet
+        overrides; use ``random_sources(..., skip_top=True)`` to avoid.
     """
     N = G.shape[0]
     assert G.shape == (N, N)
@@ -58,7 +68,8 @@ def helmholtz_solve(
         boundary.add(idx(i, 0))
         boundary.add(idx(i, N - 1))
     for j in range(N):
-        boundary.add(idx(0, j))
+        if not top_free:
+            boundary.add(idx(0, j))
         boundary.add(idx(N - 1, j))
 
     if sources is None:
@@ -93,8 +104,13 @@ def helmholtz_solve(
             A[k, k] = diag
             A[k, idx(i, j + 1)] = g_e / dx ** 2
             A[k, idx(i, j - 1)] = g_w / dx ** 2
-            A[k, idx(i - 1, j)] = g_n / dx ** 2
-            A[k, idx(i + 1, j)] = g_s / dx ** 2
+            if i - 1 >= 0:
+                A[k, idx(i - 1, j)] = g_n / dx ** 2
+                A[k, idx(i + 1, j)] = g_s / dx ** 2
+            else:
+                # Neumann top: ghost node u[-1,j] mirrors u[1,j],
+                # so the north coefficient is folded onto the south stencil.
+                A[k, idx(i + 1, j)] = (g_n + g_s) / dx ** 2
 
     u_flat = spsolve(A.tocsr(), b)
     return u_flat.reshape(N, N)
@@ -109,6 +125,7 @@ def helmholtz_eshelby_solve(
     dx: float = 0.003,
     damping: float = 0.05,
     sources: list[tuple[int, int, complex]] | None = None,
+    top_free: bool = False,
 ) -> np.ndarray:
     """Solve ∇·[G*(x)(∇u − ε̄*(x))] + ρω²u = 0 (Eshelby inclusion form).
 
@@ -152,7 +169,8 @@ def helmholtz_eshelby_solve(
         boundary.add(idx(i, 0))
         boundary.add(idx(i, N - 1))
     for j in range(N):
-        boundary.add(idx(0, j))
+        if not top_free:
+            boundary.add(idx(0, j))
         boundary.add(idx(N - 1, j))
 
     if sources is None:
@@ -189,8 +207,12 @@ def helmholtz_eshelby_solve(
             A_mat[k, k] = diag
             A_mat[k, idx(i, j + 1)] = g_e / dx ** 2
             A_mat[k, idx(i, j - 1)] = g_w / dx ** 2
-            A_mat[k, idx(i - 1, j)] = g_n / dx ** 2
-            A_mat[k, idx(i + 1, j)] = g_s / dx ** 2
+            if i - 1 >= 0:
+                A_mat[k, idx(i - 1, j)] = g_n / dx ** 2
+                A_mat[k, idx(i + 1, j)] = g_s / dx ** 2
+            else:
+                # Neumann top: ghost mirror folds north coeff onto south.
+                A_mat[k, idx(i + 1, j)] = (g_n + g_s) / dx ** 2
 
             # Eigenstrain RHS: f*(i,j) = ∇·[G* ε̄*] at (i,j)
             # x-flux: G*(i,j+½)·ex(i,j+½) − G*(i,j-½)·ex(i,j-½)
@@ -214,10 +236,13 @@ def solve_two_frequencies(
     dx: float = 0.002,
     damping: float = 0.05,
     sources: list[tuple[int, int, complex]] | None = None,
+    top_free: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convenience wrapper: solve at two frequencies and return both fields."""
-    u1 = helmholtz_solve(G, freq=freq1, rho=rho, dx=dx, damping=damping, sources=sources)
-    u2 = helmholtz_solve(G, freq=freq2, rho=rho, dx=dx, damping=damping, sources=sources)
+    u1 = helmholtz_solve(G, freq=freq1, rho=rho, dx=dx, damping=damping,
+                         sources=sources, top_free=top_free)
+    u2 = helmholtz_solve(G, freq=freq2, rho=rho, dx=dx, damping=damping,
+                         sources=sources, top_free=top_free)
     return u1, u2
 
 
@@ -229,13 +254,19 @@ def random_sources(
     patch_min: int = 4,
     patch_max: int = 12,
     random_phase: bool = True,
+    skip_top: bool = False,
 ) -> list[tuple[int, int, complex]]:
-    """1–10 random source patches on the boundary, each with random complex amplitude."""
+    """1–10 random source patches on the boundary, each with random complex amplitude.
+
+    Pass ``skip_top=True`` to avoid placing sources on the top edge — required
+    when solving with ``top_free=True`` so the free surface is not overridden.
+    """
     n_src = int(rng.integers(n_min, n_max + 1))
     sources: list[tuple[int, int, complex]] = []
     used: set[tuple[int, int]] = set()
+    edge_lo = 1 if skip_top else 0
     for _ in range(n_src):
-        edge = int(rng.integers(0, 4))
+        edge = int(rng.integers(edge_lo, 4))
         patch_len = int(rng.integers(patch_min, patch_max + 1))
         start = int(rng.integers(0, N - patch_len))
         phase = float(rng.uniform(0, 2 * np.pi)) if random_phase else 0.0

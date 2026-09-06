@@ -1,0 +1,29 @@
+Paper Phantom Demo — Yin et al. 2026 Simulation
+======================================================================
+G_bg=2500 Pa  G_lesion=2000 Pa  A_coeff=5.0
+Lesion: circular, r=15–39 mm across inflation states, centred at (40.0,40.0)
+Grid: 80×80, dx=3 mm  →  FOV 24.0×24.0 cm  (paper: 24×24 cm)
+
+State                                   p (Pa)   max(ε_pred ring)   mean(G_pred ring) Pa   A_pred
+----------------------------------------------------------------------------------------------------
+Baseline (0 mL)                              0             0.0000                 2680.3   -2.719
++50 mL  (r≈23mm, p=1kPa)                  1000             0.7808                 2841.3   -2.719
++100 mL (r≈29mm, p=2kPa)                  2000             1.5399                 4208.5   -2.719
++150 mL (r≈33mm, p=3kPa)                  3000             2.3598                 8068.1   -2.719
++200 mL (r≈36mm, p=5kPa)                  5000             2.9998                13367.0   -2.719
++250 mL (r≈39mm, p=7kPa)                  7000             3.0000                17153.6   -2.719
+----------------------------------------------------------------------------------------------------
+
+CONTROL (p=0, Phantom 3 analogue):
+  max(ε_pred in ring) = 0.0000  (target ≈ 0)
+
+Notes:
+  - Frequency: 60+120 Hz (training distribution; paper uses 80 Hz)
+  - Resolution: 3 mm/voxel (paper: 0.9 mm clinical)
+  - Lamé prior is provided exactly (advantage vs real MRE)
+  - Top boundary: Neumann (traction-free) — open-top container, matches Yin gelatin-cylinder physics.
+
+OOD caveat: the FNO was trained with clamped-top waves.
+Running on free-top waves is an out-of-distribution BC test —
+expected to shift ε_ring and G_ring values. Compare against
+results/paper_demo/summary.txt to quantify the BC sensitivity.

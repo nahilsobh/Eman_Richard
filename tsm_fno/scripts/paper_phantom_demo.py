@@ -17,6 +17,7 @@ results/paper_demo/summary.txt            – quantitative table
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -86,15 +87,17 @@ def make_geometry(pressure: float, radius_vx: float) -> LesionGeometry:
     )
 
 
-def build_input(geom: LesionGeometry, rng: np.random.Generator) -> np.ndarray:
+def build_input(geom: LesionGeometry, rng: np.random.Generator,
+                top_free: bool = False) -> np.ndarray:
     """Assemble X (6, N, N) for one phantom state."""
     G_eff = make_effective_G(N, DX, geom, G_BG, G_LESION, A_COEFF)
     eps   = make_latent_strain(N, DX, geom, G_BG)
 
-    sources = random_sources(N, rng)
+    sources = random_sources(N, rng, skip_top=top_free)
     u60, u120 = solve_two_frequencies(
         G_eff, freq1=60.0, freq2=120.0,
         rho=RHO, dx=DX, damping=DAMPING, sources=sources,
+        top_free=top_free,
     )
     u_max = max(float(np.max(np.abs(u60))), float(np.max(np.abs(u120))), 1e-12)
     u60  /= u_max
@@ -144,7 +147,17 @@ def predict(model, X_np: np.ndarray, device: torch.device):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    save_dir = ROOT / "results" / "paper_demo"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--top-free", action="store_true",
+        help="Use traction-free (Neumann) top boundary — models a container "
+             "open at the top, as in the Yin gelatin-cylinder experiment. "
+             "Writes to results/paper_demo_freetop/ instead of results/paper_demo/.",
+    )
+    args = parser.parse_args()
+
+    suffix = "_freetop" if args.top_free else ""
+    save_dir = ROOT / "results" / f"paper_demo{suffix}"
     save_dir.mkdir(parents=True, exist_ok=True)
 
     run_dir = ROOT / "runs" / "tsm_v2"
@@ -159,7 +172,7 @@ def main():
     for pressure, label, r_vx in zip(PRESSURE_STATES, STATE_LABELS, BALLOON_RADII_VX):
         rng   = np.random.default_rng(RNG_SEED)
         geom  = make_geometry(pressure, r_vx)
-        X, G_true, eps_true = build_input(geom, rng)
+        X, G_true, eps_true = build_input(geom, rng, top_free=args.top_free)
         G_pred, eps_pred, A_pred = predict(model, X, device)
         ring  = perilesional_shell(geom.mask(N), shell_mm=SHELL_MM, dx=DX)
         states.append(dict(
@@ -174,7 +187,9 @@ def main():
     # ── Control phantom (same geometry, p=0) ───────────────────────────────
     rng_ctrl = np.random.default_rng(RNG_SEED)
     geom_ctrl = make_geometry(pressure=0, radius_vx=BALLOON_RADII_VX[0])
-    X_ctrl, G_true_ctrl, eps_true_ctrl = build_input(geom_ctrl, rng_ctrl)
+    X_ctrl, G_true_ctrl, eps_true_ctrl = build_input(
+        geom_ctrl, rng_ctrl, top_free=args.top_free,
+    )
     G_pred_ctrl, eps_pred_ctrl, A_pred_ctrl = predict(model, X_ctrl, device)
     ring_ctrl = perilesional_shell(geom_ctrl.mask(N), shell_mm=SHELL_MM, dx=DX)
 
@@ -277,7 +292,9 @@ def main():
         "Paper Phantom Demo — Yin et al. 2026 Simulation",
         "=" * 70,
         f"G_bg={G_BG:.0f} Pa  G_lesion={G_LESION:.0f} Pa  A_coeff={A_COEFF}",
-        f"Lesion: circular, r={A_VX * DX * 1000:.0f} mm, centred at ({CX},{CY})",
+        f"Lesion: circular, r={BALLOON_RADII_VX[0]*DX*1000:.0f}–"
+        f"{BALLOON_RADII_VX[-1]*DX*1000:.0f} mm across inflation states, "
+        f"centred at ({CX},{CY})",
         f"Grid: {N}×{N}, dx={DX*1000:.0f} mm  →  FOV {N*DX*100:.1f}×{N*DX*100:.1f} cm  (paper: 24×24 cm)",
         "",
         f"{'State':<38} {'p (Pa)':>7}  {'max(ε_pred ring)':>17}  "
@@ -303,7 +320,18 @@ def main():
         "  - Frequency: 60+120 Hz (training distribution; paper uses 80 Hz)",
         f"  - Resolution: {DX*1000:.0f} mm/voxel (paper: 0.9 mm clinical)",
         "  - Lamé prior is provided exactly (advantage vs real MRE)",
+        f"  - Top boundary: {'Neumann (traction-free)' if args.top_free else 'Dirichlet u=0 (clamped)'}"
+        + (" — open-top container, matches Yin gelatin-cylinder physics." if args.top_free
+           else ""),
     ]
+    if args.top_free:
+        lines += [
+            "",
+            "OOD caveat: the FNO was trained with clamped-top waves.",
+            "Running on free-top waves is an out-of-distribution BC test —",
+            "expected to shift ε_ring and G_ring values. Compare against",
+            "results/paper_demo/summary.txt to quantify the BC sensitivity.",
+        ]
 
     summary_path = save_dir / "summary.txt"
     summary_path.write_text("\n".join(lines) + "\n")
