@@ -6,11 +6,11 @@ Directions: 6 face normals (±i, ±j, ±k)
 
 Field                                        ring mean (Pa)
 --------------------------------------------------------------
-G_true (isotropic acoustoelastic)                     21408
-μ_conv (amplitude-weighted mean)                        300
-μ_TSM  (MIP over directions)                           9458
+G_true (isotropic acoustoelastic)                      3256
+μ_conv (amplitude-weighted mean)                       2385
+μ_TSM  (MIP over directions)                           2740
 --------------------------------------------------------------
-TSM / conv ratio                                      31.57
+TSM / conv ratio                                       1.15
 
 Notes:
   - Radial-propagation directions (into the balloon) sense the

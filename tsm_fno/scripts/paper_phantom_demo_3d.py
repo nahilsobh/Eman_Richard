@@ -57,7 +57,11 @@ DAMPING  = 0.05
 
 G_BG     = 2500.0         # Pa
 G_LESION = 2000.0
-A_COEFF  = 5.0
+# A_COEFF = 0.20 calibrated against Yin Fig 6 Phantom 1 (pure gelatin) —
+# peak G_ring at 250 mL = 4.28 kPa vs Yin's 4.4 kPa. Values in the paper's
+# random-training-distribution [2, 8] were chosen for phantom diversity,
+# not gel realism; 0.20 is the physically-honest number for gelatin.
+A_COEFF  = 0.20
 
 CENTER   = (N // 2, N // 2, N // 2)
 SHELL_MM = 5.0

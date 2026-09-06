@@ -77,6 +77,29 @@ G_max_pa=500 kPa clip saturates it around 3–7 kPa. Results live in
 `results/paper_demo_3d_hyper2/`; the linear baseline stays in
 `results/paper_demo_3d/`.
 
+**A_coeff calibrated to Yin Fig 6** (2026-09-06): the paper's training-time
+range `A ∈ [2, 8]` was chosen for phantom diversity, not gel realism.
+A quick single-state sweep (peak inflation, 250 mL) showed A ≈ 0.20 gives
+G_ring = 4.28 kPa matching Yin Phantom 1's 4.4 kPa; A ≈ 0.30 gives 5.07
+matching Phantom 2's 5.15. **A_COEFF default in both 3D demo scripts is
+now 0.20** (physically honest gel value); paper's [2, 8] range remains
+valid for the 2D FNO's training distribution.
+
+Post-calibration match to Yin Figure 6:
+
+| Volume | Yin P1 TSM | Ours (A=0.20, m=1) | Yin P2 TSM | Ours (A=0.20, m=2) |
+|---|---|---|---|---|
+| 50 mL | 3.5 kPa | 2.5 | 3.5 kPa | 2.5 |
+| 100 mL | 3.8 | 2.7 | 3.9 | 2.9 |
+| 200 mL | 4.2 | 3.2 | 4.9 | 4.1 |
+| **250 mL (peak)** | **4.4** | **4.2 ✓** | **5.15** | **6.85** (m=1.5 would land closer) |
+
+Baseline offset (ours 2.5 vs Yin 3.5) is because Yin's TSM has a MIP-
+upward-bias vs true G_bg=2.7 kPa; Yin explicitly notes this in the paper
+Discussion. As a result μ_conv also now recovers a physical value:
+2.4 kPa (was 300 Pa pre-calibration — the DI amplitude-thresholding
+artifact self-heals once A is realistic).
+
 **Anisotropic TSM pipeline** (added 2026-09-06): the biggest addition —
 this is what Yin's TSM signal actually measures. `stress_tensor_sphere`
 returns the full Cauchy σ_ij(x) field (radial compression σ_rr = -p(a/r)³,

@@ -59,7 +59,8 @@ RHO      = 1000.0
 DAMPING  = 0.05
 G_BG     = 2500.0
 G_LESION = 2000.0
-A_COEFF  = 5.0
+# Calibrated against Yin Fig 6 Phantom 1 (see paper_phantom_demo_3d.py).
+A_COEFF  = 0.20
 DRIVER_R = 0.5
 CENTER   = (N // 2, N // 2, N // 2)
 SHELL_MM = 5.0
