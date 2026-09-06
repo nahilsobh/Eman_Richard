@@ -130,6 +130,12 @@ def main():
     parser.add_argument("--viscosity", type=float, default=None,
                         help="Kelvin-Voigt viscosity η [Pa·s]. If set, damping "
                              "grows linearly with ω (frequency-dependent).")
+    parser.add_argument("--amp-threshold", type=float, default=0.15,
+                        help="Amplitude cutoff (as fraction of peak |u| per "
+                             "direction). Voxels below this are masked to NaN "
+                             "before MIP / amp-weighted combining. Matches Yin's "
+                             "semi-automatic amplitude gate. Default 0.15; "
+                             "set 0.0 to disable.")
     args = parser.parse_args()
 
     save_dir = ROOT / "results" / args.out
@@ -163,10 +169,22 @@ def main():
     di_stack  = np.stack(di_maps,  axis=0)   # (6, N, N, N)
     amp_stack = np.stack(amp_maps, axis=0)
 
+    # Amplitude gate: mask G_DI to NaN where |u| < threshold * per-direction
+    # peak. Matches Yin: "amplitude cutoff was applied prior to MIP to
+    # exclude unreliable inversions in low-amplitude regions".
+    if args.amp_threshold > 0.0:
+        per_dir_peak = amp_stack.reshape(len(DIRECTIONS), -1).max(axis=1)
+        thresh = per_dir_peak[:, None, None, None] * args.amp_threshold
+        di_stack = np.where(amp_stack >= thresh, di_stack, np.nan)
+
     # μ_conv = amplitude-weighted average (Yin's "conventional" combiner).
     w = amp_stack ** 2
     with np.errstate(invalid="ignore"):
-        mu_conv = np.nansum(w * di_stack, axis=0) / (np.nansum(w, axis=0) + 1e-30)
+        # nansum with amp-weighting: skip NaN voxels per direction.
+        num = np.nansum(np.where(np.isnan(di_stack), 0.0, w * di_stack), axis=0)
+        den = np.nansum(np.where(np.isnan(di_stack), 0.0, w),            axis=0)
+        mu_conv = num / (den + 1e-30)
+        mu_conv[den == 0] = np.nan
     # μ_TSM = voxelwise max across directions (Yin's MIP TSM combiner).
     mu_tsm = np.nanmax(di_stack, axis=0)
 
@@ -237,6 +255,8 @@ def main():
         f"Frequency: {FREQ:.0f} Hz    η = {args.viscosity or 0} Pa·s "
         f"(damping ξ = {DAMPING})",
         f"Directions: {len(DIRECTIONS)} face normals (±i, ±j, ±k)",
+        f"Amplitude gate: |u| >= {args.amp_threshold*100:.0f}% of per-direction "
+        f"peak (Yin-style)",
         "",
         f"{'Field':<40} {'ring mean (Pa)':>18}",
         "-" * 62,

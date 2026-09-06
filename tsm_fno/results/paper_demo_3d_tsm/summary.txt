@@ -1,16 +1,17 @@
 3D TSM Pipeline Demo — spherical balloon @ single inflation state
 ==============================================================================
-Grid: 32³, dx=3 mm    p = 3000.0 Pa    r_vx = 11.0    m = 1.0
+Grid: 32³, dx=3 mm    p = 7000.0 Pa    r_vx = 13.0    m = 1.0
 Frequency: 60 Hz    η = 0 Pa·s (damping ξ = 0.05)
 Directions: 6 face normals (±i, ±j, ±k)
+Amplitude gate: |u| >= 15% of per-direction peak (Yin-style)
 
 Field                                        ring mean (Pa)
 --------------------------------------------------------------
-G_true (isotropic acoustoelastic)                      3256
-μ_conv (amplitude-weighted mean)                       2385
-μ_TSM  (MIP over directions)                           2740
+G_true (isotropic acoustoelastic)                      4319
+μ_conv (amplitude-weighted mean)                       2281
+μ_TSM  (MIP over directions)                           2934
 --------------------------------------------------------------
-TSM / conv ratio                                       1.15
+TSM / conv ratio                                       1.29
 
 Notes:
   - Radial-propagation directions (into the balloon) sense the

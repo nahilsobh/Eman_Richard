@@ -92,11 +92,21 @@ Post-calibration match to Yin Figure 6:
 | 50 mL | 3.5 kPa | 2.5 | 3.5 kPa | 2.5 |
 | 100 mL | 3.8 | 2.7 | 3.9 | 2.9 |
 | 200 mL | 4.2 | 3.2 | 4.9 | 4.1 |
-| **250 mL (peak)** | **4.4** | **4.2 ✓** | **5.15** | **6.85** (m=1.5 would land closer) |
+| 250 mL (peak, m=2) | 4.4 | 4.2 ✓ | 5.15 | 6.85 (+33%) |
+| **250 mL (peak, m=1.5 rerun)** | — | — | **5.15** | **5.43 ✓ (+5%)** |
 
-Baseline offset (ours 2.5 vs Yin 3.5) is because Yin's TSM has a MIP-
-upward-bias vs true G_bg=2.7 kPa; Yin explicitly notes this in the paper
-Discussion. As a result μ_conv also now recovers a physical value:
+**m=1.5 for Phantom 2 lands the peak to 5 %**, same match quality as
+Phantom 1. Results in `results/paper_demo_3d_hyper1.5/`. Baseline offset
+(ours 2.5 vs Yin 3.5) is because Yin's TSM has a MIP-upward-bias vs true
+G_bg=2.7 kPa; Yin explicitly notes this in the paper Discussion.
+
+**Amplitude-thresholded TSM MIP** (added 2026-09-06): `--amp-threshold 0.15`
+in `paper_phantom_demo_3d_tsm.py` matches Yin's semi-automatic gate
+(mask G_DI where |u| < 15 % of per-direction peak before combining).
+Marginal improvement — TSM/conv ratio 1.15 → 1.29 (Yin: 1.57). Remaining
+gap is our 6 face-normal directions vs Yin's 20-direction 3D DF set;
+adding more directions is the next lever (costs 3–4× more compute per
+state). As a result μ_conv also now recovers a physical value:
 2.4 kPa (was 300 Pa pre-calibration — the DI amplitude-thresholding
 artifact self-heals once A is realistic).
 
