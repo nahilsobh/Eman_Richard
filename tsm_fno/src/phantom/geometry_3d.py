@@ -179,6 +179,113 @@ def make_anisotropic_G_tensor(N: int, balloon: SphericalBalloon,
     return G_tensor
 
 
+def ogden_lame_stretch_field(N: int, dx: float,
+                             center: tuple[float, float, float],
+                             a0_vx: float, a_vx: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Principal stretch field for incompressible-matrix expansion of a sphere.
+
+    Reference config: balloon at radius a0_vx (undeformed, e.g. 50 mL).
+    Deformed config: balloon at radius a_vx (current state).
+    Incompressible matrix: r³ − a³ = R³ − a₀³  →  R = (r³ − a³ + a₀³)^(1/3)
+    with r ≥ a in the deformed frame. Voxels inside the balloon get λ = 1
+    (irrelevant — solver treats the interior with the appropriate G_lesion).
+
+    Returns
+    -------
+    lam_r : (N,N,N) radial stretch  λ_r = R²/r² = 1/λ_θ² (compressive when
+        balloon expands: λ_r < 1).
+    lam_theta : (N,N,N) tangential stretch λ_θ = r/R (tensile: λ_θ > 1
+        when balloon expands).
+    rhat : (N,N,N,3) radial unit vector at each voxel (needed for tensor
+        assembly downstream).
+    """
+    di = np.arange(N).reshape(-1, 1, 1) - center[0]
+    dj = np.arange(N).reshape(1, -1, 1) - center[1]
+    dk = np.arange(N).reshape(1, 1, -1) - center[2]
+    r = np.sqrt(di ** 2 + dj ** 2 + dk ** 2)
+    safe_r = np.maximum(r, 1e-12)
+    rhat = np.stack([di / safe_r,
+                     dj / safe_r * np.ones_like(di),
+                     dk / safe_r * np.ones_like(di)], axis=-1)
+    # Broadcast the individual components correctly.
+    rhat = np.stack([
+        np.broadcast_to(di, (N, N, N)) / safe_r,
+        np.broadcast_to(dj, (N, N, N)) / safe_r,
+        np.broadcast_to(dk, (N, N, N)) / safe_r,
+    ], axis=-1)
+
+    # Only material outside the deformed balloon has a defined stretch.
+    outside = r >= a_vx
+    # R = (r³ − a³ + a₀³)^(1/3) — clamp argument to positive so we don't
+    # get NaN at interior voxels (they're overwritten below).
+    arg = np.maximum(r ** 3 - a_vx ** 3 + a0_vx ** 3, 1e-30)
+    R = np.cbrt(arg)
+    lam_theta = np.where(outside, r / np.maximum(R, 1e-12), 1.0)
+    lam_r = np.where(outside, 1.0 / (lam_theta ** 2), 1.0)
+    return lam_r.astype(np.float64), lam_theta.astype(np.float64), rhat.astype(np.float64)
+
+
+def ogden_G_tensor_field(N: int, dx: float,
+                          center: tuple[float, float, float],
+                          a0_vx: float, a_vx: float,
+                          mu_list: list[float], alpha_list: list[float],
+                          G_lesion: float = 2000.0,
+                          balloon_mask: np.ndarray | None = None,
+                          ) -> np.ndarray:
+    """Anisotropic tangent-shear tensor field for an incompressible Ogden
+    material under Lamé-analytic balloon inflation.
+
+    At each voxel outside the balloon, the *principal-axis tangent shear
+    moduli* under the local (λ_r, λ_θ, λ_φ=λ_θ) stretch state are
+
+        G_r(x) = Σ_p μ_p · λ_r(x)^(α_p − 2)
+        G_θ(x) = Σ_p μ_p · λ_θ(x)^(α_p − 2)
+
+    which reduce to the isotropic small-strain shear modulus G₀ = Σμ_p at
+    λ = 1. Because λ_r < 1 (radial compression) and λ_θ > 1 (tangential
+    stretch) around an expanding balloon, this gives the classical
+    acoustoelastic ring: G_θ ↑ tangentially, G_r ↓ radially.
+
+    The Cartesian anisotropic scalar-Helmholtz tensor is then
+        G_ij(x) = G_r · r̂_i r̂_j + G_θ · (δ_ij − r̂_i r̂_j)
+    (same construction as `make_anisotropic_G_tensor`, but with Ogden-based
+    principal moduli instead of a power-law over pre-stress magnitude).
+
+    Parameters
+    ----------
+    N, dx, center : grid / geometry.
+    a0_vx, a_vx : undeformed and deformed balloon radii, in voxels.
+    mu_list, alpha_list : Ogden N-term parameters (Abaqus convention).
+    G_lesion : stiffness assigned inside the balloon.
+    balloon_mask : optional precomputed inside-balloon mask. If None,
+        recomputed as r < a_vx.
+    """
+    lam_r, lam_theta, rhat = ogden_lame_stretch_field(N, dx, center, a0_vx, a_vx)
+
+    # Principal shear moduli.
+    G_r  = np.zeros_like(lam_r)
+    G_th = np.zeros_like(lam_r)
+    for mu, alpha in zip(mu_list, alpha_list):
+        G_r  = G_r  + float(mu) * np.power(lam_r,     alpha - 2.0)
+        G_th = G_th + float(mu) * np.power(lam_theta, alpha - 2.0)
+
+    # Assemble Cartesian tensor G_ij(x).
+    rr = rhat[..., :, None] * rhat[..., None, :]      # (N,N,N,3,3)
+    delta = np.eye(3)
+    G_tensor = (G_r[..., None, None]  * rr
+                + G_th[..., None, None] * (delta - rr))
+
+    # Inside the balloon: isotropic G_lesion (no acoustoelastic contribution).
+    if balloon_mask is None:
+        di = np.arange(N).reshape(-1, 1, 1) - center[0]
+        dj = np.arange(N).reshape(1, -1, 1) - center[1]
+        dk = np.arange(N).reshape(1, 1, -1) - center[2]
+        r = np.sqrt(di ** 2 + dj ** 2 + dk ** 2)
+        balloon_mask = r < a_vx
+    G_tensor[balloon_mask] = float(G_lesion) * delta
+    return G_tensor
+
+
 def effective_G_for_direction(
     sigma: np.ndarray,
     khat: np.ndarray,
