@@ -229,6 +229,156 @@ def multi_face_broadband_sources(
     return src
 
 
+def helmholtz_solve_3d_anisotropic(
+    G_tensor: np.ndarray,
+    freq: float = 60.0,
+    rho: float = 1000.0,
+    dx: float = 0.003,
+    damping: float = 0.05,
+    sources: list[tuple[int, int, int, complex]] | None = None,
+) -> np.ndarray:
+    """3D scalar Helmholtz with a rank-2 anisotropic conductivity tensor.
+
+    Solves the anisotropic scalar wave equation
+        ρω² u(x) = ∂_i [ G_ij(x) · ∂_j u(x) ]
+    which extends the isotropic case ``helmholtz_solve_3d`` to a spatially
+    varying rank-2 stiffness tensor G_ij. This is one step short of full
+    vector elasticity: u is still a scalar, but its "propagation speed"
+    depends on direction via the tensor G_ij.
+
+    Physical use case: acoustoelastic anisotropy of a scalar wave, where
+        G_ij(x) = G_iso(x) · δ_ij + A · σ_ij(x)
+    captures the direction-dependent stiffening/softening a shear wave
+    sees under pre-stress σ_ij. This is what our N-solves TSM method has
+    been APPROXIMATING via k̂·σ·k̂ contractions; the anisotropic solver
+    does it properly (one solve, wave field naturally sees all directions).
+
+    Stencil
+    -------
+    Divergence-form finite differences with half-integer averaging:
+
+        (∂_x G_xx ∂_x u)|_{i,j,k}
+            ≈ [ G_xx(i+½,j,k)·(u[i+1,j,k]−u[i,j,k])
+              − G_xx(i-½,j,k)·(u[i,j,k]−u[i-1,j,k]) ] / dx²
+
+    plus analogous G_yy, G_zz terms, plus the off-diagonal cross terms
+
+        (∂_x G_xy ∂_y u)|_{i,j,k}
+            ≈ [ G_xy(i+½,j,k)·∂_y u(i+½,j,k) − G_xy(i-½,j,k)·∂_y u(i-½,j,k) ] / dx
+
+    where ∂_y u at half-integer x is a 4-point stencil averaging the
+    y-difference on either side. This makes the assembly ~2.5× the
+    isotropic case; the sparse solve itself is similar cost.
+
+    Parameters
+    ----------
+    G_tensor : (N, N, N, 3, 3) real-valued symmetric anisotropic
+        conductivity field, in Pa. Symmetry (G_ij = G_ji) is expected but
+        not enforced.
+    freq, rho, dx, damping, sources : same as ``helmholtz_solve_3d``.
+    """
+    from scipy.sparse import lil_matrix as _lil
+    from scipy.sparse.linalg import spsolve as _spsolve
+    N = G_tensor.shape[0]
+    assert G_tensor.shape == (N, N, N, 3, 3), f"expected (N,N,N,3,3), got {G_tensor.shape}"
+    omega = 2.0 * np.pi * freq
+    # Complex viscoelastic multiplication (hysteretic damping ξ).
+    Gc = G_tensor.astype(complex) * (1.0 + 1j * damping)
+
+    def idx(i, j, k):
+        return (i * N + j) * N + k
+
+    # All-faces Dirichlet boundary set (no top_free option here for the
+    # first-pass implementation — extensions welcome).
+    boundary: set[int] = set()
+    bc_values: dict[int, complex] = {}
+    for a in range(N):
+        for b in range(N):
+            boundary.add(idx(0, a, b))
+            boundary.add(idx(N - 1, a, b))
+            boundary.add(idx(a, 0, b))
+            boundary.add(idx(a, N - 1, b))
+            boundary.add(idx(a, b, 0))
+            boundary.add(idx(a, b, N - 1))
+    if sources is not None:
+        for (i, j, k, amp) in sources:
+            m = idx(i, j, k)
+            bc_values[m] = complex(amp)
+            boundary.add(m)
+
+    n_dof = N ** 3
+    A_mat = _lil((n_dof, n_dof), dtype=complex)
+    b_vec = np.zeros(n_dof, dtype=complex)
+    inv_dx2 = 1.0 / dx ** 2
+    inv_4dx2 = 0.25 / dx ** 2   # for cross-derivative 4-point stencils
+
+    # Half-point tensor averages (arithmetic — harmonic is nicer but
+    # complicated for anisotropic tensors; arithmetic converges O(dx²).)
+    def half(field, i, j, k, di, dj, dk, comp_a, comp_b):
+        """G_{ab}(i+½·di, j+½·dj, k+½·dk) via arithmetic average."""
+        i2, j2, k2 = i + di, j + dj, k + dk
+        if 0 <= i2 < N and 0 <= j2 < N and 0 <= k2 < N:
+            return 0.5 * (field[i, j, k, comp_a, comp_b]
+                          + field[i2, j2, k2, comp_a, comp_b])
+        return field[i, j, k, comp_a, comp_b]
+
+    for i in range(N):
+        for j in range(N):
+            for k in range(N):
+                m = idx(i, j, k)
+                if m in boundary:
+                    A_mat[m, m] = 1.0
+                    b_vec[m] = bc_values.get(m, 0.0 + 0.0j)
+                    continue
+
+                # Diagonal G_ii ∂_i² terms (isotropic-like).
+                g_ip = half(Gc, i, j, k, 1, 0, 0, 0, 0)  # G_xx at i+½
+                g_im = half(Gc, i, j, k, -1, 0, 0, 0, 0) # G_xx at i-½
+                g_jp = half(Gc, i, j, k, 0, 1, 0, 1, 1)  # G_yy at j+½
+                g_jm = half(Gc, i, j, k, 0, -1, 0, 1, 1) # G_yy at j-½
+                g_kp = half(Gc, i, j, k, 0, 0, 1, 2, 2)  # G_zz at k+½
+                g_km = half(Gc, i, j, k, 0, 0, -1, 2, 2) # G_zz at k-½
+
+                diag = -(g_ip + g_im + g_jp + g_jm + g_kp + g_km) * inv_dx2 \
+                        + rho * omega ** 2
+                A_mat[m, m] = diag
+                A_mat[m, idx(i + 1, j, k)] = g_ip * inv_dx2
+                A_mat[m, idx(i - 1, j, k)] = g_im * inv_dx2
+                A_mat[m, idx(i, j + 1, k)] = g_jp * inv_dx2
+                A_mat[m, idx(i, j - 1, k)] = g_jm * inv_dx2
+                A_mat[m, idx(i, j, k + 1)] = g_kp * inv_dx2
+                A_mat[m, idx(i, j, k - 1)] = g_km * inv_dx2
+
+                # Off-diagonal terms: (∂_x G_xy ∂_y u), (∂_y G_yx ∂_x u), etc.
+                # Symmetric under xy swap (G is symmetric); we accumulate
+                # both orderings once via a helper. For each pair (a,b)
+                # with a != b, the term is
+                #   ∂_a (G_ab ∂_b u) → 4-point centered cross-diff
+                # ≈ (G_ab · (u[i+da,j+db,k] - u[i+da,j-db,k]
+                #            - u[i-da,j+db,k] + u[i-da,j-db,k])) / (4 dx²)
+                # We use the value of G at the center (i,j,k) — first-order
+                # accurate for the cross term; upgrades to half-point require
+                # more bookkeeping.
+                axes = [(0, 1), (0, 2), (1, 2)]  # xy, xz, yz
+                for a, b in axes:
+                    coef = 2.0 * Gc[i, j, k, a, b] * inv_4dx2  # factor 2 = G_ab + G_ba
+                    # Neighbor offsets in axis a and b (unit steps).
+                    da = np.zeros(3, dtype=int); da[a] = 1
+                    db = np.zeros(3, dtype=int); db[b] = 1
+                    for sa in (+1, -1):
+                        for sb in (+1, -1):
+                            io = i + sa * da[0] + sb * db[0]
+                            jo = j + sa * da[1] + sb * db[1]
+                            ko = k + sa * da[2] + sb * db[2]
+                            if 0 <= io < N and 0 <= jo < N and 0 <= ko < N:
+                                m_neigh = idx(io, jo, ko)
+                                A_mat[m, m_neigh] = A_mat[m, m_neigh] \
+                                                  + (sa * sb) * coef
+
+    u_flat = _spsolve(A_mat.tocsr(), b_vec)
+    return u_flat.reshape(N, N, N)
+
+
 def lfe_inversion_3d(
     u: np.ndarray,
     freq: float,

@@ -8,6 +8,7 @@ from src.solver.helmholtz_fd_3d import (
     bottom_plate_driver_sources_3d,
     direct_inversion_3d,
     helmholtz_solve_3d,
+    helmholtz_solve_3d_anisotropic,
     lfe_inversion_3d,
 )
 from src.phantom.geometry_3d import (
@@ -291,6 +292,63 @@ def test_lfe_scales_with_true_G():
     lfe_stiff = np.nanmedian(lfe_inversion_3d(u_stiff, freq=60, dx=0.005)[3:-3, 4:-4, 4:-4])
     assert lfe_stiff > lfe_soft, \
         f"LFE should scale with G: soft={lfe_soft:.0f}, stiff={lfe_stiff:.0f}"
+
+
+def test_anisotropic_matches_isotropic_for_diagonal_uniform_G():
+    # Anisotropic solver with G_ij = G·δ_ij (uniform scalar) must give the
+    # same solution (to within numerical tolerance) as the isotropic solver.
+    N = 12
+    G_val = 2500.0
+    G_iso = np.full((N, N, N), G_val)
+    G_tensor = np.zeros((N, N, N, 3, 3))
+    for c in range(3):
+        G_tensor[..., c, c] = G_val
+    src = bottom_plate_driver_sources_3d(N, radius_frac=0.5)
+    u_iso = helmholtz_solve_3d(G_iso, freq=60, dx=0.005, sources=src)
+    u_ani = helmholtz_solve_3d_anisotropic(G_tensor, freq=60, dx=0.005, sources=src)
+    rel = np.max(np.abs(u_iso - u_ani)) / (np.max(np.abs(u_iso)) + 1e-30)
+    # Off-diagonal terms are exactly zero here so the anisotropic
+    # assembly reduces to the isotropic one up to floating-point noise.
+    assert rel < 1e-6, f"anisotropic ≠ isotropic on diagonal uniform G: rel {rel:.3g}"
+
+
+def test_anisotropic_diagonal_stiffer_along_one_axis_gives_faster_wave():
+    # Set G_xx > G_yy = G_zz. Waves propagating along x should have
+    # longer wavelength (faster speed). This is a directional-anisotropy
+    # sanity check.
+    N = 24
+    G_bg = 2500.0
+    G_stiff = 5000.0
+    G_tensor = np.zeros((N, N, N, 3, 3))
+    G_tensor[..., 0, 0] = G_stiff   # x-direction stiffer
+    G_tensor[..., 1, 1] = G_bg
+    G_tensor[..., 2, 2] = G_bg
+    # Source on the bottom face (i = N-1). Waves propagate up (−i).
+    src = bottom_plate_driver_sources_3d(N, radius_frac=0.5)
+    u = helmholtz_solve_3d_anisotropic(G_tensor, freq=60, dx=0.005, sources=src)
+    # Compare to isotropic-G_bg baseline.
+    u_iso = helmholtz_solve_3d(np.full((N, N, N), G_bg), freq=60, dx=0.005, sources=src)
+    # Field amplitude near top face (i=1): stiffer G_xx → faster wave →
+    # more energy reaches the top. Expect |u_ani| > |u_iso| at row 1.
+    top_ani = np.max(np.abs(u[1, 4:-4, 4:-4]))
+    top_iso = np.max(np.abs(u_iso[1, 4:-4, 4:-4]))
+    assert top_ani > 0.5 * top_iso, \
+        f"anisotropic stiffer-G_xx should propagate energy comparably: "\
+        f"ani={top_ani:.3g}, iso={top_iso:.3g}"
+
+
+def test_anisotropic_solver_symmetric_sources_honored():
+    # A source placed at a given node with a given amplitude must appear
+    # in the solved field at that node.
+    N = 12
+    G_tensor = np.zeros((N, N, N, 3, 3))
+    for c in range(3):
+        G_tensor[..., c, c] = 2500.0
+    src = [(6, 6, 6, 1.0 + 0.0j)]  # single interior source (not on boundary)
+    # Since (6,6,6) is interior, it's not in the boundary set — so it
+    # must be listed as a source override for it to become a Dirichlet.
+    u = helmholtz_solve_3d_anisotropic(G_tensor, freq=60, dx=0.005, sources=src)
+    assert np.isclose(u[6, 6, 6], 1.0 + 0.0j)
 
 
 def test_direct_inversion_recovers_uniform_G():

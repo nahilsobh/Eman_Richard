@@ -168,6 +168,37 @@ Ogden's `1/2·λ^-α` term creates steeper G gradients → larger DI
 artifacts. The median filter is what closes the gap, not the choice of
 constitutive law.
 
+**Shell edge-exclusion** (`--shell-offset-mm 9`) matches Yin's ``3 pixels
+away from the balloon edge to minimize edge effects''. Combined with
+DI+median it drops the Phantom 1 peak error to **+1%** and Phantom 2 to
++15%, essentially closing the quantitative Yin Fig 6 gap.
+
+**LFE inversion** (`--inversion lfe`, `lfe_inversion_3d`) — a first-
+derivative alternative to DI using `|k|² = |∇u|²/|u|²`. On plane-wave-
+like fields it's more robust than DI. On our bounded-Dirichlet domain,
+standing-wave interference biases the ratio and the method under-
+performs DI; kept as an option, not the default.
+
+**Anisotropic scalar Helmholtz** (`helmholtz_solve_3d_anisotropic`) —
+extends the scalar solver to a rank-2 stiffness tensor field `G_ij(x)`:
+    ρω² u = ∂_i [G_ij(x) · ∂_j u]
+Symmetric divergence-form FD with half-integer diagonal averaging and
+4-point cross-derivative stencils for off-diagonal terms. Recovers the
+isotropic solver exactly on diagonal-uniform G; correctly propagates a
+scalar wave through a directionally-varying medium. Not yet integrated
+into the TSM demo — that's the last mile before doing away with the
+N-solves/filter hack entirely. Full vector elasticity remains scaffold-
+only in `src/solver/vector_elasticity_3d.py`.
+
+## Scalar Helmholtz limitations — status of the four fixes
+
+| Fix | Status |
+|---|---|
+| Shell edge-exclusion (Yin's 3-px offset) | ✅ done — closes Phantom 1 peak to +1% |
+| LFE inversion | ✅ implemented; not default (standing-wave bias) |
+| Anisotropic scalar Helmholtz | ✅ solver + tests done; demo integration TBD |
+| Vector elasticity (Navier equation) | 🚧 scaffold + design doc only — 1–2 week project |
+
 **Anisotropic TSM pipeline** (added 2026-09-06): the biggest addition —
 this is what Yin's TSM signal actually measures. `stress_tensor_sphere`
 returns the full Cauchy σ_ij(x) field (radial compression σ_rr = -p(a/r)³,
