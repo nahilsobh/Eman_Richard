@@ -10,6 +10,7 @@ import pytest
 from src.solver.vector_elasticity_3d import (
     curl_of_displacement_3d,
     navier_solve_3d_isotropic,
+    navier_solve_3d_tensor_mu,
 )
 
 
@@ -99,6 +100,42 @@ def test_curl_extracts_rotational_component():
     assert np.allclose(curl[2:-2, 2:-2, 2:-2, 0], 0.0, atol=1e-8)
     assert np.allclose(curl[2:-2, 2:-2, 2:-2, 1], 0.0, atol=1e-8)
     assert np.allclose(curl[2:-2, 2:-2, 2:-2, 2], 2.0, atol=1e-8)
+
+
+def test_tensor_mu_solver_runs_and_returns_shape():
+    # Isotropic-scalar reduction: mu_ij = mu·δ_ij should give a physical
+    # (finite, non-zero) field.
+    N = N_SMALL
+    mu_scalar = MU0
+    mu_tensor = np.zeros((N, N, N, 3, 3))
+    for c in range(3):
+        mu_tensor[..., c, c] = mu_scalar
+    src = [(N - 1, N // 2, N // 2, 1, 1.0 + 0.0j)]
+    u = navier_solve_3d_tensor_mu(mu_tensor, lam=0.0, freq=FREQ, rho=RHO,
+                                    dx=DX, damping=0.05, sources=src)
+    assert u.shape == (N, N, N, 3)
+    assert np.all(np.isfinite(u))
+    assert np.max(np.abs(u[2:-2, 2:-2, 2:-2, :])) > 1e-4
+
+
+def test_tensor_mu_anisotropic_gives_different_field():
+    # A strongly anisotropic mu_ij (radial vs tangential different) should
+    # produce a different field than isotropic.
+    N = N_SMALL
+    mu_iso = np.zeros((N, N, N, 3, 3))
+    for c in range(3):
+        mu_iso[..., c, c] = MU0
+    mu_ani = mu_iso.copy()
+    mu_ani[..., 0, 0] = 5 * MU0   # much stiffer along x-direction
+    src = [(N - 1, N // 2, N // 2, 1, 1.0 + 0.0j)]
+    u_iso = navier_solve_3d_tensor_mu(mu_iso, lam=0.0, freq=FREQ, rho=RHO,
+                                        dx=DX, damping=0.05, sources=src)
+    u_ani = navier_solve_3d_tensor_mu(mu_ani, lam=0.0, freq=FREQ, rho=RHO,
+                                        dx=DX, damping=0.05, sources=src)
+    diff = np.max(np.abs(u_iso - u_ani))
+    scale = np.max(np.abs(u_iso))
+    assert diff / (scale + 1e-30) > 0.05, \
+        f"strong anisotropy should perturb the field: rel diff {diff/scale:.3g}"
 
 
 if __name__ == "__main__":
