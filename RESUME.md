@@ -184,11 +184,33 @@ extends the scalar solver to a rank-2 stiffness tensor field `G_ij(x)`:
     ρω² u = ∂_i [G_ij(x) · ∂_j u]
 Symmetric divergence-form FD with half-integer diagonal averaging and
 4-point cross-derivative stencils for off-diagonal terms. Recovers the
-isotropic solver exactly on diagonal-uniform G; correctly propagates a
-scalar wave through a directionally-varying medium. Not yet integrated
-into the TSM demo — that's the last mile before doing away with the
-N-solves/filter hack entirely. Full vector elasticity remains scaffold-
-only in `src/solver/vector_elasticity_3d.py`.
+isotropic solver exactly on diagonal-uniform G.
+
+**Integrated into TSM demo** as `--method anisotropic`. Builds the
+tensor field `G_ij = G_base·δ_ij + A·σ_ij` via new
+`make_anisotropic_G_tensor`, runs ONE broadband multi-face solve, then
+applies the k-space directional filter. Per-solve cost ~2.5× isotropic;
+full cycle ~3 min at N=32.
+
+**Big finding at Phantom 1 full cycle (anisotropic + 20-dir + median + edge):**
+
+| Volume | Yin TSM | Ours TSM | Yin conv | Ours conv |
+|---|---|---|---|---|
+| 50 mL | 3.5 | **3.46** ✓ | 2.7 | **2.53** ✓ |
+| 100 mL | 3.8 | 3.61 (−5%) | 2.7 | 2.42 |
+| 150 mL | 3.9 | 3.56 (−9%) | 2.8 | 2.33 |
+| 200 mL | 4.2 | 3.26 (−22%) | 2.8 | 2.34 |
+| 250 mL | 4.4 | 3.21 (−27%) | 2.8 | **2.27 (flat)** |
+
+**Structural win: μ_conv is now essentially flat** (2.27–2.53 kPa) —
+the tensor solver correctly cancels direction-dependent stiffening on
+the amplitude-weighted mean, reproducing Yin's flat conv signature that
+scalar methods couldn't. Trade-off: μ_TSM undershoots at high pressures
+because the tensor form is linear in σ (`G_ij = G_bg·δ + A·σ`, m=1
+equivalent); a nonlinear tensor form is needed for the peak amplitude.
+
+Full vector elasticity (`vector_elasticity_3d.py::navier_solve_3d`)
+remains scaffold-only — the true fix but 1–2 weeks of work.
 
 ## Scalar Helmholtz limitations — status of the four fixes
 

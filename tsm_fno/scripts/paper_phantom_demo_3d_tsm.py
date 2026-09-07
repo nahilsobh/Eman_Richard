@@ -40,6 +40,7 @@ sys.path.insert(0, str(ROOT))
 from src.phantom.geometry_3d import (
     SphericalBalloon,
     effective_G_for_direction,
+    make_anisotropic_G_tensor,
     make_effective_G_3d,
     perilesional_shell_3d,
     stress_tensor_sphere,
@@ -49,6 +50,7 @@ from src.solver.helmholtz_fd_3d import (
     direct_inversion_3d,
     directional_filter_3d,
     helmholtz_solve_3d,
+    helmholtz_solve_3d_anisotropic,
     lfe_inversion_3d,
     multi_face_broadband_sources,
 )
@@ -195,12 +197,24 @@ def _tsm_for_state(balloon: SphericalBalloon, sigma: np.ndarray, G_base: np.ndar
                                              viscosity=args.viscosity,
                                              median_filter=args.median_filter)
             di_maps.append(G_DI); amp_maps.append(amp)
-    else:
+    elif args.method == "filter":
         src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
                                             faces=("iN", "jN", "j0", "kN", "k0"))
         u_full = helmholtz_solve_3d(G_iso, freq=FREQ, rho=RHO, dx=DX,
                                      damping=DAMPING, sources=src,
                                      top_free=False, viscosity=args.viscosity)
+        for khat, _name, _face in directions:
+            u_k  = directional_filter_3d(u_full, khat=khat, angular_width=args.wedge_width)
+            G_DI = _invert(u_k, args)
+            di_maps.append(G_DI); amp_maps.append(np.abs(u_k))
+    else:  # 'anisotropic'
+        # One solve on the FULL tensor G_ij, then directional filter per k̂.
+        G_tensor = make_anisotropic_G_tensor(N, balloon, G_BG, G_LESION, A_COEFF)
+        src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
+                                            faces=("iN", "jN", "j0", "kN", "k0"))
+        u_full = helmholtz_solve_3d_anisotropic(G_tensor, freq=FREQ, rho=RHO,
+                                                 dx=DX, damping=DAMPING,
+                                                 sources=src)
         for khat, _name, _face in directions:
             u_k  = directional_filter_3d(u_full, khat=khat, angular_width=args.wedge_width)
             G_DI = _invert(u_k, args)
@@ -359,14 +373,19 @@ def main():
                              "directional filter set. 20 gives finer angular "
                              "coverage → stronger tangential-stiffening TSM "
                              "signal but ~3–4× more compute per state.")
-    parser.add_argument("--method", choices=("solves", "filter"), default="solves",
+    parser.add_argument("--method", choices=("solves", "filter", "anisotropic"), default="solves",
                         help="TSM combining method. 'solves' (default): N "
                              "independent solves, each with a direction-"
-                             "dependent G_eff, then MIP. 'filter': ONE solve "
-                             "with broadband multi-face sources on the "
-                             "direction-averaged G_eff, then apply k-space "
-                             "wedge filter to isolate each direction — Yin's "
-                             "actual algorithm. Much faster (1 solve vs N).")
+                             "dependent scalar G_eff, then MIP. 'filter': ONE "
+                             "solve with broadband multi-face sources on the "
+                             "direction-averaged scalar G_iso, then apply "
+                             "k-space wedge filter to isolate each direction "
+                             "— Yin's actual algorithm. 'anisotropic': ONE "
+                             "solve with the FULL tensor G_ij(x) (physically "
+                             "correct), then apply the k-space wedge filter. "
+                             "Slowest per solve (~2.5x isotropic) but only "
+                             "one solve total, and gets μ_conv naturally "
+                             "flat like Yin's real data.")
     parser.add_argument("--wedge-width", type=float, default=0.35,
                         help="Angular σ (radians in sin(θ) space) for the "
                              "directional filter wedge when --method filter. "
@@ -446,16 +465,34 @@ def main():
                                              median_filter=args.median_filter)
             di_maps.append(G_DI)
             amp_maps.append(amp)
-    else:
-        # method == "filter": ONE solve on the isotropic-average G_eff with
-        # broadband multi-face sources, then k-space directional filter to
-        # isolate each k̂ component before DI. This is Yin's algorithm.
+    elif args.method == "filter":
+        # ONE solve on the isotropic-average G_eff with broadband multi-face
+        # sources, then k-space directional filter to isolate each k̂
+        # component before DI. Yin's algorithm.
         print("solving ONE broadband multi-face source on isotropic-avg G_eff …")
         src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
                                             faces=("iN", "jN", "j0", "kN", "k0"))
         u_full = helmholtz_solve_3d(G_iso, freq=FREQ, rho=RHO, dx=DX,
                                      damping=DAMPING, sources=src,
                                      top_free=False, viscosity=args.viscosity)
+        print(f"  |u_full|max = {np.max(np.abs(u_full)):.3f}")
+        for khat, name, _face in directions:
+            u_k = directional_filter_3d(u_full, khat=khat,
+                                         angular_width=args.wedge_width)
+            G_DI = _invert(u_k, args)
+            print(f"filtered {name}  |u_k|max = {np.max(np.abs(u_k)):.4f}")
+            di_maps.append(G_DI)
+            amp_maps.append(np.abs(u_k))
+    else:  # 'anisotropic'
+        # ONE solve with the FULL tensor G_ij(x). Broadband multi-face
+        # sources, then directional filter. Physically most correct.
+        print("solving ONE broadband multi-face source on FULL tensor G_ij …")
+        G_tensor = make_anisotropic_G_tensor(N, balloon, G_BG, G_LESION, A_COEFF)
+        src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
+                                            faces=("iN", "jN", "j0", "kN", "k0"))
+        u_full = helmholtz_solve_3d_anisotropic(G_tensor, freq=FREQ, rho=RHO,
+                                                 dx=DX, damping=DAMPING,
+                                                 sources=src)
         print(f"  |u_full|max = {np.max(np.abs(u_full)):.3f}")
         for khat, name, _face in directions:
             u_k = directional_filter_3d(u_full, khat=khat,

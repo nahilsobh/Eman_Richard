@@ -102,6 +102,33 @@ def stress_tensor_sphere(balloon: SphericalBalloon, N: int) -> np.ndarray:
     return sigma.astype(np.float64)
 
 
+def make_anisotropic_G_tensor(N: int, balloon: SphericalBalloon,
+                               G_bg: float, G_lesion: float,
+                               A_coeff: float) -> np.ndarray:
+    """Rank-2 anisotropic stiffness tensor field G_ij(x) [Pa].
+
+    Linear acoustoelastic form:
+        G_ij(x) = G_base(x) · δ_ij + A_coeff · σ_ij(x)
+    with G_base = G_lesion inside the balloon, G_bg outside.
+
+    For plane waves u ∝ exp(i·k̂·x), the effective scalar stiffness they
+    see is k̂ · G · k̂ = G_base + A · (k̂·σ·k̂) — identical to the
+    per-direction scalar we compute in `effective_G_for_direction`. The
+    tensor form is the physically-correct object: it lets a single
+    anisotropic-Helmholtz solve capture all direction-dependent effects
+    at once, no need for N per-direction solves.
+
+    Symmetric by construction (σ is symmetric).
+    """
+    G_base = np.full((N, N, N), float(G_bg), dtype=np.float64)
+    G_base[balloon.mask(N)] = float(G_lesion)
+    sigma = stress_tensor_sphere(balloon, N)   # (N,N,N,3,3)
+    G_tensor = float(A_coeff) * sigma
+    for c in range(3):
+        G_tensor[..., c, c] += G_base
+    return G_tensor
+
+
 def effective_G_for_direction(
     sigma: np.ndarray,
     khat: np.ndarray,
