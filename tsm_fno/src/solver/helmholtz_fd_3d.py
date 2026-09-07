@@ -263,12 +263,24 @@ def direct_inversion_3d(
     freq: float,
     rho: float = 1000.0,
     dx: float = 0.003,
+    median_filter_size: int | None = None,
 ) -> np.ndarray:
     """Voxel-wise direct inversion for the shear modulus (real part).
 
     Uses the locally-homogeneous approximation
         G(x) ≈ -ρω² u(x) / ∇²u(x)
     with a 7-point centered Laplacian. Boundary voxels are set to NaN.
+
+    Parameters
+    ----------
+    median_filter_size : int, optional
+        If given (e.g. 3), applies a size × size × size spatial median
+        filter to the recovered G map to suppress inversion artifacts at
+        stiffness gradients. Matches Yin's ``3 × 3 × 3 cubic spatial
+        median filter to improve regional homogeneity of stiffness
+        estimates'' (paper Methods). NaN voxels are protected via a
+        fill-mask-filter-remask pattern so the filter doesn't leak NaN
+        into interior voxels. Default None = no filtering.
     """
     N = u.shape[0]
     omega = 2.0 * np.pi * freq
@@ -290,4 +302,15 @@ def direct_inversion_3d(
     G_real[:, :, 0] = G_real[:, :, -1] = np.nan
     # Mask non-physical values.
     G_real[~np.isfinite(G_real)] = np.nan
+
+    if median_filter_size and median_filter_size > 1:
+        from scipy.ndimage import median_filter
+        valid = np.isfinite(G_real)
+        # Fill NaNs with the interior median so the filter has no unusual
+        # boundary values to smear inward; then re-apply the mask.
+        interior_median = float(np.nanmedian(G_real))
+        G_fill = np.where(valid, G_real, interior_median)
+        G_real = median_filter(G_fill, size=int(median_filter_size), mode="mirror")
+        G_real[~valid] = np.nan
+
     return G_real

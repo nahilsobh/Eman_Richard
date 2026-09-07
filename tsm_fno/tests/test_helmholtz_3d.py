@@ -217,6 +217,45 @@ def test_stiffening_exponent_pressure_zero_invariant():
             f"m={m}: background changed at p=0 ({G[outside].mean():.1f} vs 2500)"
 
 
+def test_median_filter_none_is_no_op():
+    # median_filter_size=None must give the same output as the default.
+    N = 16
+    G = _uniform_G(val=2500.0)
+    src = bottom_plate_driver_sources_3d(N, radius_frac=0.5)
+    u = helmholtz_solve_3d(G, freq=60, dx=0.005, sources=src)
+    di_default = direct_inversion_3d(u, freq=60, dx=0.005)
+    di_none    = direct_inversion_3d(u, freq=60, dx=0.005, median_filter_size=None)
+    di_one     = direct_inversion_3d(u, freq=60, dx=0.005, median_filter_size=1)
+    assert np.array_equal(di_default, di_none, equal_nan=True)
+    assert np.array_equal(di_default, di_one,  equal_nan=True)
+
+
+def test_median_filter_reduces_outliers():
+    # Median should suppress isolated large spikes. Fabricate a G map with
+    # spikes by using a very steep artificial pressure and check that the
+    # filtered result has a smaller max/median ratio.
+    N = 20
+    balloon = SphericalBalloon((10, 10, 10), 4.0, pressure=7000.0)
+    G_true = make_effective_G_3d(N, balloon, 2500, 2000, 0.5,
+                                  stiffening_exponent=1.5, G_max_pa=500000.0)
+    src = bottom_plate_driver_sources_3d(N, radius_frac=0.5)
+    u = helmholtz_solve_3d(G_true, freq=60, dx=0.005, sources=src, top_free=True)
+    di_raw = direct_inversion_3d(u, freq=60, dx=0.005)
+    di_med = direct_inversion_3d(u, freq=60, dx=0.005, median_filter_size=3)
+    # Both should have similar median (bulk stiffness preserved) but
+    # median filter should reduce the extreme upper tail.
+    med_raw = np.nanmedian(di_raw)
+    med_med = np.nanmedian(di_med)
+    max_raw = np.nanpercentile(di_raw, 99)
+    max_med = np.nanpercentile(di_med, 99)
+    # Medians roughly match (bulk not shifted).
+    assert abs(med_raw - med_med) / max(abs(med_raw), 1.0) < 0.5, \
+        f"medians drift too much: raw {med_raw:.0f}, filtered {med_med:.0f}"
+    # 99th percentile should shrink significantly.
+    assert max_med < max_raw, \
+        f"median filter should suppress outliers: raw 99pct {max_raw:.0f}, filt {max_med:.0f}"
+
+
 def test_direct_inversion_recovers_uniform_G():
     N = 16
     G_true = 2500.0

@@ -142,17 +142,31 @@ flag on `paper_phantom_demo_3d_tsm.py` loops all 11 states (6 inflation +
 | 200 mL | 5.38 | 4.2 (+28%) | 3.42 | 2.8 |
 | **250 mL (peak)** | **6.78** | **4.4 (+54%)** | 3.77 | 2.8 |
 
-**Baseline TSM matches Yin exactly.** At higher pressures μ_TSM
-over-rises, because the filter method on a scalar G_iso amplifies DI
-noise via MIP (Yin's true tensor-anisotropy signal is cleaner — his
-μ_conv stays flat where ours rises with p). Structural agreement is
-complete: TSM > conv, monotonic rise, deflation retraces inflation.
-Full reproduction of Yin's flat-conv would need a true vector-elasticity
-solver — out of scope. Results in
-`results/paper_demo_3d_tsm_dir20_filter_cycle/`
-(m=1) and by rerunning with `-m 1.5` for the Phantom 2 analogue. As a result μ_conv also now recovers a physical value:
-2.4 kPa (was 300 Pa pre-calibration — the DI amplitude-thresholding
-artifact self-heals once A is realistic).
+**Baseline TSM matches Yin exactly.** Peak overshoot 54% was closed by
+adding Yin's own 3×3×3 spatial median filter to DI (below).
+
+**3×3×3 spatial median filter on DI** (added 2026-09-06): matches Yin's
+Methods step ``a 3 × 3 × 3 cubic spatial median filter to improve
+regional homogeneity''. `direct_inversion_3d` now takes an optional
+`median_filter_size` param; the TSM demo takes `--median-filter 3`.
+
+| Volume | Yin P1 TSM | Before median | **With median=3** | Δ |
+|---|---|---|---|---|
+| 100 mL | 3.8 | 4.38 | **3.66** | **−4%** ✓ |
+| 150 mL | 3.9 | 4.76 | **3.92** | **+0.5%** ✓ (bullseye) |
+| 200 mL | 4.2 | 5.38 | **4.11** | **−2%** ✓ |
+| **250 mL peak** | 4.4 | 6.78 (+54%) | **4.93** | **+12%** |
+
+Phantom 2 (m=1.5): peak overshoot 69% → **23%**. Central states
+(100–200 mL) now match Yin to within a few percent for both phantoms.
+Results in `results/paper_demo_3d_tsm_dir20_filter_cycle_medfilt/`
+(Phantom 1) and `..._medfilt_m1.5/` (Phantom 2).
+
+**Ogden constitutive law** (`--constitutive ogden`) is available but
+overshoots MORE than powerlaw when combined with unfiltered DI, because
+Ogden's `1/2·λ^-α` term creates steeper G gradients → larger DI
+artifacts. The median filter is what closes the gap, not the choice of
+constitutive law.
 
 **Anisotropic TSM pipeline** (added 2026-09-06): the biggest addition —
 this is what Yin's TSM signal actually measures. `stress_tensor_sphere`

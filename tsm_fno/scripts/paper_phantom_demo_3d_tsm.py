@@ -150,7 +150,9 @@ def solve_one_direction(khat: np.ndarray,
                          sigma: np.ndarray,
                          G_base: np.ndarray,
                          stiffening_exponent: float,
-                         viscosity: float | None) -> tuple[np.ndarray, np.ndarray]:
+                         viscosity: float | None,
+                         median_filter: int | None = None,
+                         ) -> tuple[np.ndarray, np.ndarray]:
     """Returns (|u|, G_DI) for one propagation direction."""
     G_eff = effective_G_for_direction(sigma, khat, G_base,
                                        A_coeff=A_COEFF,
@@ -161,7 +163,8 @@ def solve_one_direction(khat: np.ndarray,
                                 damping=DAMPING, sources=src,
                                 top_free=False,
                                 viscosity=viscosity)
-    G_DI  = direct_inversion_3d(u, freq=FREQ, rho=RHO, dx=DX)
+    G_DI  = direct_inversion_3d(u, freq=FREQ, rho=RHO, dx=DX,
+                                 median_filter_size=median_filter)
     return np.abs(u), G_DI
 
 
@@ -178,7 +181,8 @@ def _tsm_for_state(balloon: SphericalBalloon, sigma: np.ndarray, G_base: np.ndar
         for khat, name, face in directions:
             amp, G_DI = solve_one_direction(khat, face, balloon, sigma, G_base,
                                              stiffening_exponent=args.stiffening_exponent,
-                                             viscosity=args.viscosity)
+                                             viscosity=args.viscosity,
+                                             median_filter=args.median_filter)
             di_maps.append(G_DI); amp_maps.append(amp)
     else:
         src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
@@ -188,7 +192,8 @@ def _tsm_for_state(balloon: SphericalBalloon, sigma: np.ndarray, G_base: np.ndar
                                      top_free=False, viscosity=args.viscosity)
         for khat, _name, _face in directions:
             u_k  = directional_filter_3d(u_full, khat=khat, angular_width=args.wedge_width)
-            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX)
+            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX,
+                                         median_filter_size=args.median_filter)
             di_maps.append(G_DI); amp_maps.append(np.abs(u_k))
 
     di_stack  = np.stack(di_maps, axis=0)
@@ -355,6 +360,12 @@ def main():
                         help="Angular σ (radians in sin(θ) space) for the "
                              "directional filter wedge when --method filter. "
                              "0.35 ≈ 20° FWHM.")
+    parser.add_argument("--median-filter", type=int, default=None,
+                        help="Cubic spatial median filter size (voxels) "
+                             "applied to each direction's G_DI map after "
+                             "inversion. Matches Yin's '3×3×3 cubic median' "
+                             "step. Suppresses inversion artifacts at "
+                             "stiffness gradients. Typical: 3. Off by default.")
     parser.add_argument("--full-cycle", action="store_true",
                         help="Run the full 11-state inflation + deflation "
                              "schedule (matches paper_phantom_demo_3d.py) "
@@ -407,7 +418,8 @@ def main():
             print(f"solving direction {name}  k̂={khat.tolist()}")
             amp, G_DI = solve_one_direction(khat, face, balloon, sigma, G_base,
                                              stiffening_exponent=args.stiffening_exponent,
-                                             viscosity=args.viscosity)
+                                             viscosity=args.viscosity,
+                                             median_filter=args.median_filter)
             di_maps.append(G_DI)
             amp_maps.append(amp)
     else:
@@ -424,7 +436,8 @@ def main():
         for khat, name, _face in directions:
             u_k = directional_filter_3d(u_full, khat=khat,
                                          angular_width=args.wedge_width)
-            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX)
+            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX,
+                                         median_filter_size=args.median_filter)
             print(f"filtered {name}  |u_k|max = {np.max(np.abs(u_k)):.4f}")
             di_maps.append(G_DI)
             amp_maps.append(np.abs(u_k))
