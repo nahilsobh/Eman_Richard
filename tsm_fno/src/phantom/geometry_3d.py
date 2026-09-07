@@ -188,9 +188,20 @@ def make_effective_G_3d(N: int, balloon: SphericalBalloon,
 
 
 def perilesional_shell_3d(lesion_mask: np.ndarray, shell_mm: float,
-                          dx: float) -> np.ndarray:
-    """Perilesional shell — voxels within `shell_mm` of the lesion boundary."""
+                          dx: float, inner_offset_mm: float = 0.0) -> np.ndarray:
+    """Perilesional shell — voxels within `shell_mm` of the lesion boundary.
+
+    Parameters
+    ----------
+    lesion_mask, shell_mm, dx : as before.
+    inner_offset_mm : float
+        Distance (in mm) from the lesion boundary to exclude before the
+        shell begins. Matches Yin's protocol: ``the inner boundary
+        positioned three pixels away from the balloon edge to minimize
+        edge effects''. Default 0 (backward compatible). Yin's 3 px at
+        typical 3 mm voxels ≈ 9 mm.
+    """
     outside = ~lesion_mask
     dist_vox = distance_transform_edt(outside).astype(np.float64)
     dist_mm = dist_vox * dx * 1000.0
-    return outside & (dist_mm > 0.0) & (dist_mm <= shell_mm)
+    return outside & (dist_mm > inner_offset_mm) & (dist_mm <= inner_offset_mm + shell_mm)

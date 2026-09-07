@@ -229,6 +229,71 @@ def multi_face_broadband_sources(
     return src
 
 
+def lfe_inversion_3d(
+    u: np.ndarray,
+    freq: float,
+    rho: float = 1000.0,
+    dx: float = 0.003,
+    smoothing_sigma_vx: float | None = 1.0,
+    median_filter_size: int | None = None,
+) -> np.ndarray:
+    """Local Frequency Estimation inversion (first-derivative form).
+
+    For a locally-plane-wave field u(x) ≈ A·exp(i·k·x + φ),
+        ∇u = i·k·u   →   |∇u|² = |k|²·|u|²   →   |k|² = |∇u|²/|u|²
+    hence
+        G(x) ≈ ρω² / |k|² = ρω²·|u|² / |∇u|²
+    Uses ONLY first derivatives, so it's much less noise-sensitive than
+    the second-derivative direct inversion (∇²u). Widely used in MRE
+    as an alternative to DI (Manduca et al.).
+
+    Parameters
+    ----------
+    smoothing_sigma_vx : Gaussian σ in voxels applied to numerator
+        (|u|²) and denominator (|∇u|²) separately before dividing. This
+        stabilises the ratio in low-amplitude regions. Set None to skip.
+        Default 1.0 (mild).
+    median_filter_size : optional post-inversion cubic median.
+
+    Boundary voxels (first & last plane on each axis) are set to NaN.
+    """
+    N = u.shape[0]
+    omega = 2.0 * np.pi * freq
+    # Central-difference first derivatives.
+    inv_2dx = 0.5 / dx
+    gx = np.zeros_like(u); gy = np.zeros_like(u); gz = np.zeros_like(u)
+    gx[1:-1, :, :] = (u[2:, :, :] - u[:-2, :, :]) * inv_2dx
+    gy[:, 1:-1, :] = (u[:, 2:, :] - u[:, :-2, :]) * inv_2dx
+    gz[:, :, 1:-1] = (u[:, :, 2:] - u[:, :, :-2]) * inv_2dx
+    grad_sq = np.abs(gx) ** 2 + np.abs(gy) ** 2 + np.abs(gz) ** 2
+    u_sq    = np.abs(u) ** 2
+
+    if smoothing_sigma_vx and smoothing_sigma_vx > 0:
+        from scipy.ndimage import gaussian_filter
+        grad_sq = gaussian_filter(grad_sq, sigma=float(smoothing_sigma_vx))
+        u_sq    = gaussian_filter(u_sq,    sigma=float(smoothing_sigma_vx))
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        k_sq = grad_sq / u_sq
+        G    = rho * omega ** 2 / k_sq
+
+    # Mask boundaries and non-finite voxels.
+    G[0, :, :] = G[-1, :, :] = np.nan
+    G[:, 0, :] = G[:, -1, :] = np.nan
+    G[:, :, 0] = G[:, :, -1] = np.nan
+    G[~np.isfinite(G)] = np.nan
+
+    if median_filter_size and median_filter_size > 1:
+        from scipy.ndimage import median_filter
+        valid = np.isfinite(G)
+        interior_median = float(np.nanmedian(G))
+        G_fill = np.where(valid, G, interior_median)
+        G = median_filter(G_fill, size=int(median_filter_size), mode="mirror")
+        G[~valid] = np.nan
+
+    return G
+
+
 def bottom_plate_driver_sources_3d(
     N: int,
     radius_frac: float = 0.5,

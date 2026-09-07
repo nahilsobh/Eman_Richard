@@ -49,8 +49,19 @@ from src.solver.helmholtz_fd_3d import (
     direct_inversion_3d,
     directional_filter_3d,
     helmholtz_solve_3d,
+    lfe_inversion_3d,
     multi_face_broadband_sources,
 )
+
+
+def _invert(u, args):
+    """Dispatch DI or LFE per --inversion flag."""
+    if args.inversion == "lfe":
+        return lfe_inversion_3d(u, freq=FREQ, rho=RHO, dx=DX,
+                                 smoothing_sigma_vx=args.lfe_smoothing,
+                                 median_filter_size=args.median_filter)
+    return direct_inversion_3d(u, freq=FREQ, rho=RHO, dx=DX,
+                                median_filter_size=args.median_filter)
 
 
 # ── Configuration ────────────────────────────────────────────────────────
@@ -192,8 +203,7 @@ def _tsm_for_state(balloon: SphericalBalloon, sigma: np.ndarray, G_base: np.ndar
                                      top_free=False, viscosity=args.viscosity)
         for khat, _name, _face in directions:
             u_k  = directional_filter_3d(u_full, khat=khat, angular_width=args.wedge_width)
-            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX,
-                                         median_filter_size=args.median_filter)
+            G_DI = _invert(u_k, args)
             di_maps.append(G_DI); amp_maps.append(np.abs(u_k))
 
     di_stack  = np.stack(di_maps, axis=0)
@@ -211,7 +221,8 @@ def _tsm_for_state(balloon: SphericalBalloon, sigma: np.ndarray, G_base: np.ndar
         mu_conv[den == 0] = np.nan
     mu_tsm = np.nanmax(di_stack, axis=0)
 
-    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=SHELL_MM, dx=DX)
+    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=SHELL_MM, dx=DX,
+                                   inner_offset_mm=args.shell_offset_mm)
     def _mean_shell(field):
         vals = field[shell]; vals = vals[np.isfinite(vals)]
         if not vals.size: return float("nan")
@@ -360,6 +371,19 @@ def main():
                         help="Angular σ (radians in sin(θ) space) for the "
                              "directional filter wedge when --method filter. "
                              "0.35 ≈ 20° FWHM.")
+    parser.add_argument("--inversion", choices=("di", "lfe"), default="di",
+                        help="Inversion algorithm. 'di' = Direct Inversion "
+                             "(second-derivative Laplacian; noise-sensitive). "
+                             "'lfe' = Local Frequency Estimation via "
+                             "|k|² = |∇u|²/|u|² (first-derivative only; more "
+                             "robust at G-gradients).")
+    parser.add_argument("--lfe-smoothing", type=float, default=1.0,
+                        help="Gaussian σ (voxels) for pre-division smoothing "
+                             "in LFE. Default 1.0. 0 = no smoothing.")
+    parser.add_argument("--shell-offset-mm", type=float, default=0.0,
+                        help="Skip this many mm inward from the balloon "
+                             "boundary before starting the perilesional shell. "
+                             "Yin uses 3 px ≈ 9 mm to minimize edge artifacts.")
     parser.add_argument("--median-filter", type=int, default=None,
                         help="Cubic spatial median filter size (voxels) "
                              "applied to each direction's G_DI map after "
@@ -436,8 +460,7 @@ def main():
         for khat, name, _face in directions:
             u_k = directional_filter_3d(u_full, khat=khat,
                                          angular_width=args.wedge_width)
-            G_DI = direct_inversion_3d(u_k, freq=FREQ, rho=RHO, dx=DX,
-                                         median_filter_size=args.median_filter)
+            G_DI = _invert(u_k, args)
             print(f"filtered {name}  |u_k|max = {np.max(np.abs(u_k)):.4f}")
             di_maps.append(G_DI)
             amp_maps.append(np.abs(u_k))
@@ -465,7 +488,8 @@ def main():
     mu_tsm = np.nanmax(di_stack, axis=0)
 
     # Ring statistics.
-    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=SHELL_MM, dx=DX)
+    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=SHELL_MM, dx=DX,
+                                   inner_offset_mm=args.shell_offset_mm)
 
     def _mean_shell(field):
         vals = field[shell]

@@ -8,6 +8,7 @@ from src.solver.helmholtz_fd_3d import (
     bottom_plate_driver_sources_3d,
     direct_inversion_3d,
     helmholtz_solve_3d,
+    lfe_inversion_3d,
 )
 from src.phantom.geometry_3d import (
     SphericalBalloon,
@@ -254,6 +255,42 @@ def test_median_filter_reduces_outliers():
     # 99th percentile should shrink significantly.
     assert max_med < max_raw, \
         f"median filter should suppress outliers: raw 99pct {max_raw:.0f}, filt {max_med:.0f}"
+
+
+def test_lfe_returns_positive_finite_G():
+    # Gradient-based LFE (|k|² = |∇u|²/|u|²) has a known standing-wave
+    # bias in a bounded Dirichlet domain — the ratio isn't a plane-wave
+    # k in general. Test only that it returns something physical.
+    N = 16
+    G_true = 2500.0
+    G = _uniform_G(val=G_true)
+    src = bottom_plate_driver_sources_3d(N, radius_frac=0.5)
+    u = helmholtz_solve_3d(G, freq=60, dx=0.005, sources=src, top_free=True)
+    G_lfe = lfe_inversion_3d(u, freq=60, dx=0.005)
+    core = G_lfe[3:-3, 4:-4, 4:-4]
+    core = core[np.isfinite(core)]
+    assert core.size > 0
+    mean = np.median(core)
+    # Standing-wave bias can be up to ~50% on uniform G. Just check
+    # order-of-magnitude sanity.
+    assert 500.0 < mean < 20000.0, \
+        f"LFE gave unphysical G: mean={mean:.0f}"
+
+
+def test_lfe_scales_with_true_G():
+    # LFE should scale monotonically with true G, even if biased.
+    # Compare a stiff phantom to a soft one — LFE median should be larger
+    # for the stiffer material.
+    N = 16
+    src = bottom_plate_driver_sources_3d(N, radius_frac=0.5)
+    u_soft = helmholtz_solve_3d(_uniform_G(val=1000.0), freq=60, dx=0.005,
+                                 sources=src, top_free=True)
+    u_stiff = helmholtz_solve_3d(_uniform_G(val=5000.0), freq=60, dx=0.005,
+                                 sources=src, top_free=True)
+    lfe_soft  = np.nanmedian(lfe_inversion_3d(u_soft,  freq=60, dx=0.005)[3:-3, 4:-4, 4:-4])
+    lfe_stiff = np.nanmedian(lfe_inversion_3d(u_stiff, freq=60, dx=0.005)[3:-3, 4:-4, 4:-4])
+    assert lfe_stiff > lfe_soft, \
+        f"LFE should scale with G: soft={lfe_soft:.0f}, stiff={lfe_stiff:.0f}"
 
 
 def test_direct_inversion_recovers_uniform_G():
