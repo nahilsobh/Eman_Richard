@@ -1,0 +1,23 @@
+Ogden N=2 ground-truth ring stiffness vs Yin Fig 6
+==============================================================================
+Analytical Lamé stretch → Ogden tensor G_ij(x) → shell mean.
+No wave solve, no direct inversion. Isolates the constitutive law.
+Shell inner offset = 3.0 mm, thickness = 5.0 mm.
+
+State:        50   100   150   200   250   200   150   100    50
+Branch:     infl  infl  infl  infl  infl  defl  defl  defl  defl
+
+Yin P1 TSM:  3.50   3.80   3.90   4.20   4.40   4.20   3.70   3.60   3.60
+Yin P2 TSM:  3.50   3.90   4.20   4.90   5.15   4.60   3.90   3.60   3.60
+
+--- Isotropic mean G_true (tensor trace /3) ---
+  P1 baseline (user's original)           :  2.50   2.54   2.60   2.66   2.71   2.66   2.60   2.54   2.50
+  P1 tuned (α₁ = 7)                       :  2.50   2.91   3.52   4.03   4.63   4.03   3.52   2.91   2.50
+  P2 baseline (user's original)           :  2.50   2.59   2.73   2.88   3.08   2.88   2.73   2.59   2.50
+  P2 tuned (μ rebalanced to fiber)        :  2.50   2.94   3.68   4.42   5.36   4.42   3.68   2.94   2.50
+
+--- Tangential component G_θ = Σμ_p · λ_θ^(α_p-2) ---
+  P1 baseline (user's original)           :  2.50   2.48   2.49   2.50   2.52   2.50   2.49   2.48   2.50
+  P1 tuned (α₁ = 7)                       :  2.50   3.31   4.14   4.87   5.67   4.87   4.14   3.31   2.50
+  P2 baseline (user's original)           :  2.50   2.68   2.90   3.12   3.41   3.12   2.90   2.68   2.50
+  P2 tuned (μ rebalanced to fiber)        :  2.50   3.38   4.50   5.62   7.03   5.62   4.50   3.38   2.50
