@@ -90,13 +90,15 @@ STATE_LABELS     = [
 
 
 def solve_state(balloon: SphericalBalloon,
-                stiffening_exponent: float = 1.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+                stiffening_exponent: float = 1.0,
+                constitutive: str = "powerlaw") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Returns (u, G_true, G_di) for one balloon inflation state."""
     # 500 kPa cap: enough headroom for hyperelastic runs at high pressure.
     # The DI baseline doesn't share the 2D FNO's training-distribution cap.
     G_true = make_effective_G_3d(N, balloon, G_BG, G_LESION, A_COEFF,
                                   stiffening_exponent=stiffening_exponent,
-                                  G_max_pa=500000.0)
+                                  G_max_pa=500000.0,
+                                  constitutive=constitutive)
     src    = bottom_plate_driver_sources_3d(N, radius_frac=DRIVER_R)
     t0     = time.time()
     u      = helmholtz_solve_3d(G_true, freq=FREQ, rho=RHO, dx=DX,
@@ -131,11 +133,15 @@ def main():
                              "at each pressure — Yin Fig. 6 lookalike + identity "
                              "regression test.")
     parser.add_argument("--stiffening-exponent", "-m", type=float, default=1.0,
-                        help="Hyperelastic power-law exponent for the "
-                             "acoustoelastic effective stiffness "
-                             "G_eff = G_base·(1 + A·Δσ/G_base)^m. Default 1.0 "
-                             "= linear (Phantom 1 flavor). Try 2.0 for a "
-                             "Phantom 2 (cellulose-reinforced) analogue.")
+                        help="Hyperelastic exponent. For powerlaw this is m in "
+                             "G_eff = G_base·(1 + A·Δσ/G_base)^m. For ogden "
+                             "this is the α exponent. Default 1.0.")
+    parser.add_argument("--constitutive", choices=("powerlaw", "ogden"), default="powerlaw",
+                        help="Acoustoelastic constitutive law. 'powerlaw' "
+                             "(default) is the asymmetric (1+A·Δσ/G)^m form. "
+                             "'ogden' is the symmetric single-term Ogden "
+                             "G_base·½(λ^α + λ^-α) form — softer at small "
+                             "strain (quadratic), stiff at large strain.")
     parser.add_argument("--viscoelastic-tau", type=float, default=None,
                         help="If set, apply an SLS viscoelastic relaxation to "
                              "the applied-pressure schedule. Value is the "
@@ -154,6 +160,8 @@ def main():
     if out_name == "paper_demo_3d":
         # Auto-suffix so specialized runs don't clobber the linear baseline.
         parts = []
+        if args.constitutive != "powerlaw":
+            parts.append(args.constitutive)
         if args.stiffening_exponent != 1.0:
             parts.append(f"hyper{args.stiffening_exponent:g}")
         if args.viscoelastic_tau is not None:
@@ -193,7 +201,9 @@ def main():
         # Balloon geometry follows applied volume/pressure (fast latex).
         # But the Δσ field the gel actually sees uses p_eff (viscoelastic lag).
         balloon = SphericalBalloon(center=CENTER, radius_vx=r_vx, pressure=float(p_eff))
-        u, G_true, G_di = solve_state(balloon, stiffening_exponent=args.stiffening_exponent)
+        u, G_true, G_di = solve_state(balloon,
+                                       stiffening_exponent=args.stiffening_exponent,
+                                       constitutive=args.constitutive)
         mean_r, med_r   = ring_stats(G_di, balloon)
         states.append(dict(
             label=label, p=p_applied, p_eff=p_eff, radius_vx=r_vx,

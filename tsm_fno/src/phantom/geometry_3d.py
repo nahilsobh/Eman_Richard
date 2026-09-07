@@ -144,32 +144,46 @@ def make_effective_G_3d(N: int, balloon: SphericalBalloon,
                          G_bg: float, G_lesion: float,
                          A_coeff: float,
                          stiffening_exponent: float = 1.0,
-                         G_max_pa: float = G_MAX_PA) -> np.ndarray:
+                         G_max_pa: float = G_MAX_PA,
+                         constitutive: str = "powerlaw") -> np.ndarray:
     """Acoustoelastic-effective shear modulus for a pressurised spherical balloon.
 
-    ``stiffening_exponent = 1.0`` (default) reproduces the original linear model
-        G_eff(x) = G_base(x) + A_coeff · Δσ(x)
-                 = G_base(x) · (1 + A_coeff · Δσ(x) / G_base(x))
-    with G_base = G_lesion inside the balloon, G_bg outside.
+    Parameters
+    ----------
+    N, balloon, G_bg, G_lesion, A_coeff : geometry and coupling as before.
+    stiffening_exponent : float
+        Nonlinearity exponent. For ``constitutive='powerlaw'`` this is the
+        power in `(1 + A·Δσ/G_base)^m`. For ``constitutive='ogden'`` this
+        is the Ogden α.
+    G_max_pa : float
+        Hard clip on the returned stiffness — numerical safety only.
+    constitutive : {'powerlaw', 'ogden'}
+        - ``'powerlaw'`` (default, backward compatible): asymmetric
+          `G_eff = G_base · (1 + A·Δσ/G_base)^m`.  Linear at m=1
+          (Phantom 1 analogue), super-linear for m>1 (Phantom 2).
+        - ``'ogden'``: single-term Ogden hyperelastic form
+          `G_eff = G_base · ½·(λ^α + λ^(-α))` with `λ = 1 + A·Δσ/G_base`.
+          Symmetric in compression/tension, quadratic small-strain rise
+          (softer near baseline than the power law), diverges as λ^α at
+          large stretch. Common tissue α ≈ 3–7. At α = 2 reduces to a
+          Mooney-Rivlin-like form.
 
-    ``stiffening_exponent > 1`` gives a phenomenological hyperelastic
-    strain-stiffening law
-        G_eff(x) = G_base(x) · (1 + A_coeff · Δσ(x) / G_base(x))^m
-    for m = stiffening_exponent. This bends the G_eff-vs-pressure curve super-
-    linearly and approximates the Phantom 2 (cellulose-reinforced) behavior
-    Yin reports; m = 1 approximates Phantom 1 (pure gelatin). Common ballpark:
-    m ≈ 1.5–2.5 for soft biological tissue.
-
-    Note: this is still a memoryless (no-viscoelasticity) constitutive law, so
-    inflation and deflation traces at the same pressure will still match
-    exactly. Producing genuine hysteresis needs a viscoelastic G*(ω) with a
-    time-domain memory kernel — out of scope for this demo.
+    Both forms are memoryless — inflation and deflation at the same
+    pre-stress give identical G_eff. Real gel hysteresis lives in the
+    quasi-static viscoelastic response (see viscoelastic.py).
     """
     G_base = np.full((N, N, N), float(G_bg), dtype=np.float64)
     G_base[balloon.mask(N)] = float(G_lesion)
     dsig = lame_field_sphere(balloon, N)
-    ratio = 1.0 + float(A_coeff) * dsig / G_base
-    G_eff = G_base * np.power(ratio, float(stiffening_exponent))
+    lam  = 1.0 + float(A_coeff) * dsig / G_base
+    m    = float(stiffening_exponent)
+    if constitutive == "powerlaw":
+        G_eff = G_base * np.power(lam, m)
+    elif constitutive == "ogden":
+        G_eff = G_base * 0.5 * (np.power(lam, m) + np.power(lam, -m))
+    else:
+        raise ValueError(f"unknown constitutive: {constitutive!r}; "
+                         "expected 'powerlaw' or 'ogden'")
     return np.clip(G_eff, G_MIN_PA, float(G_max_pa))
 
 

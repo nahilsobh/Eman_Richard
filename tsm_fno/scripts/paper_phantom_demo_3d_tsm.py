@@ -322,6 +322,10 @@ def main():
     parser.add_argument("--radius-vx", type=float, default=11.0,
                         help="Balloon radius [voxels] (matches ~150 mL inflation).")
     parser.add_argument("--stiffening-exponent", "-m", type=float, default=1.0)
+    parser.add_argument("--constitutive", choices=("powerlaw", "ogden"),
+                        default="powerlaw",
+                        help="Acoustoelastic constitutive law. Passed through "
+                             "to make_effective_G_3d.")
     parser.add_argument("--viscosity", type=float, default=None,
                         help="Kelvin-Voigt viscosity η [Pa·s]. If set, damping "
                              "grows linearly with ω (frequency-dependent).")
@@ -390,7 +394,8 @@ def main():
     # demo uses) — this is the "everyone-agrees" baseline for μ_conv.
     G_iso = make_effective_G_3d(N, balloon, G_BG, G_LESION, A_COEFF,
                                  stiffening_exponent=args.stiffening_exponent,
-                                 G_max_pa=500000.0)
+                                 G_max_pa=500000.0,
+                                 constitutive=args.constitutive)
 
     # Direction-specific G_DI and |u| stacks.
     di_maps = []

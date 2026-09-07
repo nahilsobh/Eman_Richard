@@ -1,0 +1,23 @@
+Yin Fig 6 reproduction — 3D balloon full inflation + deflation cycle
+==============================================================================
+Grid: 32³, dx=3 mm    m = 3.0    A = 0.2
+Method: filter + 20 directions (wedge σ=0.35 rad) @ 60 Hz
+Amplitude gate: |u| >= 15% of per-direction peak
+
+State                        branch      p [Pa]   ring_iso   ring_conv   ring_TSM   TSM/conv
+----------------------------------------------------------------------------------------------------
+0 mL                         inflation        0       2500        2260       3507       1.55
+50 mL                        inflation     1000       3267        2948       4215       1.43
+100 mL                       inflation     2000       4268        3765       5773       1.53
+150 mL                       inflation     3000       5576        4826       7943       1.65
+200 mL                       inflation     5000       8613        7236      16861       2.33
+250 mL                       inflation     7000      13018       10170      29106       2.86
+200 mL                       deflation     5000       8613        7236      16861       2.33
+150 mL                       deflation     3000       5576        4826       7943       1.65
+100 mL                       deflation     2000       4268        3765       5773       1.53
+50 mL                        deflation     1000       3267        2948       4215       1.43
+0 mL                         deflation        0       2500        2260       3507       1.55
+----------------------------------------------------------------------------------------------------
+
+Compare to Yin Fig 6 (Phantom 1 TSM, kPa): 3.5, 3.8, 3.9, 4.2, 4.4
+                              (Phantom 1 conv, kPa): 2.7, 2.7, 2.8, 2.8, 2.8

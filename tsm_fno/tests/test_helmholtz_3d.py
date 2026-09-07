@@ -144,6 +144,67 @@ def test_stiffening_exponent_superlinear():
         f"expected >1.5x ring mean, got {ring_hyp.mean()/ring_lin.mean():.2f}"
 
 
+def test_powerlaw_default_backward_compat():
+    # Default constitutive must match the old power-law behavior byte-for-byte.
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=3000.0)
+    G_default = make_effective_G_3d(N, balloon, 2500, 2000, 0.5, stiffening_exponent=1.5)
+    G_explicit = make_effective_G_3d(N, balloon, 2500, 2000, 0.5,
+                                      stiffening_exponent=1.5, constitutive="powerlaw")
+    assert np.array_equal(G_default, G_explicit)
+
+
+def test_ogden_at_zero_pressure_matches_base():
+    # At Δσ = 0 the Ogden form must give exactly G_base everywhere.
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=0.0)
+    G = make_effective_G_3d(N, balloon, 2500, 2000, 5.0,
+                             stiffening_exponent=3.0, constitutive="ogden")
+    outside = ~balloon.mask(N)
+    assert np.allclose(G[outside], 2500.0)
+    assert np.allclose(G[balloon.mask(N)], 2000.0)
+
+
+def test_ogden_softer_than_powerlaw_at_small_strain():
+    # Ogden's small-strain rise is quadratic; power-law's is linear.
+    # For small A·Δσ/G, Ogden should give a smaller G_eff-vs-baseline lift
+    # than the power-law with the same exponent.
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=1000.0)
+    G_pow = make_effective_G_3d(N, balloon, 2500, 2000, 0.10,
+                                 stiffening_exponent=2.0, constitutive="powerlaw")
+    G_ogd = make_effective_G_3d(N, balloon, 2500, 2000, 0.10,
+                                 stiffening_exponent=2.0, constitutive="ogden")
+    from src.phantom.geometry_3d import perilesional_shell_3d
+    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=8.0, dx=0.003)
+    ring_pow = G_pow[shell].mean() - 2500
+    ring_ogd = G_ogd[shell].mean() - 2500
+    assert ring_ogd < ring_pow, \
+        f"Ogden should be softer at low strain: pow={ring_pow:.0f}, ogd={ring_ogd:.0f}"
+    assert ring_ogd > 0, "Ogden should still stiffen under pressure"
+
+
+def test_ogden_stiffens_ring_at_high_pressure():
+    # High Δσ → λ ≫ 1 → Ogden term (1/2)·λ^α dominates → strong stiffening.
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=5000.0)
+    G_off = make_effective_G_3d(N, SphericalBalloon((12,12,12), 5.0, 0.0),
+                                 2500, 2000, 0.5, 3.0, constitutive="ogden")
+    G_on  = make_effective_G_3d(N, balloon, 2500, 2000, 0.5, 3.0, constitutive="ogden")
+    from src.phantom.geometry_3d import perilesional_shell_3d
+    shell = perilesional_shell_3d(balloon.mask(N), shell_mm=8.0, dx=0.003)
+    assert G_on[shell].mean() > G_off[shell].mean() + 200.0, \
+        "Ogden shell must stiffen at high pressure"
+
+
+def test_unknown_constitutive_raises():
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=1000.0)
+    import pytest
+    with pytest.raises(ValueError, match="unknown constitutive"):
+        make_effective_G_3d(N, balloon, 2500, 2000, 0.5, 1.5, constitutive="bogus")
+
+
 def test_stiffening_exponent_pressure_zero_invariant():
     # With p = 0, Δσ ≡ 0 → G_eff is independent of the exponent.
     N = 24
