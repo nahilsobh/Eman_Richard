@@ -1,0 +1,28 @@
+Final Yin Fig 6 reproduction — Ogden N=2 acoustoelastic simulation
+==============================================================================
+Grid: 32³, dx=3 mm    freq=60 Hz    shell offset=9.0 mm    median=3
+Directions: 20 Fibonacci, wedge σ = 0.35 rad
+
+Yin reference (measured):
+  P1 μ_TSM :  3.5  3.8  3.9  4.2  4.4  4.2  3.7  3.6  3.6
+  P2 μ_TSM :  3.5  3.9  4.2  4.9  5.15 4.6  3.9  3.6  3.6
+  P1 μ_conv:  2.7  2.7  2.8  2.8  2.8  2.8  2.8  2.7  2.8  (flat)
+  P2 μ_conv:  3.0  3.0  3.0  3.1  3.3  3.0  3.0  3.2  3.2
+  P3 (control): TSM ~3.35 flat, conv ~2.8 flat
+
+State label:    50   100   150   200   250   200   150   100    50
+                        <-- inflation -->        <-- deflation -->
+
+Phantom 1 (gelatin):
+  μ_TSM :  3.38  3.27  3.38  3.43  3.70  3.43  3.38  3.27  3.38
+  μ_conv:  2.50  2.36  2.37  2.34  2.44  2.34  2.37  2.36  2.50
+
+Phantom 2 (cellulose):
+  μ_TSM :  3.38  3.08  3.38  4.51  5.09  4.51  3.38  3.08  3.38
+  μ_conv:  2.50  2.27  2.35  2.60  2.72  2.60  2.35  2.27  2.50
+
+Phantom 3 (control):
+  (fixed at 250 mL — no stretch)
+  μ_TSM :  2.801 kPa  (Yin ~3.35)
+  μ_conv:  2.151 kPa  (Yin ~2.8)
+
