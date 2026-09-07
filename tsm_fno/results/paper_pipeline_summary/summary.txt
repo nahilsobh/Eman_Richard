@@ -1,4 +1,4 @@
-Pipeline stage comparison vs Yin Fig 6
+Pipeline stage comparison vs Yin Fig 6 (updated with vector Navier)
 ==============================================================================
 
 Peak G_ring at 250 mL (kPa)
@@ -8,12 +8,14 @@ Yin (measured)                                      4.40       5.15       2.80  
 Ogden ground truth (analytical)                     4.63       5.36          —          —
 Anisotropic Ogden pipeline                          3.70       5.09       2.44       2.72
 Scalar-Helmholtz + powerlaw                         4.45       5.93       3.31       4.08
+Vector Navier + curl (isotropic-μ, N=28)            5.62       8.61       4.04       5.80
 
 Error vs Yin (%)
 ------------------------------------------------------------------------------
 Ogden ground truth (analytical)                    +5.2%      +4.1%          —          —
 Anisotropic Ogden pipeline                        -15.9%      -1.2%     -12.9%     -17.6%
 Scalar-Helmholtz + powerlaw                        +1.1%     +15.1%     +18.2%     +23.6%
+Vector Navier + curl (isotropic-μ, N=28)          +27.7%     +67.2%     +44.3%     +75.8%
 
 Interpretation:
   - Ogden ground-truth curves match Yin within ~5% — the CONSTITUTIVE
@@ -28,3 +30,10 @@ Interpretation:
   - Combined: the constitutive law is right; scalar-Helmholtz gets
     the peak amplitude, anisotropic Helmholtz gets the flat conv.
     Both simultaneously requires full vector elasticity.
+  - Vector Navier + curl (isotropic-μ) OVERshoots both TSM and conv
+    (+28% and +44% for P1; +67% and +76% for P2) because it recovers
+    G_true more accurately than the scalar pipelines — and G_true
+    itself is elevated (P1 peak ring 12 kPa, P2 25 kPa). Also its
+    μ_conv still rises with pressure because we use scalar μ(x),
+    not the full C_ijkl(x) tensor; the anisotropic Murnaghan
+    coupling would be needed for the flat-conv signature.

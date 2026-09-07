@@ -74,6 +74,18 @@ SCALAR = dict(
     P3_conv = [2.15]*5,
 )
 
+# Stage 4 — Vector Navier + curl-based shear extraction.
+#   Source: results/paper_vector_navier_integration/summary.txt.
+#   Peak state only (250 mL); grid N=28 vs N=32 in other pipelines.
+#   Ogden params: P1 α=(7,1); P2 μ=(2000, 500), α=(2, 10).
+#   PEAK-ONLY values — the other volumes are placeholders (NaN) for the plot.
+VECTOR = dict(
+    P1_TSM  = [np.nan, np.nan, np.nan, np.nan, 5.62],
+    P2_TSM  = [np.nan, np.nan, np.nan, np.nan, 8.61],
+    P1_conv = [np.nan, np.nan, np.nan, np.nan, 4.04],
+    P2_conv = [np.nan, np.nan, np.nan, np.nan, 5.80],
+)
+
 
 def _annotate_peak(ax, x, y, color, dy=0.06, dx=0.0):
     """Small text annotation at (x, y) showing the peak in kPa."""
@@ -111,6 +123,12 @@ def main():
                 ms=6, lw=1.5, alpha=0.75,
                 label="Scalar-Helmholtz + powerlaw (earlier best)")
 
+        # Vector Navier — peak-only single data point (large marker).
+        vec_val = VECTOR[key_suffix][-1]
+        ax.plot([x[-1]], [vec_val], marker="P", color="tab:purple",
+                 ms=15, lw=0, markeredgecolor="black", markeredgewidth=1.2,
+                 label=f"Vector Navier (N=28, peak only) = {vec_val:.2f}")
+
         ax.set_xticks(x); ax.set_xticklabels([f"{v}" for v in VOLUMES])
         ax.grid(True, alpha=0.3)
 
@@ -135,10 +153,10 @@ def main():
     _plot_panel(axes[1, 0], "P1", "conv")
     _plot_panel(axes[1, 1], "P2", "conv")
 
-    axes[0, 0].set_ylim(2.0, 6.5)
-    axes[0, 1].set_ylim(2.0, 6.5)
-    axes[1, 0].set_ylim(2.0, 4.5)
-    axes[1, 1].set_ylim(2.0, 4.5)
+    axes[0, 0].set_ylim(2.0, 7.0)
+    axes[0, 1].set_ylim(2.0, 9.0)
+    axes[1, 0].set_ylim(2.0, 5.0)
+    axes[1, 1].set_ylim(2.0, 6.5)
 
     axes[0, 0].legend(fontsize=8, loc="upper left")
     axes[1, 0].legend(fontsize=8, loc="upper left")
@@ -159,7 +177,7 @@ def main():
         return (ours[-1] - yin[-1]) / yin[-1] * 100
 
     lines = [
-        "Pipeline stage comparison vs Yin Fig 6",
+        "Pipeline stage comparison vs Yin Fig 6 (updated with vector Navier)",
         "=" * 78,
         "",
         "Peak G_ring at 250 mL (kPa)",
@@ -175,6 +193,9 @@ def main():
         f"{'Scalar-Helmholtz + powerlaw':<45s} {SCALAR['P1_TSM'][-1]:>10.2f}"
         f" {SCALAR['P2_TSM'][-1]:>10.2f} {SCALAR['P1_conv'][-1]:>10.2f}"
         f" {SCALAR['P2_conv'][-1]:>10.2f}",
+        f"{'Vector Navier + curl (isotropic-μ, N=28)':<45s} "
+        f"{VECTOR['P1_TSM'][-1]:>10.2f} {VECTOR['P2_TSM'][-1]:>10.2f}"
+        f" {VECTOR['P1_conv'][-1]:>10.2f} {VECTOR['P2_conv'][-1]:>10.2f}",
         "",
         "Error vs Yin (%)",
         "-" * 78,
@@ -188,6 +209,11 @@ def main():
         f" {_err(SCALAR['P2_TSM'], YIN['P2_TSM']):>+9.1f}%"
         f" {_err(SCALAR['P1_conv'], YIN['P1_conv']):>+9.1f}%"
         f" {_err(SCALAR['P2_conv'], YIN['P2_conv']):>+9.1f}%",
+        f"{'Vector Navier + curl (isotropic-μ, N=28)':<45s} "
+        f"{(VECTOR['P1_TSM'][-1] - YIN['P1_TSM'][-1])/YIN['P1_TSM'][-1]*100:>+9.1f}%"
+        f" {(VECTOR['P2_TSM'][-1] - YIN['P2_TSM'][-1])/YIN['P2_TSM'][-1]*100:>+9.1f}%"
+        f" {(VECTOR['P1_conv'][-1] - YIN['P1_conv'][-1])/YIN['P1_conv'][-1]*100:>+9.1f}%"
+        f" {(VECTOR['P2_conv'][-1] - YIN['P2_conv'][-1])/YIN['P2_conv'][-1]*100:>+9.1f}%",
         "",
         "Interpretation:",
         "  - Ogden ground-truth curves match Yin within ~5% — the CONSTITUTIVE",
@@ -202,6 +228,13 @@ def main():
         "  - Combined: the constitutive law is right; scalar-Helmholtz gets",
         "    the peak amplitude, anisotropic Helmholtz gets the flat conv.",
         "    Both simultaneously requires full vector elasticity.",
+        "  - Vector Navier + curl (isotropic-μ) OVERshoots both TSM and conv",
+        "    (+28% and +44% for P1; +67% and +76% for P2) because it recovers",
+        "    G_true more accurately than the scalar pipelines — and G_true",
+        "    itself is elevated (P1 peak ring 12 kPa, P2 25 kPa). Also its",
+        "    μ_conv still rises with pressure because we use scalar μ(x),",
+        "    not the full C_ijkl(x) tensor; the anisotropic Murnaghan",
+        "    coupling would be needed for the flat-conv signature.",
     ]
     (out_dir / "summary.txt").write_text("\n".join(lines) + "\n")
     print("\n" + "\n".join(lines))

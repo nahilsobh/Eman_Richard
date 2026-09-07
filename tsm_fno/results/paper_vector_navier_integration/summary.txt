@@ -1,0 +1,18 @@
+Vector-Navier TSM integration (peak state only)
+==============================================================================
+Grid: N=28³, dx=3 mm  (vs N=32 in other pipelines)
+Method: Ogden G(x) → vector Navier → curl_z(u) → 20-dir filter → DI
+        median=3, shell offset=9.0 mm
+
+Peak (250 mL) reference values:
+  Yin measured        P1 TSM = 4.40 kPa   P2 TSM = 5.15 kPa
+  Yin measured        P1 conv= 2.80 kPa   P2 conv= 3.30 kPa
+
+Phantom 1 (gelatin):
+  μ_conv = 4.039 kPa
+  μ_TSM  = 5.617 kPa
+
+Phantom 2 (cellulose):
+  μ_conv = 5.800 kPa
+  μ_TSM  = 8.612 kPa
+
