@@ -209,7 +209,9 @@ def _tsm_for_state(balloon: SphericalBalloon, sigma: np.ndarray, G_base: np.ndar
             di_maps.append(G_DI); amp_maps.append(np.abs(u_k))
     else:  # 'anisotropic'
         # One solve on the FULL tensor G_ij, then directional filter per k̂.
-        G_tensor = make_anisotropic_G_tensor(N, balloon, G_BG, G_LESION, A_COEFF)
+        G_tensor = make_anisotropic_G_tensor(N, balloon, G_BG, G_LESION, A_COEFF,
+                                              stiffening_exponent=args.stiffening_exponent,
+                                              constitutive=args.constitutive)
         src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
                                             faces=("iN", "jN", "j0", "kN", "k0"))
         u_full = helmholtz_solve_3d_anisotropic(G_tensor, freq=FREQ, rho=RHO,
@@ -487,7 +489,9 @@ def main():
         # ONE solve with the FULL tensor G_ij(x). Broadband multi-face
         # sources, then directional filter. Physically most correct.
         print("solving ONE broadband multi-face source on FULL tensor G_ij …")
-        G_tensor = make_anisotropic_G_tensor(N, balloon, G_BG, G_LESION, A_COEFF)
+        G_tensor = make_anisotropic_G_tensor(N, balloon, G_BG, G_LESION, A_COEFF,
+                                              stiffening_exponent=args.stiffening_exponent,
+                                              constitutive=args.constitutive)
         src = multi_face_broadband_sources(N, radius_frac=DRIVER_R,
                                             faces=("iN", "jN", "j0", "kN", "k0"))
         u_full = helmholtz_solve_3d_anisotropic(G_tensor, freq=FREQ, rho=RHO,

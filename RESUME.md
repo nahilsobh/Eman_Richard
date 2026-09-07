@@ -205,12 +205,29 @@ full cycle ~3 min at N=32.
 **Structural win: μ_conv is now essentially flat** (2.27–2.53 kPa) —
 the tensor solver correctly cancels direction-dependent stiffening on
 the amplitude-weighted mean, reproducing Yin's flat conv signature that
-scalar methods couldn't. Trade-off: μ_TSM undershoots at high pressures
-because the tensor form is linear in σ (`G_ij = G_bg·δ + A·σ`, m=1
-equivalent); a nonlinear tensor form is needed for the peak amplitude.
+scalar methods couldn't. Trade-off: μ_TSM undershoots at high pressures.
+
+**Tried extending the tensor to nonlinear form** — powerlaw and Ogden
+applied in the principal-axis frame of σ:
+`G_ij = G_r·r̂r̂ + G_θ·(δ−r̂r̂)` with
+`G_{r,θ} = G_base·(1+A·σ_{r,θ}/G_base)^m`.
+Tests verify: at m=1 this equals the linear tensor exactly; at m>1
+the tangential principal stiffness grows super-linearly. **But it
+does NOT recover Yin's peak μ_TSM** — for m=2 both μ_TSM and μ_conv
+drop and the curve inverts (peaks at 100 mL then falls), because
+strong tensor anisotropy makes the wave field too scattered for
+scalar DI to invert cleanly.
+
+**Scalar-Helmholtz limit reached.** No configuration hits both Yin's
+peak μ_TSM (4.4 kPa) AND flat μ_conv (2.8 kPa) simultaneously:
+
+- filter + median + edge (linear scalar): peak 4.45 ✓ but conv rises
+- anisotropic (m=1 linear tensor): conv flat 2.27 ✓ but peak 3.21 (−27%)
+- anisotropic (m=2 nonlinear): both drop, curve inverts — strictly worse
 
 Full vector elasticity (`vector_elasticity_3d.py::navier_solve_3d`)
-remains scaffold-only — the true fix but 1–2 weeks of work.
+remains scaffold-only — the true fix that would recover both
+simultaneously via proper P/SV/SH mode separation. 1–2 weeks of work.
 
 ## Scalar Helmholtz limitations — status of the four fixes
 

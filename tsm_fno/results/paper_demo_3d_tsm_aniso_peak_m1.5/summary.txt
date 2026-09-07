@@ -1,0 +1,26 @@
+3D TSM Pipeline Demo — spherical balloon @ single inflation state
+==============================================================================
+Grid: 32³, dx=3 mm    p = 7000.0 Pa    r_vx = 13.0    m = 1.5
+Frequency: 60 Hz    η = 0 Pa·s (damping ξ = 0.05)
+Directions: 20 Fibonacci-lattice unit vectors (Yin-style 20-direction DF)
+Method: anisotropic (1 broadband solve + k-space wedge filter, σ=0.35)
+Amplitude gate: |u| >= 15% of per-direction peak (Yin-style)
+
+Field                                        ring mean (Pa)
+--------------------------------------------------------------
+G_true (isotropic acoustoelastic)                      4207
+μ_conv (amplitude-weighted mean)                       1875
+μ_TSM  (MIP over directions)                           2566
+--------------------------------------------------------------
+TSM / conv ratio                                       1.37
+
+Notes:
+  - Radial-propagation directions (into the balloon) sense the
+    softened radial pre-stress → lower G_DI along those axes.
+  - Tangential-propagation directions sense the stiffened
+    circumferential pre-stress → higher G_DI in the perilesional
+    shell. MIP over directions picks up those high values.
+  - μ_conv (weighted mean) averages away most of the anisotropy
+    signal, matching what conventional MRE inversion reports.
+  - This is the essence of Yin's TSM signature: the ring exists
+    ONLY when you combine direction-specific inversions with MIP.

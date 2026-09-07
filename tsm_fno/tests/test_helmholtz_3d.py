@@ -337,6 +337,55 @@ def test_anisotropic_diagonal_stiffer_along_one_axis_gives_faster_wave():
         f"ani={top_ani:.3g}, iso={top_iso:.3g}"
 
 
+def test_nonlinear_anisotropic_tensor_matches_linear_at_m1():
+    # At m=1 (default), nonlinear form must equal the linear fast-path.
+    from src.phantom.geometry_3d import make_anisotropic_G_tensor
+    N = 20
+    balloon = SphericalBalloon((10, 10, 10), 4.0, pressure=3000.0)
+    G_lin = make_anisotropic_G_tensor(N, balloon, 2500, 2000, 0.5)
+    G_nl  = make_anisotropic_G_tensor(N, balloon, 2500, 2000, 0.5,
+                                       stiffening_exponent=1.0)
+    assert np.allclose(G_lin, G_nl, atol=1e-6)
+
+
+def test_nonlinear_anisotropic_tangential_stiffer_at_m_gt_1():
+    # At m > 1, on a shell voxel the tangential direction should be
+    # stiffer than at m = 1, because (1 + A·σ_θθ/G)^m grows faster.
+    from src.phantom.geometry_3d import make_anisotropic_G_tensor
+    N = 24
+    balloon = SphericalBalloon((12, 12, 12), 5.0, pressure=5000.0)
+    G1 = make_anisotropic_G_tensor(N, balloon, 2500, 2000, 0.5, 1.0)
+    G2 = make_anisotropic_G_tensor(N, balloon, 2500, 2000, 0.5, 2.0)
+    # Pick a voxel on the +x axis (r_hat = e_x). At that voxel:
+    # G_xx should be softer (σ_rr < 0 → G_r < G_bg for both m).
+    # G_yy = G_zz should be stiffer (σ_θθ > 0). The m=2 case should
+    # show BIGGER stiffening than m=1 on the tangential component.
+    i = 12 + 6  # 6 voxels along +i from center
+    j = k = 12
+    lift1 = G1[i, j, k, 1, 1] - 2500.0
+    lift2 = G2[i, j, k, 1, 1] - 2500.0
+    assert lift2 > lift1, \
+        f"m=2 tangential lift should exceed m=1: m1={lift1:.1f}, m2={lift2:.1f}"
+
+
+def test_nonlinear_anisotropic_reduces_to_isotropic_at_zero_pressure():
+    from src.phantom.geometry_3d import make_anisotropic_G_tensor
+    N = 20
+    balloon = SphericalBalloon((10, 10, 10), 4.0, pressure=0.0)
+    G = make_anisotropic_G_tensor(N, balloon, 2500, 2000, 0.5,
+                                   stiffening_exponent=2.5)
+    # G should be isotropic: G_ij = G_base · δ_ij everywhere.
+    outside = ~balloon.mask(N)
+    delta = np.eye(3)
+    for i in range(3):
+        for j in range(3):
+            expected = 2500.0 * delta[i, j]
+            actual   = G[outside, i, j]
+            assert np.allclose(actual, expected, atol=1e-6), \
+                f"nonlinear G at p=0 should be isotropic G_base·δ_ij; "\
+                f"G[out, {i},{j}] mean={actual.mean():.1f}, expected {expected}"
+
+
 def test_anisotropic_solver_symmetric_sources_honored():
     # A source placed at a given node with a given amplitude must appear
     # in the solved field at that node.

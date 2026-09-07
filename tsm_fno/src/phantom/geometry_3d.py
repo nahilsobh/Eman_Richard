@@ -104,28 +104,78 @@ def stress_tensor_sphere(balloon: SphericalBalloon, N: int) -> np.ndarray:
 
 def make_anisotropic_G_tensor(N: int, balloon: SphericalBalloon,
                                G_bg: float, G_lesion: float,
-                               A_coeff: float) -> np.ndarray:
+                               A_coeff: float,
+                               stiffening_exponent: float = 1.0,
+                               constitutive: str = "powerlaw") -> np.ndarray:
     """Rank-2 anisotropic stiffness tensor field G_ij(x) [Pa].
 
-    Linear acoustoelastic form:
-        G_ij(x) = G_base(x) · δ_ij + A_coeff · σ_ij(x)
-    with G_base = G_lesion inside the balloon, G_bg outside.
+    Linear form (m=1, default): `G_ij = G_base·δ_ij + A·σ_ij`. For plane
+    waves this gives effective scalar `k̂·G·k̂ = G_base + A·(k̂·σ·k̂)`,
+    matching `effective_G_for_direction`.
 
-    For plane waves u ∝ exp(i·k̂·x), the effective scalar stiffness they
-    see is k̂ · G · k̂ = G_base + A · (k̂·σ·k̂) — identical to the
-    per-direction scalar we compute in `effective_G_for_direction`. The
-    tensor form is the physically-correct object: it lets a single
-    anisotropic-Helmholtz solve capture all direction-dependent effects
-    at once, no need for N per-direction solves.
+    Nonlinear form (m > 1): apply the constitutive law in the *principal
+    axis frame* of the stress tensor, then rotate back. For the sphere
+    the principal directions are (r̂, θ̂, φ̂) with principal stresses
+    (σ_rr, σ_θθ, σ_φφ = σ_θθ) — a spherically symmetric decomposition.
+    The principal stiffnesses are
 
-    Symmetric by construction (σ is symmetric).
+        powerlaw:  G_r/θ = G_base · (1 + A·σ_r/θ/G_base)^m
+        ogden:     G_r/θ = G_base · ½·[(1+A·σ_r/θ/G_base)^m
+                                       + (1+A·σ_r/θ/G_base)^-m]
+
+    Then the Cartesian tensor is
+        G_ij(x) = G_r · r̂_i r̂_j + G_θ · (δ_ij − r̂_i r̂_j).
+    At m=1 this reduces exactly to the linear form above. For m>1 this
+    is the correct extension — element-wise nonlinearity of σ_ij would
+    mix off-diagonal components incoherently.
     """
     G_base = np.full((N, N, N), float(G_bg), dtype=np.float64)
     G_base[balloon.mask(N)] = float(G_lesion)
-    sigma = stress_tensor_sphere(balloon, N)   # (N,N,N,3,3)
-    G_tensor = float(A_coeff) * sigma
-    for c in range(3):
-        G_tensor[..., c, c] += G_base
+
+    if stiffening_exponent == 1.0 and constitutive == "powerlaw":
+        # Fast path: element-wise linear form.
+        sigma = stress_tensor_sphere(balloon, N)
+        G_tensor = float(A_coeff) * sigma
+        for c in range(3):
+            G_tensor[..., c, c] += G_base
+        return G_tensor
+
+    # Nonlinear path: work in principal-axis frame.
+    m = float(stiffening_exponent)
+    # Radial unit vector at each voxel.
+    di, dj, dk = balloon._coords(N)
+    r = np.sqrt(di ** 2 + dj ** 2 + dk ** 2)
+    safe_r = np.maximum(r, 1e-12)
+    rhat = np.stack([di / safe_r, dj / safe_r, dk / safe_r], axis=-1)
+
+    # Principal stresses (spherically-symmetric Lamé for a pressurised sphere).
+    p = balloon.pressure
+    a = balloon.radius_vx
+    outside_r = np.maximum(r, a)
+    sigma_rr =        -p * (a / outside_r) ** 3
+    sigma_tt =   0.5 * p * (a / outside_r) ** 3
+
+    # Apply constitutive law element-wise on principal stresses.
+    lam_r  = 1.0 + float(A_coeff) * sigma_rr / G_base
+    lam_tt = 1.0 + float(A_coeff) * sigma_tt / G_base
+    if constitutive == "powerlaw":
+        G_r  = G_base * np.power(lam_r,  m)
+        G_tt = G_base * np.power(lam_tt, m)
+    elif constitutive == "ogden":
+        G_r  = G_base * 0.5 * (np.power(lam_r,  m) + np.power(lam_r,  -m))
+        G_tt = G_base * 0.5 * (np.power(lam_tt, m) + np.power(lam_tt, -m))
+    else:
+        raise ValueError(f"unknown constitutive: {constitutive!r}")
+
+    # Rebuild Cartesian tensor G_ij = G_r·r̂r̂ + G_tt·(δ − r̂r̂).
+    rr = rhat[..., :, None] * rhat[..., None, :]                # (N,N,N,3,3)
+    delta = np.eye(3)
+    G_tensor = (G_r[..., None, None] * rr
+                + G_tt[..., None, None] * (delta - rr))
+
+    # Inside the balloon: isotropic G_lesion (no acoustoelastic — uniform p).
+    inside = balloon.mask(N)
+    G_tensor[inside] = float(G_lesion) * delta
     return G_tensor
 
 
