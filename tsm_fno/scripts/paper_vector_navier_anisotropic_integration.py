@@ -44,7 +44,12 @@ from src.solver.vector_elasticity_3d import (
 )
 
 
-N        = 28
+# N=28 with λ=100·μ_max caused SuperLU factorisation to hang for >2 hours
+# (ill-conditioned direct solve on a denser 3D FEM system). We downscale
+# to N=24 with λ=10·μ_max and use the 200-mL state (r=12.1 vx fits within
+# the 72-mm FOV with a small buffer) — a proof-of-concept run that shows
+# the anisotropic-tensor vector Navier produces physical results.
+N        = 24
 DX       = 0.003
 FREQ     = 60.0
 RHO      = 1000.0
@@ -53,19 +58,22 @@ G_LESION = 2000.0
 DRIVER_R = 0.5
 CENTER   = (N // 2, N // 2, N // 2)
 SHELL_MM        = 5.0
-SHELL_OFFSET_MM = 9.0
+SHELL_OFFSET_MM = 6.0    # 2 vx at dx=3mm; scaled down from 9mm because
+                          # the shell would otherwise fall past the grid.
 MEDIAN_SIZE     = 3
 NDIRS           = 20
 WEDGE_WIDTH     = 0.35
 AMP_THRESHOLD   = 0.15
-LAM_MULTIPLIER  = 100.0
+LAM_MULTIPLIER  = 10.0    # was 100 (ill-conditioned)
 
 
 def _r_vx(vol):
     return ((3 * vol * 1e-6 / (4 * math.pi)) ** (1/3)) / DX
 
 A0_VX  = _r_vx(50)
-PEAK_A = _r_vx(250)
+# Use 200 mL (r ≈ 12.1 vx = 36.3 mm) so balloon diameter (72.6 mm)
+# fits in the 72 mm FOV of the N=24 grid.
+PEAK_A = _r_vx(200)
 
 PHANTOMS = [
     dict(name="Phantom 1 (gelatin)",

@@ -74,16 +74,28 @@ SCALAR = dict(
     P3_conv = [2.15]*5,
 )
 
-# Stage 4 — Vector Navier + curl-based shear extraction.
+# Stage 4 — Vector Navier + curl-based shear extraction (isotropic-scalar μ).
 #   Source: results/paper_vector_navier_integration/summary.txt.
-#   Peak state only (250 mL); grid N=28 vs N=32 in other pipelines.
-#   Ogden params: P1 α=(7,1); P2 μ=(2000, 500), α=(2, 10).
-#   PEAK-ONLY values — the other volumes are placeholders (NaN) for the plot.
+#   Peak state (250 mL); grid N=28 vs N=32 in other pipelines.
 VECTOR = dict(
     P1_TSM  = [np.nan, np.nan, np.nan, np.nan, 5.62],
     P2_TSM  = [np.nan, np.nan, np.nan, np.nan, 8.61],
     P1_conv = [np.nan, np.nan, np.nan, np.nan, 4.04],
     P2_conv = [np.nan, np.nan, np.nan, np.nan, 5.80],
+)
+
+# Stage 5 — Vector Navier + curl + quasi-anisotropic rank-2 μ_ij tensor.
+#   Source: results/paper_vector_navier_anisotropic/summary.txt.
+#   AT 200 mL (not 250 — balloon must fit in N=24 grid; λ penalty reduced
+#   from 100·μ_max to 10·μ_max to avoid SuperLU ill-conditioning).
+#   Constitutive: σ = λ·tr(ε)·δ + μ_ik ε_kj + μ_jk ε_ki  (ad hoc, not full
+#   Murnaghan — see the anisotropic script docstring). Values plotted at
+#   the 200-mL index (index 3) since 250-mL doesn't fit in the smaller grid.
+VECTOR_ANISO = dict(
+    P1_TSM  = [np.nan, np.nan, np.nan, 1.96, np.nan],
+    P2_TSM  = [np.nan, np.nan, np.nan, 1.78, np.nan],
+    P1_conv = [np.nan, np.nan, np.nan, 1.57, np.nan],
+    P2_conv = [np.nan, np.nan, np.nan, 1.43, np.nan],
 )
 
 
@@ -123,11 +135,18 @@ def main():
                 ms=6, lw=1.5, alpha=0.75,
                 label="Scalar-Helmholtz + powerlaw (earlier best)")
 
-        # Vector Navier — peak-only single data point (large marker).
+        # Vector Navier (isotropic-μ) — peak-only single data point.
         vec_val = VECTOR[key_suffix][-1]
         ax.plot([x[-1]], [vec_val], marker="P", color="tab:purple",
                  ms=15, lw=0, markeredgecolor="black", markeredgewidth=1.2,
-                 label=f"Vector Navier (N=28, peak only) = {vec_val:.2f}")
+                 label=f"Vector Navier isotropic-μ (N=28, peak) = {vec_val:.2f}")
+
+        # Vector Navier + quasi-anisotropic μ_ij tensor — 200 mL data point.
+        aniso_val = VECTOR_ANISO[key_suffix][3]
+        if np.isfinite(aniso_val):
+            ax.plot([x[3]], [aniso_val], marker="X", color="tab:brown",
+                    ms=15, lw=0, markeredgecolor="black", markeredgewidth=1.2,
+                    label=f"Vector Navier quasi-aniso-μ_ij (N=24, 200mL) = {aniso_val:.2f}")
 
         ax.set_xticks(x); ax.set_xticklabels([f"{v}" for v in VOLUMES])
         ax.grid(True, alpha=0.3)
@@ -153,10 +172,10 @@ def main():
     _plot_panel(axes[1, 0], "P1", "conv")
     _plot_panel(axes[1, 1], "P2", "conv")
 
-    axes[0, 0].set_ylim(2.0, 7.0)
-    axes[0, 1].set_ylim(2.0, 9.0)
-    axes[1, 0].set_ylim(2.0, 5.0)
-    axes[1, 1].set_ylim(2.0, 6.5)
+    axes[0, 0].set_ylim(1.4, 7.0)
+    axes[0, 1].set_ylim(1.4, 9.0)
+    axes[1, 0].set_ylim(1.2, 5.0)
+    axes[1, 1].set_ylim(1.2, 6.5)
 
     axes[0, 0].legend(fontsize=8, loc="upper left")
     axes[1, 0].legend(fontsize=8, loc="upper left")
@@ -196,6 +215,9 @@ def main():
         f"{'Vector Navier + curl (isotropic-μ, N=28)':<45s} "
         f"{VECTOR['P1_TSM'][-1]:>10.2f} {VECTOR['P2_TSM'][-1]:>10.2f}"
         f" {VECTOR['P1_conv'][-1]:>10.2f} {VECTOR['P2_conv'][-1]:>10.2f}",
+        f"{'Vector Navier quasi-aniso μ_ij (200mL, N=24)':<45s} "
+        f"{VECTOR_ANISO['P1_TSM'][3]:>10.2f} {VECTOR_ANISO['P2_TSM'][3]:>10.2f}"
+        f" {VECTOR_ANISO['P1_conv'][3]:>10.2f} {VECTOR_ANISO['P2_conv'][3]:>10.2f}",
         "",
         "Error vs Yin (%)",
         "-" * 78,
@@ -214,6 +236,12 @@ def main():
         f" {(VECTOR['P2_TSM'][-1] - YIN['P2_TSM'][-1])/YIN['P2_TSM'][-1]*100:>+9.1f}%"
         f" {(VECTOR['P1_conv'][-1] - YIN['P1_conv'][-1])/YIN['P1_conv'][-1]*100:>+9.1f}%"
         f" {(VECTOR['P2_conv'][-1] - YIN['P2_conv'][-1])/YIN['P2_conv'][-1]*100:>+9.1f}%",
+        f"{'Vector Navier quasi-aniso μ_ij (vs 200mL)':<45s} "
+        # 200 mL Yin values: P1_TSM=4.2, P2_TSM=4.9, P1_conv=2.8, P2_conv=3.1
+        f"{(VECTOR_ANISO['P1_TSM'][3] - 4.2)/4.2*100:>+9.1f}%"
+        f" {(VECTOR_ANISO['P2_TSM'][3] - 4.9)/4.9*100:>+9.1f}%"
+        f" {(VECTOR_ANISO['P1_conv'][3] - 2.8)/2.8*100:>+9.1f}%"
+        f" {(VECTOR_ANISO['P2_conv'][3] - 3.1)/3.1*100:>+9.1f}%",
         "",
         "Interpretation:",
         "  - Ogden ground-truth curves match Yin within ~5% — the CONSTITUTIVE",
@@ -235,6 +263,15 @@ def main():
         "    μ_conv still rises with pressure because we use scalar μ(x),",
         "    not the full C_ijkl(x) tensor; the anisotropic Murnaghan",
         "    coupling would be needed for the flat-conv signature.",
+        "  - Vector Navier quasi-anisotropic μ_ij tensor (last row) UNDERshoots",
+        "    Yin at 200 mL (-53% to -64%) — the ad-hoc rank-2 μ construction",
+        "    (σ = λ·tr(ε)·δ + μ_ik ε_kj + μ_jk ε_ki) is not the physically",
+        "    correct form for a transversely-isotropic elastic material. The",
+        "    proper form needs a 5-constant transversely-isotropic C_ijkl or",
+        "    the full 21-constant anisotropic C_ijkl with Murnaghan M_ijklmn",
+        "    coupling to pre-stress — genuinely 1-2 weeks of dedicated work,",
+        "    beyond this session's scope. What's committed shows the direction",
+        "    and provides a working tensor-μ vector solver as a foundation.",
     ]
     (out_dir / "summary.txt").write_text("\n".join(lines) + "\n")
     print("\n" + "\n".join(lines))

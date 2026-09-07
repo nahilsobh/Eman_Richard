@@ -9,6 +9,7 @@ Ogden ground truth (analytical)                     4.63       5.36          —
 Anisotropic Ogden pipeline                          3.70       5.09       2.44       2.72
 Scalar-Helmholtz + powerlaw                         4.45       5.93       3.31       4.08
 Vector Navier + curl (isotropic-μ, N=28)            5.62       8.61       4.04       5.80
+Vector Navier quasi-aniso μ_ij (200mL, N=24)        1.96       1.78       1.57       1.43
 
 Error vs Yin (%)
 ------------------------------------------------------------------------------
@@ -16,6 +17,7 @@ Ogden ground truth (analytical)                    +5.2%      +4.1%          —
 Anisotropic Ogden pipeline                        -15.9%      -1.2%     -12.9%     -17.6%
 Scalar-Helmholtz + powerlaw                        +1.1%     +15.1%     +18.2%     +23.6%
 Vector Navier + curl (isotropic-μ, N=28)          +27.7%     +67.2%     +44.3%     +75.8%
+Vector Navier quasi-aniso μ_ij (vs 200mL)         -53.3%     -63.7%     -43.9%     -53.9%
 
 Interpretation:
   - Ogden ground-truth curves match Yin within ~5% — the CONSTITUTIVE
@@ -37,3 +39,12 @@ Interpretation:
     μ_conv still rises with pressure because we use scalar μ(x),
     not the full C_ijkl(x) tensor; the anisotropic Murnaghan
     coupling would be needed for the flat-conv signature.
+  - Vector Navier quasi-anisotropic μ_ij tensor (last row) UNDERshoots
+    Yin at 200 mL (-53% to -64%) — the ad-hoc rank-2 μ construction
+    (σ = λ·tr(ε)·δ + μ_ik ε_kj + μ_jk ε_ki) is not the physically
+    correct form for a transversely-isotropic elastic material. The
+    proper form needs a 5-constant transversely-isotropic C_ijkl or
+    the full 21-constant anisotropic C_ijkl with Murnaghan M_ijklmn
+    coupling to pre-stress — genuinely 1-2 weeks of dedicated work,
+    beyond this session's scope. What's committed shows the direction
+    and provides a working tensor-μ vector solver as a foundation.

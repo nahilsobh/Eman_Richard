@@ -1,0 +1,17 @@
+Anisotropic-tensor vector Navier — peak state only
+==============================================================================
+Grid: N=24³, dx=3 mm
+Method: Ogden G_ij(x) tensor field → vector Navier with quasi-anisotropic
+        constitutive (σ = λ·tr(ε)·δ + μ_ik ε_kj + μ_jk ε_ki) → curl_z(u)
+        → 20-direction filter → DI (median=3, offset=6.0mm)
+
+Yin reference @ peak: P1 TSM=4.40, P2 TSM=5.15, conv~2.8/3.3 (flat)
+
+Phantom 1 (gelatin):
+  μ_conv = 1.569 kPa
+  μ_TSM  = 1.958 kPa
+
+Phantom 2 (cellulose):
+  μ_conv = 1.429 kPa
+  μ_TSM  = 1.779 kPa
+
