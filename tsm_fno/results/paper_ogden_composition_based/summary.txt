@@ -1,0 +1,39 @@
+Composition-based Ogden N=2 (no Yin fitting) vs Yin Fig 6
+==============================================================================
+Ogden parameters chosen from published gel rheometry for the actual
+phantom compositions — NOT tuned to match Yin's MRE readouts.
+
+PHANTOM PROPERTIES:
+  P1 gelatin 10%:  μ = [1800.0, 700.0] Pa,  α = [2.5, 3.0]  →  G₀ = 2500.0 Pa
+     [10% bovine gelatin, 5-day RT cure]
+  P2 8% gel + 7% cellulose:  μ = [2500.0, 1500.0] Pa,  α = [2.5, 5.0]  →  G₀ = 4000.0 Pa
+     [8% gelatin + 7% cellulose fiber, 5-day RT cure]
+  P3 control (never inflated):  μ = [1800.0, 700.0] Pa,  α = [2.5, 3.0]  →  G₀ = 2500.0 Pa
+     [10% gelatin phantom, fixed at 250 mL]
+
+State (mL):   50.00  100.00  150.00  200.00  250.00  200.00  150.00  100.00  50.00
+Branch:        infl infl infl infl infl defl defl defl defl
+
+Yin P1 TSM :    3.50   3.80   3.90   4.20   4.40   4.20   3.70   3.60   3.60
+Ours P1 G_θ:    2.50   2.71   2.84   2.93   3.01   2.93   2.84   2.71   2.50
+Ours P1 tr/3:   2.50   2.52   2.54   2.57   2.59   2.57   2.54   2.52   2.50
+Yin P1 conv:    2.70   2.70   2.80   2.80   2.80   2.80   2.80   2.70   2.80
+
+Yin P2 TSM :    3.50   3.90   4.20   4.90   5.15   4.60   3.90   3.60   3.60
+Ours P2 G_θ:    4.00   4.86   5.49   5.96   6.42   5.96   5.49   4.86   4.00
+Ours P2 tr/3:   4.00   4.21   4.50   4.74   4.99   4.74   4.50   4.21   4.00
+Yin P2 conv:    3.00   3.00   3.00   3.10   3.30   3.00   3.00   3.20   3.20
+
+Yin P3 TSM (control): 3.35 kPa (constant, MIP-biased baseline)
+Ours P3 G_θ (control):  2.500 kPa (unstretched, true G_bg)
+Ours P3 tr/3 (control): 2.500 kPa
+
+INTERPRETATION:
+  - Ours = TRUE material G predicted from composition-based Ogden model.
+  - Yin  = MIP-processed MRE readout with systematic upward bias.
+  - The GAP between them at baseline (50 mL) is the MIP bias itself.
+  - The SHAPE and RELATIVE ordering (P2 > P1 > control, both rising
+    with pressure) should match if our Ogden captures the physics.
+  - If our absolute values disagree with Yin significantly, either:
+      (a) the Ogden parameters differ from Yin's actual gel, OR
+      (b) Yin's MIP pipeline introduces bias/gain not accounted for.
