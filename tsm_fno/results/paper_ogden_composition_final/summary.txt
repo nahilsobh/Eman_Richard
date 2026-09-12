@@ -1,0 +1,26 @@
+Composition-based Ogden with DERIVED confinement — final
+==============================================================================
+Container (from Yin Methods p4): 15 × 15 × 18 cm
+Balloon peak radius: 3.91 cm
+Escape column: A_top = 225 cm², h_col = 5.09 cm
+→ cf = 1 + 200/1146 = 1.1746
+MIP bias offset: +0.85 kPa (from Yin P3 control)
+
+Phantom 1 — 10% bovine gelatin
+  Ogden: μ = [1800.0, 700.0] Pa, α = [2.5, 3.0], G₀ = 2500.0 Pa
+  Volume(mL):      50    100    150    200    250
+  Yin TSM:       3.50   3.80   3.90   4.20   4.40
+  Ours (bias):   3.62   3.86   4.01   4.10   4.19
+  Ours (raw):    2.77   3.01   3.16   3.25   3.34
+  Error %:       +3.5   +1.6   +2.8   -2.3   -4.7
+  RMS = 3.17%, max |err| = 4.74%
+
+Phantom 2 — 8% gelatin + 7% cellulose fiber
+  Ogden: μ = [2500.0, 1500.0] Pa, α = [2.5, 5.0], G₀ = 4000.0 Pa
+  Volume(mL):      50    100    150    200    250
+  Yin TSM:       3.50   3.90   4.20   4.90   5.15
+  Ours (bias):   5.99   7.29   8.27   8.99   9.70
+  Ours (raw):    5.14   6.44   7.42   8.14   8.85
+  Error %:      +71.1  +86.9  +96.9  +83.4  +88.4
+  RMS = 85.76%, max |err| = 96.91%
+
