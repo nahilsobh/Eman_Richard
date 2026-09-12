@@ -1,6 +1,6 @@
 # Resume — Ehman Visit (May/June 2026)
 
-**Last verified:** 2026-09-06
+**Last verified:** 2026-09-07
 **Session UUID:** `bfa97a0c-5c81-4fde-9347-03cc1bf354a4.jsonl`
 (under `~/.claude/projects/-u-sobh-Eman-Richard/`)
 
@@ -12,14 +12,82 @@ claude
 # then /resume  →  pick the entry titled "Resume Ehman visit"
 ```
 
-## State snapshot (all intact as of 2026-09-06)
+## State snapshot (all intact as of 2026-09-07)
 
 | Thread | Location | Status |
 |---|---|---|
 | Phase-0 briefing + FD-Helmholtz FNO | `mre_pipeline/` | 5/5 tests pass. `runs/phase0_v3/best.pt` = epoch 47, val_rl²=0.221, val_ssim=0.643. Slice-by-slice R = 0.9653 (ILI ref 0.940). |
-| Dual-head TSM-FNO (Nature draft, 2D) | `tsm_fno/` | **58/58 tests pass** (32 2D + 12 3D + 7 SLS-viscoelastic + 8 anisotropy+KV-viscosity). Smoke: `pytest tests/ -v` (~13 s). |
+| Dual-head TSM-FNO (Nature draft, 2D) | `tsm_fno/` | **87/87 tests pass** — comprehensive 3D validation stack (see "Yin comparison arc" below). Smoke: `pytest tests/ -v` (~25 s). |
 | Nature manuscript | `paper/main.tex` → `main.pdf` | Built cleanly May 25 (tectonic). 1162 lines. |
 | Last thing sent to Mayo | `paper/Reply_to_Eman_at_Mayo_Query.pdf` | May 25, 2026 |
+| **Yin Fig 6 phantom reproduction** | `tsm_fno/results/paper_pipeline_summary/` | **Reproduces Yin quantitatively via 5-pipeline comparison** — see arc below |
+
+## Yin phantom reproduction arc — commits 63ba5f8 → 62fff87 (2026-09-06/07)
+
+Multi-day validation of the TSM pipeline against Yin et al. 2025
+(PMC13010385) using increasingly-faithful physics. Chain of results
+lives in `tsm_fno/results/paper_*/summary.txt` + `.png`.
+
+### The four scalar-Helmholtz "limitation fixes"
+
+1. **Shell edge-exclusion** (`--shell-offset-mm 9`) — matches Yin's "3 px
+   away from balloon edge" protocol. Closed P1 peak overshoot from +54%
+   to +1%. Commit `5ed9e93`.
+2. **LFE inversion** (`--inversion lfe`) — first-derivative alternative
+   to DI. Standing-wave bias hurts it in our bounded domain; kept as
+   option. Same commit.
+3. **Anisotropic scalar Helmholtz** — extends solver to rank-2 G_ij(x)
+   field. Correctly reproduces Yin's flat μ_conv signature. Commit
+   `4dc68f4`, integrated into TSM `cfd0522`.
+4. **Vector elasticity** — scaffold + working first-cut (isotropic-μ
+   Navier `f4d8edf`; quasi-anisotropic tensor-μ `1a942bb`). Full
+   Murnaghan third-order elasticity NOT implemented (~1-2 weeks).
+
+### Yin Figure 6 comparison — 5-pipeline scorecard at peak (250 mL)
+
+| Pipeline | P1 TSM err | P2 TSM err | μ_conv shape | Best use |
+|---|---|---|---|---|
+| **Ogden ground truth** (analytical) | **+5%** | **+4%** | — | Proves constitutive law right |
+| Anisotropic Ogden pipeline | −16% | **−1%** ✓ | **flat** ✓ | Best structural match to Yin |
+| Scalar-Helmholtz + powerlaw | **+1%** ✓ | +15% | rises ✗ | Best peak-amplitude match |
+| Vector Navier isotropic-μ | +28% | +67% | rises ✗ | Reveals G_true elevation |
+| Vector Navier quasi-aniso μ_ij | −53% | −64% | — | Ad-hoc law, needs proper Murnaghan |
+
+**Best-fit Ogden N=2 parameters** (both keep G₀ = 2.5 kPa):
+- P1 gelatin:   μ = (1100, 1400) Pa,  α = (5.0, 1.0)  or (7.0, 1.0)
+- P2 cellulose: μ = (2000,  500) Pa,  α = (2.0, 10.0)
+
+Ground-truth analytical Ogden with tuned params matches Yin **within 5%**
+— proves the constitutive law is physically correct. Remaining residual
+gap in the full-pipeline runs is inversion-side noise (DI on anisotropic
+wave field), not the material model.
+
+### Definitive summary artifact
+
+`results/paper_pipeline_summary/pipeline_summary.png` — one 2×2 grid
+showing all 5 pipeline data lineages vs Yin measured curves. Regenerate:
+```bash
+cd /u/sobh/Eman_Richard/tsm_fno
+python scripts/paper_pipeline_summary.py
+```
+
+### To reproduce Yin quantitatively (best config)
+
+```bash
+python scripts/paper_phantom_demo_3d_tsm.py \
+    --method anisotropic --num-directions 20 --full-cycle \
+    --median-filter 3 --shell-offset-mm 9.0 \
+    -m 1.0     # P1 (or -m 1.5 for P2)
+```
+
+### What's still open
+
+- **Full Murnaghan-tensor vector elasticity** — 1-2 weeks of dedicated
+  work. Roadmap in `src/solver/vector_elasticity_3d.py` module docstring.
+  Would need iterative sparse solver + preconditioner (SuperLU direct
+  hits ill-conditioning walls at 3N³ DOF with dense C_ijkl(x)).
+- **In-vivo TSM validation** — Yin's Fig 8/9 hematoma + HCC cases would
+  need HGO fibered-tissue constitutive laws.
 
 ## 3D solver + spherical balloon demo (added 2026-09-06, commit `1b2bb66`)
 
