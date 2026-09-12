@@ -1,0 +1,21 @@
+Ogden N=2 analytical reproduction of Yin Fig 6
+==============================================================================
+Method: analytical Lamé stretch → Ogden G_ij(x) → shell mean.
+        No wave solve, no inversion — pure constitutive law.
+Grid: N=32³, dx=3 mm    shell offset=3.0 mm.
+
+State (mL): 50.00  100.00  150.00  200.00  250.00  200.00  150.00  100.00  50.00
+Branch:      infl infl infl infl infl defl defl defl defl
+
+Yin P1 TSM:   3.50   3.80   3.90   4.20   4.40   4.20   3.70   3.60   3.60
+Ours P1 G_θ:  2.50   3.31   4.14   4.87   5.67   4.87   4.14   3.31   2.50
+Ours P1 tr/3: 2.50   2.91   3.52   4.03   4.63   4.03   3.52   2.91   2.50
+Yin P1 conv:  2.70   2.70   2.80   2.80   2.80   2.80   2.80   2.70   2.80
+
+Yin P2 TSM:   3.50   3.90   4.20   4.90   5.15   4.60   3.90   3.60   3.60
+Ours P2 G_θ:  2.50   3.38   4.50   5.62   7.03   5.62   4.50   3.38   2.50
+Ours P2 tr/3: 2.50   2.94   3.68   4.42   5.36   4.42   3.68   2.94   2.50
+Yin P2 conv:  3.00   3.00   3.00   3.10   3.30   3.00   3.00   3.20   3.20
+
+Ours P3 G_θ (control): 2.500 kPa (Yin ~ 3.35)
+Ours P3 tr/3(control): 2.500 kPa (Yin ~ 2.8)
