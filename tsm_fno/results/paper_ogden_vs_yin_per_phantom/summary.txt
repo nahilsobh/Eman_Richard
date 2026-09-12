@@ -1,0 +1,21 @@
+Simple per-phantom Ogden vs Yin comparison
+==============================================================================
+
+Phantom 1 — 10% bovine gelatin
+  Ogden N=2: μ = [1800.0, 700.0] Pa,  α = [2.5, 3.0]    G₀ = 2500.0 Pa
+  Composition: from published gel rheometry (not tuned to Yin)
+
+  Volume(mL):    50    100    150    200    250
+  Yin TSM  :   3.50   3.80   3.90   4.20   4.40
+  Ogden G_θ:   2.50   2.71   2.84   2.93   3.01
+  Ogden tr/3:  2.50   2.52   2.54   2.57   2.59
+
+Phantom 2 — 8% gelatin + 7% cellulose fiber
+  Ogden N=2: μ = [2500.0, 1500.0] Pa,  α = [2.5, 5.0]    G₀ = 4000.0 Pa
+  Composition: from published gel rheometry (not tuned to Yin)
+
+  Volume(mL):    50    100    150    200    250
+  Yin TSM  :   3.50   3.90   4.20   4.90   5.15
+  Ogden G_θ:   4.00   4.86   5.49   5.96   6.42
+  Ogden tr/3:  4.00   4.21   4.50   4.74   4.99
+
