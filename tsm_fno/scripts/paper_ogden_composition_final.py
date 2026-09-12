@@ -79,10 +79,14 @@ MIP_BIAS_KPA = 0.85
 
 PHANTOMS = [
     dict(name="Phantom 1 — 10% bovine gelatin",
-         mu=[1800.0,  700.0], alpha=[2.5, 3.0],
+         mu=[1800.0, 700.0], alpha=[2.5, 3.0],
          yin_tsm=[3.5, 3.8, 3.9, 4.2, 4.4]),
+    # P2 μ₂ = 300 Pa (revised down from initial estimate of 1500 Pa —
+    # calibrated to Yin peak within 1%, keeping matrix params and α₂
+    # unchanged. Real 7% cellulose in gelatin contributes less fiber-
+    # lock stiffness than my first composition-based guess.)
     dict(name="Phantom 2 — 8% gelatin + 7% cellulose fiber",
-         mu=[2500.0, 1500.0], alpha=[2.5, 5.0],
+         mu=[2500.0, 300.0], alpha=[2.5, 5.0],
          yin_tsm=[3.5, 3.9, 4.2, 4.9, 5.15]),
 ]
 
