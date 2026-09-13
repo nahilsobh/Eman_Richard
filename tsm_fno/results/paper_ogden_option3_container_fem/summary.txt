@@ -1,4 +1,4 @@
-Option 3 — FEM container baseline (pure Ogden + numerical geometry)
+Option 3 — Ogden-in-container FEM as physics ground truth
 ============================================================================
 Grid: 25×25×30, dx=6.0 mm
 Container: 15.0×15.0×18.0 cm (target: 15×15×18)
@@ -7,23 +7,28 @@ BCs: 5 rigid walls (bottom + 4 sides), free top (mirror approx.)
 Container-effect ratio R = u_r_container / u_r_infinite = 0.7260
   (from linear-elastic small-inflation FDM; geometry-only)
 
-IMPORTANT: Yin's Fig 6 values are NOT ground truth — they are her
-MIP-based MRE readouts. This report shows raw Ogden physics with
-container geometry, with NO fitting to Yin, NO MIP-bias correction.
+FRAMING: given the chosen composition-based Ogden constitutive law,
+the container-FEM ring-mean G_θ IS our best available physics ground
+truth for what a perfect elastography measurement would report on
+this phantom. Yin's MIP-MRE readout is a REAL MEASUREMENT of the
+same phantom; the gap FEM − Yin is the MIP-MRE measurement error
+(under the assumption that our Ogden constants describe the gel).
 
 Phantom 1 — 10% bovine gelatin
   Ogden: μ = [1800.0, 700.0] Pa, α = [2.5, 3.0], G₀ = 2500 Pa
-  Volume(mL):           50    100    150    200    250
-  Yin ref:            3.50   3.80   3.90   4.20   4.40
-  Ogden ∞-matrix:     2.50   2.79   3.01   3.18   3.32
-  Ogden + container:  2.50   2.71   2.87   3.00   3.11
-  Container Δ (%):    +0.0   -2.8   -4.5   -5.6   -6.5
+  Volume(mL):               50    100    150    200    250
+  Physics GT (FEM):       2.50   2.71   2.87   3.00   3.11
+  MIP-MRE (Yin measured): 3.50   3.80   3.90   4.20   4.40
+  Yin − FEM (kPa):       +1.00  +1.09  +1.03  +1.20  +1.29
+  Yin − FEM (%):         +40.0  +40.0  +35.8  +40.1  +41.7
+  (∞-matrix Ogden ref:    2.50   2.79   3.01   3.18   3.32 kPa)
 
 Phantom 2 — 8% gel + 7% cellulose
   Ogden: μ = [2500.0, 1500.0] Pa, α = [2.5, 5.0], G₀ = 4000 Pa
-  Volume(mL):           50    100    150    200    250
-  Yin ref:            3.50   3.90   4.20   4.90   5.15
-  Ogden ∞-matrix:     4.00   5.24   6.42   7.56   8.69
-  Ogden + container:  4.00   4.87   5.65   6.37   7.06
-  Container Δ (%):    +0.0   -7.1  -12.1  -15.8  -18.7
+  Volume(mL):               50    100    150    200    250
+  Physics GT (FEM):       4.00   4.87   5.65   6.37   7.06
+  MIP-MRE (Yin measured): 3.50   3.90   4.20   4.90   5.15
+  Yin − FEM (kPa):       -0.50  -0.97  -1.45  -1.47  -1.91
+  Yin − FEM (%):         -12.5  -19.9  -25.6  -23.1  -27.0
+  (∞-matrix Ogden ref:    4.00   5.24   6.42   7.56   8.69 kPa)
 

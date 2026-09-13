@@ -226,7 +226,7 @@ def main():
 
     # ── Report ────────────────────────────────────────────────────────
     lines = [
-        "Option 3 — FEM container baseline (pure Ogden + numerical geometry)",
+        "Option 3 — Ogden-in-container FEM as physics ground truth",
         "=" * 76,
         f"Grid: {NX}×{NY}×{NZ}, dx={DX_M*1000:.1f} mm",
         f"Container: {CONTAINER_L_CM:.1f}×{CONTAINER_L_CM:.1f}×"
@@ -236,56 +236,81 @@ def main():
         f"Container-effect ratio R = u_r_container / u_r_infinite = {R_ratio:.4f}",
         "  (from linear-elastic small-inflation FDM; geometry-only)",
         "",
-        "IMPORTANT: Yin's Fig 6 values are NOT ground truth — they are her",
-        "MIP-based MRE readouts. This report shows raw Ogden physics with",
-        "container geometry, with NO fitting to Yin, NO MIP-bias correction.",
+        "FRAMING: given the chosen composition-based Ogden constitutive law,",
+        "the container-FEM ring-mean G_θ IS our best available physics ground",
+        "truth for what a perfect elastography measurement would report on",
+        "this phantom. Yin's MIP-MRE readout is a REAL MEASUREMENT of the",
+        "same phantom; the gap FEM − Yin is the MIP-MRE measurement error",
+        "(under the assumption that our Ogden constants describe the gel).",
         "",
     ]
     for p in PHANTOMS:
         lines.append(f"{p['name']}")
         lines.append(f"  Ogden: μ = {p['mu']} Pa, α = {p['alpha']}, "
                      f"G₀ = {sum(p['mu']):.0f} Pa")
-        lines.append(f"  Volume(mL):        {'  '.join(f'{v:>5d}' for v in BALLOON_VOLUMES_ML)}")
-        lines.append(f"  Yin ref:           {'  '.join(f'{v:5.2f}' for v in p['yin_tsm'])}")
-        lines.append(f"  Ogden ∞-matrix:    {'  '.join(f'{v:5.2f}' for v in p['G_inf'])}")
-        lines.append(f"  Ogden + container: {'  '.join(f'{v:5.2f}' for v in p['G_c'])}")
-        delta_pct = [(c - i) / i * 100 for c, i in zip(p["G_c"], p["G_inf"])]
-        lines.append(f"  Container Δ (%):   {'  '.join(f'{v:+5.1f}' for v in delta_pct)}")
+        lines.append(f"  Volume(mL):            {'  '.join(f'{v:>5d}' for v in BALLOON_VOLUMES_ML)}")
+        lines.append(f"  Physics GT (FEM):      {'  '.join(f'{v:5.2f}' for v in p['G_c'])}")
+        lines.append(f"  MIP-MRE (Yin measured):{'  '.join(f'{v:5.2f}' for v in p['yin_tsm'])}")
+        yin_err_kpa = [y - g for y, g in zip(p["yin_tsm"], p["G_c"])]
+        yin_err_pct = [(y - g) / g * 100 for y, g in zip(p["yin_tsm"], p["G_c"])]
+        lines.append(f"  Yin − FEM (kPa):       {'  '.join(f'{v:+5.2f}' for v in yin_err_kpa)}")
+        lines.append(f"  Yin − FEM (%):         {'  '.join(f'{v:+5.1f}' for v in yin_err_pct)}")
+        lines.append(f"  (∞-matrix Ogden ref:   {'  '.join(f'{v:5.2f}' for v in p['G_inf'])} kPa)")
         lines.append("")
 
-    # ── Figure ────────────────────────────────────────────────────────
+    # ── Figure: FEM as physics ground truth, Yin as measured ─────────
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.5), sharey=False)
     for ax, p in zip(axes, PHANTOMS):
-        ax.plot(BALLOON_VOLUMES_ML, p["yin_tsm"], "*-", color="black",
-                ms=14, lw=1.5, alpha=0.55,
-                label="Yin μ_TSM (measured, reference only)")
-        ax.plot(BALLOON_VOLUMES_ML, p["G_inf"], "s--", color="tab:blue",
-                ms=8, lw=1.8, alpha=0.85,
-                label="Ogden ∞-matrix Lamé (option 1)")
+        # FEM is the physics ground truth (given the Ogden model)
         ax.plot(BALLOON_VOLUMES_ML, p["G_c"], "o-", color="tab:red",
-                ms=9, lw=2.4,
-                label=f"Ogden + container FEM (option 3), R={R_ratio:.3f}")
+                ms=10, lw=2.6,
+                label=f"Physics GT: Ogden + container FEM (R={R_ratio:.3f})")
+        # ∞-matrix Ogden as a subsidiary reference
+        ax.plot(BALLOON_VOLUMES_ML, p["G_inf"], "s:", color="tab:blue",
+                ms=7, lw=1.4, alpha=0.6,
+                label="Ogden ∞-matrix (no container)")
+        # Yin as MEASUREMENT to be evaluated against GT
+        ax.plot(BALLOON_VOLUMES_ML, p["yin_tsm"], "*--", color="black",
+                ms=14, lw=1.5,
+                label="Yin MIP-MRE (measured)")
 
-        info = (f"Ogden N=2: μ = {p['mu']} Pa\n"
-                f"           α = {p['alpha']}\n"
-                f"G₀ = {sum(p['mu']):.0f} Pa (from composition)\n"
+        # Annotate Yin - FEM deviation at each state
+        for v, y, g in zip(BALLOON_VOLUMES_ML, p["yin_tsm"], p["G_c"]):
+            delta = y - g
+            ax.annotate(f"{delta:+.2f}", xy=(v, y),
+                         xytext=(0, 10 if delta > 0 else -18),
+                         textcoords="offset points",
+                         ha="center", fontsize=8, color="black")
+
+        info = (f"Ogden N=2 (from composition):\n"
+                f"  μ = {p['mu']} Pa\n"
+                f"  α = {p['alpha']}\n"
+                f"  G₀ = {sum(p['mu']):.0f} Pa\n"
                 f"Container FEM: {NX}×{NY}×{NZ} at dx={DX_M*1000:.1f} mm")
         ax.text(0.02, 0.97, info, transform=ax.transAxes,
                  fontsize=8, va="top", fontfamily="monospace",
                  bbox=dict(facecolor="white", alpha=0.85, pad=4,
                            edgecolor="lightgray"))
 
-        ax.set_title(p["name"], fontsize=11, fontweight="bold")
+        # RMS deviation of MIP-MRE from FEM ground truth
+        errs = np.array(p["yin_tsm"]) - np.array(p["G_c"])
+        rms_kpa = float(np.sqrt(np.mean(errs ** 2)))
+        rms_pct = float(np.sqrt(np.mean((errs / np.array(p["G_c"])) ** 2))) * 100
+        ax.set_title(
+            f"{p['name']}\n"
+            f"MIP-MRE − FEM: RMS = {rms_kpa:.2f} kPa ({rms_pct:.1f}%)",
+            fontsize=10, fontweight="bold",
+        )
         ax.set_xlabel("Balloon water volume (mL)", fontsize=11)
         ax.set_ylabel("Ring stiffness [kPa]", fontsize=11)
         ax.set_xticks(BALLOON_VOLUMES_ML)
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=9, loc="upper left")
 
-    R_verdict = ("REDUCES" if R_ratio < 1 else "AMPLIFIES")
     plt.suptitle(
-        f"Option 3 — pure Ogden + container FEM (no MIP-bias, no fitting)\n"
-        f"Container-effect factor R = {R_ratio:.3f} ({R_verdict} ring stretch)",
+        f"Ogden-in-container FEM as physics ground truth  •  "
+        f"Yin MIP-MRE evaluated against physics GT\n"
+        f"(container-effect factor R = {R_ratio:.3f} from FDM small-inflation probe)",
         fontsize=12, fontweight="bold",
     )
     plt.tight_layout()
