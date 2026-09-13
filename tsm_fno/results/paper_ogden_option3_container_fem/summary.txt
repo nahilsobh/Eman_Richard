@@ -1,0 +1,29 @@
+Option 3 — FEM container baseline (pure Ogden + numerical geometry)
+============================================================================
+Grid: 25×25×30, dx=6.0 mm
+Container: 15.0×15.0×18.0 cm (target: 15×15×18)
+BCs: 5 rigid walls (bottom + 4 sides), free top (mirror approx.)
+
+Container-effect ratio R = u_r_container / u_r_infinite = 0.7260
+  (from linear-elastic small-inflation FDM; geometry-only)
+
+IMPORTANT: Yin's Fig 6 values are NOT ground truth — they are her
+MIP-based MRE readouts. This report shows raw Ogden physics with
+container geometry, with NO fitting to Yin, NO MIP-bias correction.
+
+Phantom 1 — 10% bovine gelatin
+  Ogden: μ = [1800.0, 700.0] Pa, α = [2.5, 3.0], G₀ = 2500 Pa
+  Volume(mL):           50    100    150    200    250
+  Yin ref:            3.50   3.80   3.90   4.20   4.40
+  Ogden ∞-matrix:     2.50   2.79   3.01   3.18   3.32
+  Ogden + container:  2.50   2.71   2.87   3.00   3.11
+  Container Δ (%):    +0.0   -2.8   -4.5   -5.6   -6.5
+
+Phantom 2 — 8% gel + 7% cellulose
+  Ogden: μ = [2500.0, 1500.0] Pa, α = [2.5, 5.0], G₀ = 4000 Pa
+  Volume(mL):           50    100    150    200    250
+  Yin ref:            3.50   3.90   4.20   4.90   5.15
+  Ogden ∞-matrix:     4.00   5.24   6.42   7.56   8.69
+  Ogden + container:  4.00   4.87   5.65   6.37   7.06
+  Container Δ (%):    +0.0   -7.1  -12.1  -15.8  -18.7
+

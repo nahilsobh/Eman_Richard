@@ -1,0 +1,39 @@
+Ogden-only baseline — pure physics prediction, NO corrections
+==============================================================================
+
+IMPORTANT: Yin's Fig 6 values are her MIP-based MRE readouts, NOT
+independent ground truth for the phantom material G. The comparison
+below is between two INDEPENDENT measurements of the same unknown
+underlying quantity — neither is the 'right' answer without independent
+mechanical characterization of Yin's actual gel.
+
+PHANTOM PARAMETERS (from composition, not tuned to Yin):
+  Phantom 1 — 10% bovine gelatin:
+    μ = [1800.0, 700.0] Pa,  α = [2.5, 3.0],  G₀ = 2500.0 Pa
+  Phantom 2 — 8% gelatin + 7% cellulose fiber:
+    μ = [2500.0, 1500.0] Pa,  α = [2.5, 5.0],  G₀ = 4000.0 Pa
+
+OGDEN PREDICTIONS (analytical, no wave solve, no inversion):
+
+Phantom 1 — 10% bovine gelatin:
+  Volume(mL):       50    100    150    200    250
+  Yin (ref):      3.50   3.80   3.90   4.20   4.40
+  Ogden G_θ:      2.50   2.71   2.84   2.93   3.01
+  Ogden tr(G)/3:  2.50   2.52   2.54   2.57   2.59
+
+Phantom 2 — 8% gelatin + 7% cellulose fiber:
+  Volume(mL):       50    100    150    200    250
+  Yin (ref):      3.50   3.90   4.20   4.90   5.15
+  Ogden G_θ:      4.00   4.86   5.49   5.96   6.42
+  Ogden tr(G)/3:  4.00   4.21   4.50   4.74   4.99
+
+The gap between Ogden and Yin reflects some combination of:
+  (a) composition-based Ogden parameters differing from Yin's actual gel,
+  (b) Yin's MRE inversion introducing systematic biases (MIP artifact),
+  (c) container-geometry effects (Yin's finite bounded matrix vs
+      our infinite-matrix Lamé assumption).
+
+Without independent mechanical testing of Yin's specific gel, we cannot
+attribute the gap to any single cause. Subsequent scripts explore each
+of these three contributions (see paper_ogden_container_confinement.py
+and paper_ogden_composition_final.py).
