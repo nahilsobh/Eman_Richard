@@ -1,0 +1,25 @@
+FEniCS 1/4-symmetry finite-strain FEM at dx = 3.0 mm
+============================================================================
+Wall time: 35.3 min
+Mirror planes: x = 0 (u_x = 0), y = 0 (u_y = 0)
+Constitutive law in FEM: near-incompressible neo-Hookean.
+Ogden applied ex-post to the FEM stretch field.
+
+Phantom 1 — 10% bovine gelatin
+  Ogden: μ = [1800.0, 700.0] Pa, α = [2.5, 3.0]
+  Volume(mL):        50    100
+  n_ring cells:     506    506
+  ⟨λ_θ⟩ ring:     1.000  1.146
+  G_θ FEM [kPa]:   2.50   2.73
+  Yin ref [kPa]:   3.50   3.80
+  Yin−FEM [kPa]:  +1.00  +1.07
+
+Phantom 2 — 8% gel + 7% cellulose
+  Ogden: μ = [2500.0, 1500.0] Pa, α = [2.5, 5.0]
+  Volume(mL):        50    100
+  n_ring cells:     506    506
+  ⟨λ_θ⟩ ring:     1.000  1.146
+  G_θ FEM [kPa]:   4.00   4.93
+  Yin ref [kPa]:   3.50   3.90
+  Yin−FEM [kPa]:  -0.50  -1.03
+

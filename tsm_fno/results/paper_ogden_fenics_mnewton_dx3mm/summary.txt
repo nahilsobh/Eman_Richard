@@ -1,0 +1,23 @@
+Modified Newton FEM at dx = 3.0 mm
+========================================================================
+Wall time: 4.2 min   |   Volumes completed: 1/5
+
+Method: Lamé initial guess + Jacobian assembled ONCE, LU-factored
+        once, reused across all iterations (modified Newton).
+
+Phantom 1 — 10% bovine gelatin
+  Ogden: μ = [1800.0, 700.0] Pa, α = [2.5, 3.0]
+  Volume(mL):        50
+  ⟨λ_θ⟩ ring:     1.000
+  G_θ FEM [kPa]:   2.50
+  Yin ref [kPa]:   3.50
+  Yin−FEM [kPa]:  +1.00
+
+Phantom 2 — 8% gel + 7% cellulose
+  Ogden: μ = [2500.0, 1500.0] Pa, α = [2.5, 5.0]
+  Volume(mL):        50
+  ⟨λ_θ⟩ ring:     1.000
+  G_θ FEM [kPa]:   4.00
+  Yin ref [kPa]:   3.50
+  Yin−FEM [kPa]:  -0.50
+
