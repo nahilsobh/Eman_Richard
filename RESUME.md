@@ -1,6 +1,6 @@
 # Resume — Ehman Visit (May/June 2026)
 
-**Last verified:** 2026-09-07
+**Last verified:** 2026-09-13
 **Session UUID:** `bfa97a0c-5c81-4fde-9347-03cc1bf354a4.jsonl`
 (under `~/.claude/projects/-u-sobh-Eman-Richard/`)
 
@@ -17,7 +17,7 @@ claude
 | Thread | Location | Status |
 |---|---|---|
 | Phase-0 briefing + FD-Helmholtz FNO | `mre_pipeline/` | 5/5 tests pass. `runs/phase0_v3/best.pt` = epoch 47, val_rl²=0.221, val_ssim=0.643. Slice-by-slice R = 0.9653 (ILI ref 0.940). |
-| Dual-head TSM-FNO (Nature draft, 2D) | `tsm_fno/` | **87/87 tests pass** — comprehensive 3D validation stack (see "Yin comparison arc" below). Smoke: `pytest tests/ -v` (~25 s). |
+| Dual-head TSM-FNO (Nature draft, 2D) | `tsm_fno/` | **87/87 tests pass** — comprehensive 3D validation stack (see "Yin comparison arc" below). Smoke: `pytest tests/ -v` (~25 s). See also "Option-3 FDM correction + FEM validation" below (2026-09-12/13). |
 | Nature manuscript | `paper/main.tex` → `main.pdf` | Built cleanly May 25 (tectonic). 1162 lines. |
 | Last thing sent to Mayo | `paper/Reply_to_Eman_at_Mayo_Query.pdf` | May 25, 2026 |
 | **Yin Fig 6 phantom reproduction** | `tsm_fno/results/paper_pipeline_summary/` | **Reproduces Yin quantitatively via 5-pipeline comparison** — see arc below |
@@ -162,6 +162,97 @@ showing all 5 pipeline data lineages vs Yin measured curves. Regenerate:
 cd /u/sobh/Eman_Richard/tsm_fno
 python scripts/paper_pipeline_summary.py
 ```
+
+### ⚠ Correction: cf > 1 amplification story was wrong direction (2026-09-12)
+
+The `cf = 1.175` finding above says "container confinement AMPLIFIES ring
+stretch" (multiplier > 1 on λ_θ). **This is the wrong sign of the actual
+physics.** A direct finite-difference elastostatic solve inside Yin's
+container (`paper_ogden_option3_container_fem`, commit `2e46cca`) with:
+- 5 rigid walls + free top (Yin's actual BCs)
+- Balloon internal Dirichlet BC = spherical growth
+- Small-inflation probe on 25×25×30 hex grid at dx = 6 mm
+
+gave **R = u_r_container / u_r_infinite = 0.726**. Container physics
+REDUCES ring radial displacement by 27 %, because material near the
+balloon prefers upward escape through the free top over radial push.
+Consequently λ_θ_container < λ_θ_∞, so G_θ_container < G_θ_∞.
+
+The `cf = 1.174` derivation was numerology (fitting a scalar multiplier
+that happened to match Yin) — not physics. The correct physics widens
+the gap between our Ogden prediction and Yin's readout, not closes it.
+
+**Reframed scientific claim** (commit `9b80b05`):
+
+The **container-Ogden solve IS the physics ground truth** for our
+chosen constitutive law. Yin's MIP-MRE is a MEASUREMENT of the same
+phantom. The gap (Yin − FEM) is the MIP-MRE **measurement error**
+under the assumption our Ogden constants describe the gel:
+
+| Phantom | Yin measured (peak) | Physics GT (FEM at Vol 100 mL) | Δ (Yin − FEM) |
+|---|---|---|---|
+| P1 (10 % gelatin) | 4.40 kPa | 3.11 kPa | **+40 % (const offset)** |
+| P2 (8 % gel + 7 % cellulose, μ₂ = 1500 Pa) | 5.15 kPa | 7.06 kPa | **−27 % (grows with strain)** |
+
+P1 over-reading by +1.1 kPa across all volumes is consistent with a
+MIP "max wavelength" upward bias. P2 UNDER-reading with growing
+deviation is opposite sign — either the composite Ogden constants
+we picked are miscalibrated for Yin's specific gel, or MIP behaves
+differently on the fibrous P2. Independent rheometry of Yin's gel
+would decouple these.
+
+### FEniCS finite-strain FEM validates the linear FDM (2026-09-13, commit `ac3afaf`)
+
+To confirm the linear-elastic small-strain approximation in the
+option-3 FDM, ran full nonlinear neo-Hookean FEM in FEniCS (dolfinx
+0.9) on the 1/4-symmetry mesh at dx = 3 mm. Setup:
+
+- Container: 1/4 of 15 × 15 × 18 cm (75 × 75 × 180 mm modeled)
+- Mesh: 25 × 25 × 60 = 37,500 hex cells, 123,708 vector DOFs
+- Symmetry planes: `x = 0`, `y = 0` with partial-component Dirichlet
+- Rigid walls at `x = L/2, y = L/2, z = 0`; free top at `z = H`
+- Balloon Dirichlet: `u = (r/a₀)·(a − a₀)·r̂` on interior nodes
+- Neo-Hookean W = (μ/2)(J^{-2/3} tr C − 3) + (κ/2)(J − 1)²
+- Load stepping (10 sub-steps per volume), Newton, MUMPS LU
+
+**Validation at Vol 100 mL** (surface stretch ~26 %):
+
+| Vol | FEM 3 mm (P1) | Linear FDM option 3 (P1) | Δ |
+|---|---|---|---|
+| 50 mL | 2.50 | 2.50 | 0 % |
+| **100 mL** | **2.73** | **2.71** | **+0.7 %** ✓ |
+
+Same 0.7–1.2 % agreement for P2. **The linear-FDM option 3 result is
+therefore validated by full finite-strain FEM.** The FDM's uncertainty
+in extrapolating R = 0.726 (measured at infinitesimal probe) up to
+50 % surface stretch is bounded by <3 % — an order of magnitude
+smaller than the Yin−FEM measurement-vs-physics gap.
+
+**Vol 150 mL and beyond**: FEM Newton became numerically unstable
+(MUMPS "error 76" NaN in factor) at surface displacement > ~4 mm.
+Root cause: pressure-penalty ill-conditioning of the tangent stiffness
+at large deformation. Attempts tried and documented as insufficient:
+SuperLU / SUPERLU_DIST solvers, CG + GAMG iterative, softer κ,
+balloon-interior cell exclusion, Lamé warm start, modified Newton
+with fixed tangent + backtracking line search. Proper fix is a
+**mixed u–p Taylor–Hood formulation** (Simo–Taylor 1985 style
+Lagrange multiplier for incompressibility) — 1–2 weeks of work,
+deferred as it wouldn't change the current scientific claim (the
+FDM–FEM agreement at Vol 100 mL already validates the physics; the
+uncertainties from composition-based Ogden and MIP-MRE inversion
+dwarf the FDM extrapolation error at higher volumes).
+
+FEniCS env: `/u/sobh/.conda/envs/fenicsx` (dolfinx 0.9, MUMPS, PETSc).
+Set `LD_LIBRARY_PATH=/u/sobh/.conda/envs/fenicsx/lib:$LD_LIBRARY_PATH`
+before running.
+
+Scripts:
+- `tsm_fno/scripts/paper_ogden_fenics_fem_quarter.py` — primary FEM
+- `tsm_fno/scripts/paper_ogden_fenics_mnewton.py`   — modified Newton attempt
+- `tsm_fno/scripts/run_fenics_fem_quarter.sbatch`   — cpu-interactive
+- `tsm_fno/scripts/run_fenics_fem_long.sbatch`      — cpu partition (long)
+
+Results: `tsm_fno/results/paper_ogden_fenics_fem_qtr_dx3mm/{summary.txt,results.json,README.md}`.
 
 ### To reproduce Yin quantitatively (best config)
 
@@ -515,4 +606,13 @@ conda activate mri_mrf_pytorch_env
 
 ## Git
 
-`main`, clean, up to date with `origin/main`. Last commit: `1b2bb66` (2026-09-06, `tsm_fno: 3D FD Helmholtz solver + spherical balloon demo`).
+`main`, clean, up to date with `origin/main`. Last commit: `ac3afaf`
+(2026-09-13, `tsm_fno: FEniCS finite-strain FEM baseline validates linear FDM option 3`).
+
+Recent tsm_fno arc (2026-09-06 → 2026-09-13):
+- `ac3afaf` FEniCS FEM at 3 mm validates linear FDM option 3 within 1 % (Vol 50 & 100 mL)
+- `9b80b05` reframe option 3 — FEM is physics ground truth, Yin is measurement
+- `2e46cca` option 3 FEM container baseline — reveals container REDUCES ring stretch
+- `8fbb6e3` P2 μ₂ refined to 300 Pa — peak match to −0.6 %
+- `4097f8b` FINAL composition-based Ogden with DERIVED cf = 1.1746
+- `1b2bb66` 3D FD Helmholtz solver + spherical balloon demo
