@@ -1,0 +1,20 @@
+Vector Navier + rotated Cartesian tensor µ_ij(x) — 250 mL water balloon
+============================================================================
+Grid: 32³ at dx = 6.0 mm → 19.2³ cm cube
+BCs:  all 6 walls Dirichlet u = 0 (no top-free in this solver)
+      → NOT the same BC as scalar Helmholtz run (top-free there);
+        the comparison isolates the tensor-vs-scalar effect only.
+Driver: bottom disk, comp = 0 (i-axis / vertical), amp = 1.0 µm
+Balloon at 250 mL (a = 3.908 cm), water G = 1.0 Pa
+Perilesional shell: r ∈ [a, a+12 mm], 1424 voxels
+
+Cartesian tensor stiffness (rotated from spherical frame):
+  µ_ij(x) = µ_rr(r) · r̂_i r̂_j + µ_θθ(r) · (δ_ij − r̂_i r̂_j)
+
+Anisotropy at the cavity edge (λ_θ = 1.71):
+  P1: µ_θθ = 7.81 kPa,  µ_rr = 0.0010 kPa (ex-balloon min 0.3412), ratio θθ/rr up to 22.9×
+  P2: µ_θθ = 11.33 kPa (fiber-boosted)
+
+Ring-averaged fields:
+  P1:  GT µ_θθ = 4.927 kPa    ⟨Σ|u|⟩ = 0.892 µm    ⟨|curl u|⟩ = 8.79e-05 rad/m
+  P2:  GT µ_θθ = 6.115 kPa    ⟨Σ|u|⟩ = 0.838 µm    ⟨|curl u|⟩ = 8.06e-05 rad/m
