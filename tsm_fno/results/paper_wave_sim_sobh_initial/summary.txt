@@ -1,0 +1,18 @@
+Bottom-driven MRE forward sim at 250 mL — Sobh-Ehman initial G
+========================================================================
+Solver grid: 60³ hex at dx = 3.0 mm → cube 18.0³ cm
+Container: 15×15×18 cm (padded to 18³ cube — extra 1.5 cm/side of gel background)
+BCs: side + bottom walls Dirichlet, top ∂u/∂z=0 (traction-free)
+Driver: bottom-plate disk, radius_frac=0.5, amp=1.0 µm
+Balloon at 250 mL (a = 3.908 cm) filled with water:
+  G_water = 1.0 Pa (no shear support → wave decays inside)
+Gel: Sobh-Ehman mean-of-band  µ = 2750 Pa, k₁ = 3250 Pa, k₂ = 1.25
+
+Perilesional shell (r ∈ [a, a+12 mm]) stiffness:
+                Ground truth        DI-recovered
+  P1:              4.689 kPa         3.399 kPa
+  P2:              5.698 kPa         3.909 kPa
+
+Peak |u|: P1 = 1.57 µm,  P2 = 1.68 µm
+Solver output: 60 Hz shear wave; expected λ_shear ≈ 28 mm in unstrained gel
+               (voxels per wavelength ≈ 9 at dx = 3 mm)
