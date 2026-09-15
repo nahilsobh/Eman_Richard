@@ -1,0 +1,473 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1.0in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\sisetup{detect-weight=true,detect-family=true}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=NavyBlue,urlcolor=NavyBlue,citecolor=NavyBlue}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{parskip}
+\usepackage{enumitem}
+\setlist[itemize]{itemsep=2pt,topsep=2pt}
+% "boxed" environments implemented with a bare quote (no mdframed/tcolorbox
+% needed) — degrades gracefully across TeX installs.
+\newenvironment{grayb}{\par\medskip\noindent\begin{quote}\small}{\end{quote}\medskip}
+\newenvironment{blueb}{\par\medskip\noindent\begin{quote}\small}{\end{quote}\medskip}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Perilesional MRE — problem formulation}
+\fancyhead[R]{\small \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\vspace{-1.2cm}Perilesional MRE forward-and-inverse problem\\
+\large 3D scalar Helmholtz on the Sobh--Ehman initial-stiffness phantoms\\
+\normalsize A step-by-step specification for the computational team}
+\author{Prepared on Delta, \texttt{/u/sobh/Eman\_Richard/tsm\_fno/}}
+\date{\today}
+
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+\newcommand{\ihat}{\hat{\boldsymbol{k}}}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{grayb}\textbf{Purpose.} \newline
+This note fully specifies the 3D time-harmonic MRE forward simulation
+used to generate the shear-wave displacement field $u(\vect{x})$ inside
+a water-balloon phantom, together with the two inversion pipelines
+applied to $u$. Everything a code reviewer or a re-implementer needs
+to reproduce the runs is here: geometry, boundary conditions, material
+model, driver, discretisation, inversion recipes, and the numerical
+scales that make the run well-posed.
+\end{grayb}
+
+\section{Physical picture}
+
+A gel-filled rectangular container houses a spherical balloon at its
+centre. The balloon has been inflated with water to \SI{250}{\milli\litre}
+(radius $a = \SI{3.908}{\centi\metre}$) from a stress-free casting state
+at \SI{50}{\milli\litre} (radius $A = \SI{2.285}{\centi\metre}$). A piston
+plate at the bottom of the container is driven at \SI{60}{\hertz}; the
+resulting shear-wave field is sampled inside the gel and inverted for
+the local shear modulus. This mimics the MRE experiment reported by
+Yin et al.\ (2026) as reproduced quantitatively by
+\emph{paper\_lesion\_expansion.pdf}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.80\textwidth]{schematic.png}
+\caption{Container cross-section in the $y$--$z$ plane, showing the
+five rigid walls (red \emph{u}=0), the traction-free top surface (blue
+$\partial u/\partial z = 0$), the bottom piston plate (yellow), the
+water-filled balloon (blue disk, no shear support), and the 12\,mm
+perilesional shell used for ring statistics (black dashed circle).
+The $x$-axis is into the page; the same BCs apply on the two out-of-page
+faces (\SI{15}{\centi\metre} apart in $x$).}
+\end{figure}
+
+\section{Governing equation}
+
+We solve the scalar Helmholtz equation for the complex tangential
+displacement $u(\vect x) \in \mathbb{C}$ at fixed angular frequency
+$\omega = 2\pi f$ with $f = \SI{60}{\hertz}$:
+
+\begin{equation}
+\rho\,\omega^2\, u(\vect x) \;=\; \nabla \cdot \bigl(G^*(\vect x)\,\nabla u(\vect x)\bigr)
+\qquad \vect x \in \Omega,
+\label{eq:helmholtz}
+\end{equation}
+
+where the complex-valued shear modulus incorporates hysteretic damping:
+
+\begin{equation}
+G^*(\vect x) \;=\; G(\vect x)\,(1 + i\,\xi),
+\qquad \xi = 0.05
+\quad(\Rightarrow\; Q\!\approx\!10).
+\end{equation}
+
+Physical constants:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Symbol & Value & Meaning \\
+\midrule
+$\rho$ & \SI{1000}{\kilogram\per\metre\cubed} & gel density \\
+$\omega$ & $2\pi\cdot 60$ \si{\radian\per\second} & angular frequency \\
+$\xi$ & 0.05 & hysteretic damping ($Q\approx 10$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Rationale for the scalar reduction: the acoustoelastic tangential
+modulus $\mu_{\text{app},\theta\theta}$ appears in the scalar equation
+governing the ring-tangential polarisation, which is what TSM MIP
+isolates. Full vector Navier is available in a companion solver
+(\texttt{vector\_elasticity\_3d.py}) but is not used here.
+
+\section{Domain, grid and physical scales}
+
+The container is Yin's \SI{15}{}\,$\times$\,\SI{15}{}\,$\times$\,\SI{18}{\centi\metre}
+box. To fit the solver's cubic-grid constraint, we embed it in an
+\SI{18}{\centi\metre} cube: the extra \SI{1.5}{\centi\metre} on each of
+$\pm x, \pm y$ is filled with the same unstretched gel background, and
+the container's rigid-wall BCs are applied at the cube faces
+(the wall is thus \SI{1.5}{\centi\metre} outboard of the physical wall
+location, a minor geometric approximation that does not affect the
+perilesional region).
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Symbol & Value & Meaning \\
+\midrule
+$N$          & 60           & voxels per axis \\
+$\Delta x$   & \SI{3}{\milli\metre} & voxel edge \\
+$L = N\Delta x$ & \SI{0.18}{\metre} & cube side \\
+DOF          & $N^3 = \num{216000}$ & unknowns in the linear system \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Solver convention (matching \texttt{helmholtz\_fd\_3d.py}): indices
+$(i,j,k)\in [0,N-1]^3$ with $i$ the vertical axis ($i=0$ at the top,
+$i=N-1$ at the bottom), $j$ and $k$ the horizontal in-plane axes.
+
+\paragraph{Shear-wave resolution.} At \SI{60}{\hertz} in unstretched gel:
+
+\begin{equation}
+c_s = \sqrt{\mu/\rho} = \sqrt{2750 / 1000} = \SI{1.66}{\metre\per\second}
+\quad\Rightarrow\quad
+\lambda_s = c_s / f \approx \SI{27.6}{\milli\metre}
+\quad\Rightarrow\quad
+\lambda_s / \Delta x \approx 9.2.
+\end{equation}
+
+That is more than the 6-per-wavelength rule of thumb; the scalar-FD
+stencil resolves the shear wave without aliasing.
+
+\section{Boundary conditions}
+
+The container has D\textsubscript{4h}-broken BCs (five rigid walls,
+one free top):
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Face & Condition & Discrete implementation \\
+\midrule
+$i = 0$ \hfill (top)      & $\partial u/\partial z = 0$ & ghost mirror ($u_{-1}=u_{+1}$) \\
+$i = N-1$ \hfill (bottom) & Dirichlet from driver       & set $u$ at all disk nodes \\
+$j = 0$, $j = N-1$        & $u = 0$                     & Dirichlet \\
+$k = 0$, $k = N-1$        & $u = 0$                     & Dirichlet \\
+Balloon interior          & $G(\vect x) = \SI{1}{\pascal}$ & vanishing shear coefficient \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The "water-filled balloon that cannot support shear" is realised by
+setting $G(\vect x) = \SI{1}{\pascal}$ inside the balloon. Equation
+(\ref{eq:helmholtz}) then reduces to $\rho\omega^2 u \approx 0$ in the
+interior, so $u \to 0$ there and the balloon acts as a shear-wave null
+region. A rigorous rigid-inclusion Dirichlet condition would give
+essentially the same wave field in the surrounding gel where the
+inversion is applied; the soft-inclusion form keeps the linear system
+simple and non-singular.
+
+\section{Material field $G(\vect x)$}
+
+\subsection{Kinematics: incompressible spherical cavity expansion}
+
+The gel was cast around the balloon at the \SI{50}{\milli\litre} state, so
+that state is stress-free ($\lambda_\theta \equiv 1$). Incompressibility
+of the gel combined with spherical symmetry gives the exact isochoric
+radial map from reference radius $R$ to current radius $r$:
+
+\begin{equation}
+r^3 = R^3 + \bigl(a^3 - A^3\bigr),
+\quad
+\lambda_\theta = \frac{r}{R} = \left(1 + \frac{a^3 - A^3}{R^3}\right)^{1/3},
+\quad
+\lambda_r = \lambda_\theta^{-2},
+\label{eq:kinematics}
+\end{equation}
+
+with the current cavity radius set by injection volume,
+$a = (3V/(4\pi))^{1/3}$. \textbf{This map is exact for the open-topped
+container, not an approximation}: as argued in \S2 of the Sobh--Ehman
+paper, in spherical symmetry incompressibility alone fixes the
+stretch field, whatever the outer boundary does (the outer BC enters
+only through the hydrostatic pressure). For $V = \SI{250}{\milli\litre}$,
+$a = \SI{3.908}{\centi\metre}$; $\lambda_\theta$ at the cavity edge is 1.710
+and at $r = a + \SI{12}{\milli\metre}$ is 1.159 (matches paper Table~1).
+
+\subsection{Acoustoelastic (perilesional) modulus}
+
+The tangential shear modulus that a wave polarised tangential to the
+cavity ``sees'' is Ogden's small-on-large formula reduced to
+$\mu_{\text{app},\theta\theta} = 2 W_1\,\lambda_\theta^2$ with $W_2=0$
+(see paper eq.\ 4). For the two phantoms this evaluates to:
+
+\begin{blueb}\textbf{Constitutive laws — mean-of-band material.} \newline
+\textbf{P1} (plain \SI{10}{\percent} bovine gelatin, neo-Hookean matrix):
+\begin{equation}
+\mu_{\text{app},\theta\theta}^{\text{P1}} = \mu\,\lambda_\theta^{2}
+\label{eq:p1}
+\end{equation}
+
+\textbf{P2} (\SI{8}{\percent} gelatin $+$ \SI{7}{\percent} cellulose fiber,
+matrix + fiber; from paper eq.\ 8, verified symbolically):
+\begin{equation}
+\mu_{\text{app},\theta\theta}^{\text{P2}}
+= \mu\,\lambda_\theta^{2}
++ \frac{k_1\,\lambda_\theta^{7}(\lambda_\theta-1)\exp\!\bigl(k_2(\lambda_\theta-1)^2\bigr)}
+       {2\,(\lambda_\theta^{6} - 1)}
+\label{eq:p2}
+\end{equation}
+\bigskip
+\textbf{Mean-of-band material constants} (from paper Table~2):
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Symbol & Value & Units & Meaning \\
+\midrule
+$\mu$ & 2750 & \si{\pascal} & mean of $[2.5,3.0]$\,kPa (matrix, both phantoms) \\
+$k_1$ & 3250 & \si{\pascal} & mean of $[1.5,5.0]$\,kPa (P2 fiber reinforcement) \\
+$k_2$ & 1.25 & --- & mean of $[0.5,2.0]$ (P2 nonlinear stiffening) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{blueb}
+
+Equation (\ref{eq:p2}) has the correct $k_1/12$ limit as
+$\lambda_\theta \to 1$ (paper eq.\ 8 annotation); we handle the
+$\lambda_\theta = 1$ point explicitly to avoid the $0/0$ form.
+
+\subsection{$G(\vect x)$ maps}
+
+Applying (\ref{eq:kinematics})--(\ref{eq:p2}) at every voxel produces
+the ground-truth stiffness fields shown in Figure~\ref{fig:g}. The
+ring is 2.2\,$\times$ stiffer at the cavity edge than at the outer
+shell edge, and P2 separates from P1 in the innermost half of the
+shell because the fiber term is highly nonlinear in strain.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1.0\textwidth]{initial_stiffness_midplane.png}
+\caption{Ground-truth $\mu_{\text{app},\theta\theta}(\vect x)$ at the
+z-midplane. Left: P1 (neo-Hookean matrix). Right: P2 (matrix + fiber).
+The balloon interior (masked white) is filled with water. Solid white
+line = cavity edge $r=a$; dotted white line = shell outer edge
+$r=a+\SI{12}{\milli\metre}$. Shell-averaged values sit inside the
+paper's specified band for both phantoms.}
+\label{fig:g}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.80\textwidth]{initial_stiffness_radial.png}
+\caption{$\mu_{\text{app},\theta\theta}(r)$ along the central axis. P2
+starts higher than P1 at the cavity edge because of the fiber term,
+then both converge to the background $\mu = \SI{2.75}{\kilo\pascal}$ far
+from the balloon. Note the steepness: the \SI{2.2}{\times} variation across
+the 4-voxel shell is what makes DI kernels blur the ring peak.}
+\label{fig:g-radial}
+\end{figure}
+
+\clearpage
+
+\section{Driver model}
+
+Two driver variants are used, both mimicking the coherent-phase piston
+plate of a real MRE experiment:
+
+\subsection{Bottom-plate driver (single-direction)}
+Disk on the bottom face ($i = N-1$) of radius $r_d = 0.5 \cdot N \Delta x / 2 =
+\SI{45}{\milli\metre}$, all disk nodes clamped to the same complex amplitude
+$u_0 = \SI{1}{\micro\metre}$. 716 source nodes total. This is the
+setup a laboratory MRE run uses.
+
+\subsection{Multi-face broadband driver (for TSM MIP)}
+Five faces driven simultaneously (bottom + four sides; top left free),
+each with the same disk source ($r_d = \SI{45}{\milli\metre}$, amplitude
+\SI{1}{\micro\metre}), 3580 source nodes total. Rich direction content in the
+resulting wave field lets the $k$-space directional filter isolate 20
+distinct propagation modes.
+
+\section{Discretisation}
+
+Second-order finite-difference discretisation of (\ref{eq:helmholtz})
+on a regular cubic grid; the divergence form uses the harmonic mean
+of $G^*$ at half-integer faces to handle sharp material gradients
+correctly:
+
+\begin{equation}
+G_{i+\frac12,j,k}^{*}
+= \frac{2\,G_{i,j,k}^{*}\,G_{i+1,j,k}^{*}}{G_{i,j,k}^{*} + G_{i+1,j,k}^{*}}
+\quad\text{(similarly for $j,k$ faces).}
+\end{equation}
+
+Stencil at an interior voxel (7-point $+$ rho-mass diagonal):
+
+\begin{equation}
+\rho\omega^2 u_{i,j,k}
+= \sum_{\text{faces }f} \frac{G_f^*}{\Delta x^2}\,(u_f - u_{i,j,k}),
+\end{equation}
+
+with $u_f$ the value at the neighbouring voxel across face $f$. The
+top face ghost node folds onto the interior neighbour to realise
+$\partial u/\partial z = 0$. Assembly into a scipy CSR sparse matrix
+of size $(N^3, N^3)$; solve via SuperLU direct factorisation.
+
+\begin{grayb}
+\textbf{System size:} 216\,000 complex DOFs, $\approx 7$ non-zeros per row.
+\textbf{SuperLU factorisation:} $\approx \SI{10}{\giga\byte}$ memory,
+$\approx \SI{3}{\minute}$ wall time on a single core.
+\end{grayb}
+
+\section{Inversion pipelines applied to $u(\vect x)$}
+
+\subsection{Direct inversion (DI)}
+
+The locally-homogeneous approximation to (\ref{eq:helmholtz}):
+
+\begin{equation}
+G(\vect x) \;\approx\; -\rho\,\omega^2 \,\frac{u(\vect x)}{\nabla^2 u(\vect x)}
+\end{equation}
+
+evaluated with a 7-point centred Laplacian. A \SI{3}{}\,$\times$\,\SI{3}{}\,$\times$\,\SI{3}{}
+spatial median filter is then applied to suppress inversion
+artifacts at material gradients (matching Yin's own protocol). Real
+part of the complex $G$ is retained.
+
+\subsection{Yin TSM MIP (direction-filtered)}
+
+Applied to the multi-face broadband run:
+
+\begin{enumerate}
+\item Generate 20 unit vectors $\ihat_d$ on a Fibonacci sphere.
+\item For each direction, apply the Gaussian angular wedge filter in
+$k$-space:
+\begin{equation}
+\hat u_d(\vect K) = \hat u(\vect K)\cdot
+\exp\!\biggl(-\frac{1 - (\hat{\vect K}\cdot \ihat_d)^2}{\sigma_a^2}\biggr)
+\cdot \mathbf{1}\!\bigl[\,|\vect K|/K_{\text{Nyq}} \in [0.02, 0.45]\bigr]
+\end{equation}
+with angular width $\sigma_a = 0.35$ rad ($\approx$ 20\textdegree\ FWHM).
+\item Direct-invert each $u_d$ with 3\,$\times$\,3\,$\times$\,3 median.
+\item Combine across directions:
+\begin{align}
+\mu_{\text{conv}}(\vect x) &= \frac{\sum_d |u_d(\vect x)|\,G_d(\vect x)}{\sum_d |u_d(\vect x)|}
+&&\text{(amplitude-weighted mean)}\\
+\mu_{\text{TSM}}(\vect x)  &= \max_{d}\ G_d(\vect x)
+&&\text{(voxelwise MIP)}
+\end{align}
+\end{enumerate}
+
+\section{Sample results}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1.0\textwidth]{wave_sim_midplane.png}
+\caption{Bottom-plate driver run. Rows: P1 (top), P2 (bottom).
+Columns: ground-truth $\mu_{\text{app},\theta\theta}$, wave amplitude
+$|u|$ in \si{\micro\metre}, real part $\Re(u)$, DI-recovered $G$
+(with 3\,$\times$\,3\,$\times$\,3 median). Peak $|u| = \SI{1.57}{\micro\metre}$
+(P1), \SI{1.68}{\micro\metre} (P2) from a \SI{1}{\micro\metre} driver amplitude.
+Ring stiffness (12\,\si{\milli\metre} shell): DI recovers
+\SI{3.40}{\kilo\pascal} (P1) and \SI{3.91}{\kilo\pascal} (P2), vs
+ground truth \SI{4.69}{} / \SI{5.70}{\kilo\pascal} — DI under-reads by
+$27$--$31\%$.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1.0\textwidth]{wave_sim_mip.png}
+\caption{Multi-face broadband run with the Yin TSM MIP protocol.
+Rows: P1 (top), P2 (bottom). Columns: ground-truth $G$, $|u|$,
+$\mu_{\text{conv}}$, $\mu_{\text{TSM}}$. The MIP field recovers the
+ring at \SI{3.51}{} (P1) and \SI{3.88}{\kilo\pascal} (P2); the
+$\mu_{\text{TSM}}/\mu_{\text{conv}}$ ratio is 1.64 (P1), 1.73 (P2)
+— compare Yin's measured 1.57 for P1.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1.0\textwidth]{mip_shell_histogram.png}
+\caption{Distribution of MIP values inside the 12\,\si{\milli\metre}
+perilesional shell (11\,344 voxels). Blue: ground-truth
+$\mu_{\text{app},\theta\theta}$; red: recovered $\mu_{\text{TSM}}$;
+gray band: the range that paper Table~3 quotes as its model band at
+250\,\si{\milli\litre}. GT has a long right tail (peak
+\SI{7.85}{\kilo\pascal} for P1, \SI{11.44}{\kilo\pascal} for P2 near the cavity
+edge) that MIP truncates because DI averages across the sharp $G(r)$
+gradient. This truncation is the "measurement resolution ceiling"
+identified in the paper's \S5.3.}
+\end{figure}
+
+\section{Perilesional ring numbers}
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Phantom & GT [\si{\kilo\pascal}] & $\mu_{\text{conv}}$ & $\mu_{\text{TSM}}$
+        & TSM/conv & TSM/GT \\
+\midrule
+P1 (neo-Hookean)     & 4.69 & 2.14 & 3.51 & 1.64 & 0.75 \\
+P2 (matrix + fiber)  & 5.70 & 2.24 & 3.88 & 1.73 & 0.68 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Interpretation:
+\begin{itemize}
+\item The TSM/conv ratio ($\gtrsim 1.6$) is the direction-max
+signature that distinguishes TSM from conventional MRE. Our value
+matches Yin's measured 1.57 for P1 within a few percent.
+\item TSM/GT $\approx 0.7$ is not a bug: it is the DI kernel width
+against the sharp $G(r)$ gradient. No direction-max can undo local
+averaging.
+\end{itemize}
+
+\section{Files and reproducibility}
+
+All under \texttt{/u/sobh/Eman\_Richard/tsm\_fno/}:
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+File & Purpose \\
+\midrule
+\texttt{src/solver/helmholtz\_fd\_3d.py} & scalar FD Helmholtz solver + DI, TSM filter \\
+\texttt{scripts/paper\_initial\_stiffness\_from\_sobh.py} & build $G_{\text{P1}}, G_{\text{P2}}$ from paper constants \\
+\texttt{scripts/paper\_wave\_sim\_sobh\_initial.py} & bottom-plate + DI forward run \\
+\texttt{scripts/paper\_wave\_sim\_sobh\_mip.py} & multi-face + TSM MIP forward run \\
+\texttt{results/paper\_initial\_stiffness\_sobh/} & $G(\vect x)$ npz + PNGs + summary \\
+\texttt{results/paper\_wave\_sim\_sobh\_initial/} & bottom-drive results \\
+\texttt{results/paper\_wave\_sim\_sobh\_mip/} & TSM MIP results, shell stats, histograms \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Python environment: \texttt{/u/sobh/.conda/envs/mri\_mrf\_pytorch\_env}
+(numpy, scipy, matplotlib). Runs take a few minutes on a login node;
+no GPU required.
+
+\bigskip
+\noindent
+\emph{Version: this document was regenerated from live scripts on
+\today. Any change to the scripts is captured in git under
+\texttt{github.com:nahilsobh/Eman\_Richard}; the latest relevant
+commits are \texttt{0bb5fb5}, \texttt{ade3bfc}, \texttt{dc8d796},
+\texttt{a0fbafd}.}
+
+\end{document}
