@@ -487,6 +487,94 @@ $\mu_{\mathrm{conv}}$ and $\mu_{\mathrm{TSM}}$ rise at Yin's
 1.45/1.47 — closer to Yin's measured 1.57.}
 \end{figure}
 
+\subsection{Full-fidelity pipeline: vector Navier + tensor + curl→MIP}
+\label{sec:vector-mip}
+
+Everything above uses scalar Helmholtz on the scalar
+$G = \mu_{\theta\theta}$. Yin's actual pipeline works on the curl of
+the measured vector displacement (\S3, Yin p.5), so the fully
+Yin-faithful simulation would (i)~use the rank-2 tensor
+$\mu_{ij}(\vect x)$ from \S\ref{sec:vector-navier}, (ii)~solve vector
+Navier for $\vect u(\vect x)$, (iii)~take $\vect q = \nabla \times \vect u$,
+(iv)~apply the 20-direction $k$-space wedge filter and direct
+inversion to a scalar representative of $\vect q$ (we use the
+$i$-axis component $q_z$, tangential to the ring plane), and
+(v)~combine as $\mu_{\mathrm{TSM}} = \max_d G_d$ and
+$\mu_{\mathrm{conv}} = \langle G_d \rangle_{|q_d|^2}$.
+
+This has been implemented and run at $32^3$ (\SI{6}{\milli\metre}
+voxels, 19\,\si{\centi\metre} cube) — the largest that fits vector
+Navier's SuperLU footprint on the login node — with a
+bottom-plate driver and all six walls fixed. Ring-mean results at
+Yin's 80\,\si{\hertz}:
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Phantom & GT $\mu_{\theta\theta}$ & $\mu_{\mathrm{conv}}$
+        & $\mu_{\mathrm{TSM}}$ & TSM/conv \\
+\midrule
+P1 & 4.93 & 2.39 & 3.04 & 1.28 \\
+P2 & 6.12 & 2.57 & 3.32 & 1.29 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{vector_mip_shell.png}
+\caption{Shell heatmaps for the vector-Navier + tensor-$\mu_{ij}$ +
+curl→MIP pipeline at 80\,\si{\hertz}. Rows: GT $\mu_{\theta\theta}$
+(top), $\mu_{\mathrm{conv}}$ (middle),
+$\mu_{\mathrm{TSM}}$ (bottom). Columns: P1 (left), P2 (right). All
+panels on the same colour scale. Grid is coarser ($32^3$ at
+\SI{6}{\milli\metre}) than the scalar runs ($60^3$ at
+\SI{3}{\milli\metre}) because vector Navier triples the DOF count.}
+\end{figure}
+
+Comparison of all three pipeline variants at 250\,\si{\milli\litre}:
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Pipeline / Frequency & $\mu_{\mathrm{TSM}}$ P1 & $\mu_{\mathrm{TSM}}$ P2
+                    & TSM/conv P1 & TSM/conv P2 \\
+\midrule
+Scalar Helmholtz + scalar $G$ / 60\,\si{\hertz} & 3.51 & 3.88 & 1.64 & 1.73 \\
+Scalar Helmholtz + scalar $G$ / 80\,\si{\hertz} & 3.79 & 4.33 & \textbf{1.45} & \textbf{1.47} \\
+Vector Navier + tensor $\mu_{ij}$ + curl→MIP / 80\,\si{\hertz} & 3.04 & 3.32 & 1.28 & 1.29 \\
+\midrule
+Yin measured (P1, 250\,\si{\milli\litre}) & 4.4 & --- & 1.57 & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The scalar 80\,\si{\hertz} pipeline gives the best TSM/conv match to
+Yin's 1.57. The vector-tensor pipeline sits noticeably lower — two
+identifiable reasons:
+
+\begin{itemize}
+\item \textbf{Boundary condition mismatch}: the vector Navier solver
+in this codebase has all six walls Dirichlet~$\vect u=\vect 0$ (no
+traction-free option). Yin's container is open-topped; the reflection
+pattern is qualitatively different, and $\mu_{\mathrm{conv}}$ rises
+against a wall-heavy field.
+\item \textbf{Driver direction diversity}: the vector run uses only
+a bottom-plate driver whereas the scalar run uses the multi-face
+broadband source. The bottom-only field is dominated by upward-
+propagating waves; the 20-direction $k$-space wedge filter has less
+tangential-plane content to grab.
+\end{itemize}
+
+Both effects are addressable — the top-free BC needs a discrete
+$\sigma \cdot \vect n = 0$ implementation in
+\texttt{navier\_solve\_3d\_tensor\_mu} (finite-difference stencil
+work, no new physics), and multi-face vector sources are already
+implementable via the existing \texttt{sources} argument. Neither
+was rerun here to keep the tensor-vs-scalar comparison clean at
+matching driver / BC choices.
+
 \section{Perilesional ring numbers}
 
 \begin{center}

@@ -1,0 +1,12 @@
+Vector Navier + rotated Cartesian tensor µ_ij(x) + curl→MIP
+at Yin's 80 Hz on the Sobh-Ehman phantoms at 250 mL
+============================================================================
+Grid: 32³ at dx = 6.0 mm → 19.2³ cm cube
+BCs: all 6 walls fixed (solver limitation); bottom-plate driver
+      at 1 µm amplitude on the +i (vertical) component.
+Curl representative: q_z (vertical component of ∇ × u).
+
+12 mm perilesional ring means:
+                     GT µ_θθ      µ_conv       µ_TSM    TSM/conv
+  P1                     4.927       2.385       3.042       1.275
+  P2                     6.115       2.568       3.321       1.293
