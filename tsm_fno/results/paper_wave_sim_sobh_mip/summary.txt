@@ -1,0 +1,13 @@
+TSM MIP recovery on Sobh-Ehman phantoms at 250 mL
+========================================================================
+Grid: 60³ hex at dx = 3.0 mm → 18.0³ cm cube
+BCs: side + bottom walls u=0, top ∂u/∂z=0 (free)
+Driver: multi-face broadband (bottom + 4 sides), amp = 1.0 µm
+Balloon at 250 mL (a=3.908 cm), water inside (G = 1.0 Pa)
+Directions: 20 (Fibonacci), wedge σ = 0.35 rad
+Median filter: 3×3×3
+
+Perilesional ring (r ∈ [a, a+12 mm]) mean stiffness:
+                      GT     µ_conv      µ_TSM    TSM/conv     TSM/GT
+  P1 (neo-Hookean)      4.689      2.141      3.510        1.64        0.75
+  P2 (matrix+fiber)     5.698      2.242      3.884        1.73        0.68
