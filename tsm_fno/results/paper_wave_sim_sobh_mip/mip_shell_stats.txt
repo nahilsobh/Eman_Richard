@@ -1,0 +1,12 @@
+12 mm spherical shell  r ∈ [3.91, 5.11] cm
+Shell voxel count: 11344
+
+Phantom 1 (10% bovine gelatin, neo-Hookean)  paper band 4.28–5.14 kPa
+  GT µ_app,θθ             n=11344  mean= 4.689 kPa  median= 4.336  p10= 3.782  p90= 6.196  max= 7.850  σ=0.990
+  µ_conv                  n=11344  mean= 2.141 kPa  median= 2.188  p10= 1.233  p90= 2.953  max= 3.335  σ=0.641
+  µ_TSM (MIP)             n=11344  mean= 3.510 kPa  median= 3.692  p10= 2.554  p90= 4.096  max= 5.540  σ=0.631
+
+Phantom 2 (8% gel + 7% cellulose, matrix + fiber)  paper band 4.70–6.94 kPa
+  GT µ_app,θθ             n=11344  mean= 5.698 kPa  median= 5.096  p10= 4.337  p90= 8.028  max=11.435  σ=1.603
+  µ_conv                  n=11344  mean= 2.242 kPa  median= 2.261  p10= 1.200  p90= 3.241  max= 3.674  σ=0.763
+  µ_TSM (MIP)             n=11344  mean= 3.884 kPa  median= 4.140  p10= 2.523  p90= 4.744  max= 7.980  σ=0.882
