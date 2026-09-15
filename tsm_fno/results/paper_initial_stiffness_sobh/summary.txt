@@ -1,0 +1,29 @@
+Initial stiffness field at 250 mL — Sobh-Ehman mean-of-band
+========================================================================
+Grid:      50×50×60 hex at dx = 3.0 mm
+Container: 15.0×15.0×18.0 cm
+Cavity:    A_ref = 2.285 cm  (50 mL cast state)
+           a_infl = 3.908 cm  (250 mL)
+
+Container BCs (per paper §2 argument, they only PERMIT/FORBID
+inflation — they do not modify the Lamé prestrain field):
+  x = ±L/2, y = ±L/2, z = −H/2  →  u = 0     (rigid walls)
+  z = +H/2                       →  σ · n = 0 (traction-free top)
+
+Mean-of-band material constants (Table 2):
+  µ (matrix, both phantoms) = 2750 Pa   (mean of [2.5, 3.0] kPa)
+  k₁ (fiber, P2 only)       = 3250 Pa   (mean of [1.5, 5.0] kPa)
+  k₂ (nonlinear, P2 only)   = 1.25      (mean of [0.5, 2.0])
+
+Shell-averaged µ_app,θθ (r ∈ [a, a+12 mm]) at 250 mL:
+  P1: ⟨G⟩ = 4.689 kPa   (11344 voxels)   paper band 4.28–5.14  (inside)
+  P2: ⟨G⟩ = 5.698 kPa   (11344 voxels)   paper band 4.70–6.94  (inside)
+
+Cavity-edge stretches (analytical):
+  λ_θ at r = a       = 1.710   (paper Table 1: 1.710)
+  λ_θ at r = a+12 mm = 1.159   (paper Table 1: 1.159)
+
+Files:
+  initial_stiffness.npz            — G_P1, G_P2, λ_θ 3D arrays
+  initial_stiffness_midplane.png   — G_P1 vs G_P2 z-midplane heatmaps
+  initial_stiffness_radial.png     — radial profile along central axis
