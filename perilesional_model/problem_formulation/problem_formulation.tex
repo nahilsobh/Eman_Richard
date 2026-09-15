@@ -431,6 +431,62 @@ Ring means: GT 4.69 / 5.70 \si{\kilo\pascal}, $\mu_{\mathrm{conv}}$
 — compare Yin's measured 1.57 for P1.}
 \end{figure}
 
+\subsection{Frequency: Yin used 80 Hz, not 60 Hz}
+\label{sec:freq-compare}
+
+Our earlier runs used $f = \SI{60}{\hertz}$ as an MRE-typical
+placeholder. Yin et al.\ (2026), page 5, actually states:
+\emph{``Mechanical vibrations at 80 Hz were introduced into the
+phantoms.''} The shear wavelength in unstretched gel scales as
+$\lambda = c_s / f$ with $c_s = \SI{1.66}{\metre\per\second}$, giving
+\SI{27.6}{\milli\metre} at 60\,\si{\hertz} and \SI{20.7}{\milli\metre}
+at 80\,\si{\hertz} — still $\lambda/\Delta x \approx 6.9$ at
+$\Delta x = \SI{3}{\milli\metre}$, above the six-per-wavelength
+resolution rule.
+
+Re-running the multi-face broadband + 20-direction MIP pipeline at
+Yin's 80\,\si{\hertz} (with the same 216\,000-DOF grid, same
+Sobh--Ehman initial stiffness, same driver amplitude) gives:
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Phantom & GT & $\mu_{\mathrm{conv}}$ (60) & $\mu_{\mathrm{conv}}$ (80)
+        & $\mu_{\mathrm{TSM}}$ (60) & $\mu_{\mathrm{TSM}}$ (80) \\
+\midrule
+P1 & 4.69 & 2.14 & \textbf{2.61} & 3.51 & \textbf{3.79} \\
+P2 & 5.70 & 2.24 & \textbf{2.95} & 3.88 & \textbf{4.33} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+with TSM/conv ratios of \textbf{1.45} (P1 at 80\,\si{\hertz}) and
+\textbf{1.47} (P2 at 80\,\si{\hertz}), \emph{closer to Yin's measured
+1.57 for P1} than the 60\,\si{\hertz} values (1.64 / 1.73). Two
+observations:
+
+\begin{itemize}
+\item $\mu_{\mathrm{conv}}$ moves toward GT at higher $f$ — the DI
+kernel width shrinks with $\lambda$, so it averages over a smaller
+region relative to the sharp $G(r)$ gradient at the balloon boundary.
+\item $\mu_{\mathrm{TSM}}$ likewise rises but by less; the ceiling
+imposed by DI's local-averaging still applies.
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1.0\textwidth]{freq_compare_60_80.png}
+\caption{60\,\si{\hertz} vs 80\,\si{\hertz} on the 12\,\si{\milli\metre}
+perilesional shell. Row~1: ground truth. Row~2:
+$\mu_{\mathrm{conv}}$ (P1 at 60\,\si{\hertz}, P1 at 80\,\si{\hertz},
+then P2 same). Row~3: $\mu_{\mathrm{TSM}}$ MIP. Row~4: polar-averaged
+radial profiles, thin lines for 60\,\si{\hertz}, thick for
+80\,\si{\hertz}. All heatmaps share the GT colour scale. Both
+$\mu_{\mathrm{conv}}$ and $\mu_{\mathrm{TSM}}$ rise at Yin's
+80\,\si{\hertz}, moving the TSM/conv ratio from 1.64/1.73 to
+1.45/1.47 — closer to Yin's measured 1.57.}
+\end{figure}
+
 \section{Perilesional ring numbers}
 
 \begin{center}

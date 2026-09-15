@@ -1,0 +1,9 @@
+80 Hz MIP recovery on Sobh-Ehman phantoms at 250 mL (Yin's phantom frequency)
+==============================================================================
+Grid: 60³ at dx = 3.0 mm (18 cm cube)
+Shear wavelength at 80 Hz in unstretched gel: 20.7 mm (6.9 voxels)
+
+Perilesional ring (r ∈ [a, a+12 mm]) mean stiffness at 80 Hz:
+                        GT      µ_conv       µ_TSM    TSM/conv
+  P1                   4.689       2.610       3.794       1.454
+  P2                   5.698       2.951       4.327       1.467
