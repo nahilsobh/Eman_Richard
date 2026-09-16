@@ -291,29 +291,160 @@ $\lambda_\theta \to 1$ (paper eq.\ 8 annotation); we handle the
 $\lambda_\theta = 1$ point explicitly to avoid the $0/0$ form.
 
 \subsection{Rotation to Cartesian --- the tensor field $\mu_{ij}(\vect x)$}
+\label{sec:rotation}
 
 The moduli above are in the spherical principal frame $(\hat r,
 \hat\theta, \hat\phi)$ of the balloon expansion. The FD grid is in
 Cartesian coordinates $(x, y, z)$, so we rotate the tensor at every
-voxel. For balloon inflation the two tangential eigenvalues are
-equal ($\mu_{\theta\theta} = \mu_{\phi\phi}$), and Ogden gives
-$\mu_{rr} = 2 W_1(\lambda_\theta)\,\lambda_\theta^{-4}$
-(from $\lambda_r = \lambda_\theta^{-2}$). The compact Cartesian
-tensor is then
+voxel. This subsection derives the change-of-basis formula in full
+and shows how the tangential-eigenvalue degeneracy of this problem
+collapses it to a form that requires only $\hat r$.
+
+\paragraph{General transformation.}
+In the spherical principal frame the tensor is diagonal with the
+Ogden eigenvalues on its diagonal:
+
+\begin{equation}
+\mu_{\text{sph}}
+\;=\;
+\begin{pmatrix}
+\mu_{rr}       & 0                    & 0 \\
+0              & \mu_{\theta\theta}   & 0 \\
+0              & 0                    & \mu_{\phi\phi}
+\end{pmatrix},
+\qquad
+\mu_{rr} = 2 W_1\,\lambda_\theta^{-4},
+\quad
+\mu_{\theta\theta} = \mu_{\phi\phi} = 2 W_1\,\lambda_\theta^{2}.
+\label{eq:musph}
+\end{equation}
+
+Let $Q(\vect x)$ be the rotation matrix whose columns are the local
+spherical basis vectors expressed in Cartesian components:
+
+\begin{equation}
+Q(\vect x) \;=\;
+\bigl[\;\hat r(\vect x)\;\big|\;\hat\theta(\vect x)\;\big|\;\hat\phi(\vect x)\;\bigr]
+\;\in\;\mathrm{SO}(3),
+\qquad
+Q Q^{\!\top} = I,\quad \det Q = +1.
+\label{eq:Qdef}
+\end{equation}
+
+With colatitude $\theta$ measured from $+\hat z$ and azimuth $\phi$
+from $+\hat x$:
+
+\begin{equation}
+\hat r =
+\!\begin{pmatrix}\sin\theta\cos\phi\\ \sin\theta\sin\phi\\ \cos\theta\end{pmatrix}\!,
+\quad
+\hat\theta =
+\!\begin{pmatrix}\cos\theta\cos\phi\\ \cos\theta\sin\phi\\ -\sin\theta\end{pmatrix}\!,
+\quad
+\hat\phi =
+\!\begin{pmatrix}-\sin\phi\\ \cos\phi\\ 0\end{pmatrix}\!.
+\label{eq:basis}
+\end{equation}
+
+A rank-2 tensor transforms under a rigid rotation as
+$\mu' = Q\,\mu\,Q^{\!\top}$, so the Cartesian tensor field is
+
+\begin{equation}
+\boxed{\;
+\mu_{\text{Cart}}(\vect x)
+\;=\;
+Q(\vect x)\;\mu_{\text{sph}}(\vect x)\;Q^{\!\top}(\vect x)
+\;}
+\label{eq:rotation-general}
+\end{equation}
+
+or in index form $\mu_{ij}(\vect x) = Q_{i\alpha}(\vect x)\,
+\mu_{\text{sph},\alpha\beta}(\vect x)\,Q_{j\beta}(\vect x)$
+(Greek indices $\alpha,\beta \in \{r,\theta,\phi\}$; Latin
+$i,j\in\{x,y,z\}$).
+
+\paragraph{Degeneracy reduction.}
+Expanding (\ref{eq:rotation-general}) column-by-column with
+$\mu_{\text{sph}} = \operatorname{diag}(\mu_{rr},\mu_{\theta\theta},
+\mu_{\phi\phi})$:
+
+\begin{equation}
+\mu_{\text{Cart}}
+\;=\;
+\mu_{rr}\,\hat r\,\hat r^{\!\top}
+\,+\,\mu_{\theta\theta}\,\hat\theta\,\hat\theta^{\!\top}
+\,+\,\mu_{\phi\phi}\,\hat\phi\,\hat\phi^{\!\top}.
+\label{eq:rot-expanded}
+\end{equation}
+
+In this problem $\mu_{\theta\theta} = \mu_{\phi\phi}$ (there is no
+azimuthal preference — both tangential eigenvalues come from the
+same $2 W_1 \lambda_\theta^{2}$). Denote the common value
+$\mu_{tt}$. The last two terms of (\ref{eq:rot-expanded}) factor:
+
+\begin{equation}
+\mu_{\text{Cart}}
+\;=\;
+\mu_{rr}\,\hat r\,\hat r^{\!\top}
+\,+\,\mu_{tt}\bigl(\hat\theta\,\hat\theta^{\!\top}
+                 + \hat\phi\,\hat\phi^{\!\top}\bigr).
+\end{equation}
+
+The orthonormality of $Q$ (\ref{eq:Qdef}) gives the completeness
+relation
+$\hat r\hat r^{\!\top} + \hat\theta\hat\theta^{\!\top}
++ \hat\phi\hat\phi^{\!\top} = I$, so
+$\hat\theta\hat\theta^{\!\top} + \hat\phi\hat\phi^{\!\top}
+= I - \hat r\hat r^{\!\top}$. Substituting:
 
 \begin{equation}
 \boxed{\;
 \mu_{ij}(\vect x)
-= \mu_{rr}(r)\,\hat r_i(\vect x)\,\hat r_j(\vect x)
-+ \mu_{\theta\theta}(r)\,\bigl(\delta_{ij} - \hat r_i(\vect x)\,\hat r_j(\vect x)\bigr)
+\;=\;
+\mu_{rr}(r)\,\hat r_i(\vect x)\,\hat r_j(\vect x)
+\,+\,\mu_{\theta\theta}(r)\bigl(\delta_{ij}
+                              - \hat r_i(\vect x)\,\hat r_j(\vect x)\bigr)
 \;}
 \label{eq:rotation}
 \end{equation}
 
-where $\hat r(\vect x) = (\vect x - \vect x_{\text{cavity}})/r$ is
-the Cartesian components of the local radial unit vector. This gives
-a \textbf{fully populated symmetric $3 \times 3$ tensor field}: six
-independent components varying voxel-by-voxel.
+with $\hat r(\vect x) = (\vect x - \vect x_{\text{cavity}})/r$ the
+Cartesian components of the local radial unit vector. The
+tangent-plane basis $(\hat\theta,\hat\phi)$ has dropped out entirely
+through the projector $(I - \hat r\hat r^{\!\top})$; only $\hat r$
+survives. This is why the assembly code
+(\texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:99--102)
+never builds $\hat\theta,\hat\phi$ or the full $Q$.
+
+\begin{grayb}\textbf{Gauge remark.}
+The choice of $(\hat\theta,\hat\phi)$ inside the tangent plane is a
+\emph{gauge freedom} of the eigenvalue-degenerate problem: any
+orthonormal frame in the tangent plane rotates $\mu_{\text{sph}}$'s
+lower $2\times 2$ block into itself, so
+(\ref{eq:rotation-general}) is invariant under those in-plane
+rotations. If the two tangential eigenvalues were split (e.g.\ by an
+explicit azimuthal fiber preference), that gauge would be
+physically fixed and one would need $\hat\theta,\hat\phi$
+explicitly.\end{grayb}
+
+Equation~(\ref{eq:rotation}) gives a \textbf{fully populated
+symmetric $3\times 3$ tensor field}: six independent components
+varying voxel-by-voxel.
+
+\paragraph{On-axis check.}
+At the $+\hat z$ pole $\hat r = (0,0,1)^{\!\top}$, so
+$\hat r\hat r^{\!\top} = \operatorname{diag}(0,0,1)$ and
+(\ref{eq:rotation}) reads
+
+\begin{equation}
+\mu_{\text{Cart}}\bigl(\text{pole}\bigr)
+\;=\;
+\operatorname{diag}\bigl(\mu_{tt},\;\mu_{tt},\;\mu_{rr}\bigr).
+\end{equation}
+
+Radial stiffness lands on the $z$-diagonal (perpendicular to the
+local balloon surface); tangential stiffness lands on the $x,y$
+diagonals (in the tangent plane). Consistent with intuition.
 
 \paragraph{Anisotropy magnitude.} At the cavity edge at
 250\,\si{\milli\litre} ($\lambda_\theta = 1.71$):
