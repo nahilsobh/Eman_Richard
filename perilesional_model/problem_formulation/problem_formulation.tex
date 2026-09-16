@@ -193,23 +193,65 @@ That is more than the 6-per-wavelength rule of thumb; the scalar-FD
 stencil resolves the shear wave without aliasing.
 
 \section{Boundary conditions}
+\label{sec:bcs}
 
 The container has D\textsubscript{4h}-broken BCs (five rigid walls,
-one free top):
+one traction-free top):
 
 \begin{center}
 \begin{tabular}{lll}
 \toprule
 Face & Condition & Discrete implementation \\
 \midrule
-$i = 0$ \hfill (top)      & $\partial u/\partial z = 0$ & ghost mirror ($u_{-1}=u_{+1}$) \\
+$i = 0$ \hfill (top)      & $\sigma_{ij} n_j = 0$ ($\vect n = -\hat z$) & ghost-node stencil (eq.~\ref{eq:ghost}) \\
 $i = N-1$ \hfill (bottom) & Dirichlet from driver       & set $u$ at all disk nodes \\
 $j = 0$, $j = N-1$        & $u = 0$                     & Dirichlet \\
 $k = 0$, $k = N-1$        & $u = 0$                     & Dirichlet \\
-Balloon interior          & $G(\vect x) = \SI{1}{\pascal}$ & vanishing shear coefficient \\
+Bottom disk + 4 side disks & Dirichlet on face-normal $u_c$ & multi-face broadband driver \\
+Balloon interior          & $\mu_{ij}(\vect x) = \SI{1}{\pascal}\,\delta_{ij}$ & vanishing shear coefficient \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\paragraph{Traction-free top BC (ghost-node stencil).}
+The physically correct top-face BC is $\sigma_{ij} n_j = 0$ with
+$\vect n = -\hat z$, i.e.\ $\sigma_{c\,0}(0,j,k) = 0$ for
+$c \in \{0,1,2\}$. This clamps the \emph{normal stress}, not the
+normal strain (an important distinction: the earlier
+$\partial u/\partial z = 0$ ghost-mirror gave TSM/conv $\approx 1.32$
+by clamping strain, well below Yin's measured $1.57$; the correct
+$\sigma\cdot\vect n = 0$ recovers $1.57$ almost exactly).
+
+Under the locally-isotropic assumption at the top slab
+($\mu_{ij} \approx \bar\mu_{\mathrm{top}}\,\delta_{ij}$ — valid
+because the top face sits far from the pre-stressed balloon), the
+three conditions solve algebraically for the ghost values
+$u_c(-1,j,k)$ in terms of the interior neighbours at
+$(+1,j,k)$ and $(0,j\pm 1,k)$, $(0,j,k\pm 1)$:
+
+\begin{equation}
+\boxed{
+\begin{aligned}
+u_z(-1,j,k) &= u_z(+1,j,k) \,+\, f_{\mathrm{top}}\Bigl[
+   u_y(0,j{+}1,k) - u_y(0,j{-}1,k) + u_x(0,j,k{+}1) - u_x(0,j,k{-}1)
+\Bigr] \\
+u_y(-1,j,k) &= u_y(+1,j,k) \,+\, \bigl[u_z(0,j{+}1,k) - u_z(0,j{-}1,k)\bigr] \\
+u_x(-1,j,k) &= u_x(+1,j,k) \,+\, \bigl[u_z(0,j,k{+}1) - u_z(0,j,k{-}1)\bigr]
+\end{aligned}
+}
+\label{eq:ghost}
+\end{equation}
+
+with
+\begin{equation}
+f_{\mathrm{top}} \;=\; \frac{\lambda}{\lambda + 2\,\bar\mu_{\mathrm{top}}},
+\qquad
+\bar\mu_{\mathrm{top}} \;=\; \tfrac{1}{3}\operatorname{tr}\bigl(\mu(\vect x_{\mathrm{top}})\bigr).
+\end{equation}
+
+No ghost DOF is introduced: every interior-stencil access to
+$u_c(-1,j,k)$ is distributed across the RHS of (\ref{eq:ghost}) in
+the sparse assembly.
 
 The "water-filled balloon that cannot support shear" is realised by
 setting $\mu_{ij}(\vect x) = \SI{1}{\pascal}\,\delta_{ij}$ inside the
@@ -516,6 +558,7 @@ the 4-voxel shell is what makes DI kernels blur the ring peak.}
 \clearpage
 
 \section{Driver model}
+\label{sec:driver}
 
 Two driver variants are used, both mimicking the coherent-phase piston
 plate of a real MRE experiment:
@@ -537,11 +580,33 @@ distinct propagation modes.
 \section{Discretisation: vector Navier}
 \label{sec:discretisation}
 
-Second-order finite-difference discretisation of (\ref{eq:navier})
-on a regular cubic grid, using divergence-form stencils on the
-stress (\ref{eq:constitutive}) evaluated with the material tensor
-$\mu_{ij}^{*}(\vect x)$ read directly from the ambient voxel. The
-per-voxel equation for equation-component $c \in \{0,1,2\}$ is:
+\paragraph{Substituted PDE.}
+Combining the strain definition, the constitutive law
+(\ref{eq:constitutive}), and the equation of motion (\ref{eq:navier})
+gives, for each equation-component $c \in \{0,1,2\}$, the coupled
+scalar PDE that is actually discretised:
+
+\begin{equation}
+\boxed{\;
+\rho\,\omega^{2}\,u_{c} \;=\;
+\partial_{j}\!\left[\,
+   \lambda\,\delta_{cj}\,\partial_{k} u_{k}
+   \;+\; \tfrac{1}{2}\,\mu^{*}_{ck}(\vect x)\bigl(\partial_{k}u_{j}+\partial_{j}u_{k}\bigr)
+   \;+\; \tfrac{1}{2}\,\mu^{*}_{jk}(\vect x)\bigl(\partial_{k}u_{c}+\partial_{c}u_{k}\bigr)
+\,\right]
+\;}
+\label{eq:navier-substituted}
+\end{equation}
+
+with $\mu^{*}_{ij} = \mu_{ij}(1+i\xi)$ (hysteretic damping folded
+in). Three coupled equations, three unknown components
+$u_{0}, u_{1}, u_{2}$ per voxel.
+
+\paragraph{Finite-difference stencil.}
+Second-order central FD of (\ref{eq:navier-substituted}) on a regular
+cubic grid, using divergence-form stencils on the stress evaluated
+with the material tensor $\mu_{ij}^{*}$ read directly from the
+ambient voxel. The per-voxel equation becomes
 
 \begin{equation}
 \rho\omega^2\, u_c^{[i,j,k]}
@@ -549,27 +614,75 @@ per-voxel equation for equation-component $c \in \{0,1,2\}$ is:
     \frac{1}{2\Delta x}
     \bigl(\sigma_{c j_{\!a}}^{[i,j,k] + e_{j_{\!a}}}
         - \sigma_{c j_{\!a}}^{[i,j,k] - e_{j_{\!a}}}\bigr),
+\label{eq:navier-fd}
 \end{equation}
-where the stress at each neighbour is itself built from central
-differences of the three displacement components using
-(\ref{eq:constitutive}). This produces a stencil of reach $\pm 2 \Delta x$
-in each axis with roughly 25--50 non-zeros per row (compared to
-$\sim 7$ for the scalar case), from the cross-coupling induced by
-$\varepsilon_{ij}$ and by the off-diagonal $\mu_{ij}(\vect x)$
-entries. Assembly into a scipy CSR sparse matrix of size
-$(3 N^3, 3 N^3)$; solve via SuperLU direct factorisation.
 
-Boundary handling: rigid Dirichlet $\vect u = \vect 0$ on the five
-walls, ghost-mirror $\partial u_c/\partial z = 0$ for each component
-$c$ on the top face (see \S\ref{sec:openissues}), and prescribed
-displacement on the driver disk nodes.
+where the stress at each $\pm e_{j_{\!a}}$ neighbour is itself
+built from central differences of the three displacement components
+via (\ref{eq:constitutive}). The composition gives a stencil of
+reach $\pm 2 \Delta x$ in each axis with roughly 25--50 non-zeros
+per row (compared to $\sim 7$ for the scalar case), from
+cross-coupling induced by $\varepsilon_{ij}$ and by the off-diagonal
+$\mu_{ij}(\vect x)$ entries.
+
+\paragraph{Boundary handling.}
+Rigid Dirichlet $\vect u = \vect 0$ on the four side walls and
+non-driver bottom nodes; prescribed face-normal displacement on the
+five driver disks (\S\ref{sec:driver}); traction-free
+$\sigma\cdot\vect n = 0$ on the top face via the ghost-node
+expansion (\ref{eq:ghost}), applied by substituting each interior
+stencil access to $u_c(-1,j,k)$ with its linear combination of
+in-plane and $u_c(+1,j,k)$ values.
+
+\paragraph{Linear system.}
+Assembly proceeds in COO triplet form (rows, cols, vals) and is
+converted to CSR for the solve. The resulting complex sparse system
+is
+
+\begin{equation}
+A\,\vect u_{\mathrm{flat}} \;=\; \vect b,
+\qquad
+A \in \mathbb{C}^{3N^{3}\times 3N^{3}},
+\qquad
+\vect u_{\mathrm{flat}} \in \mathbb{C}^{3N^{3}},
+\end{equation}
+
+with $\vect u_{\mathrm{flat}}$ the flattened $(u_c(i,j,k))$ over
+$(c,i,j,k)$ and $\vect b$ carrying the Dirichlet driver amplitudes
+and BC clamps.
+
+\paragraph{Complex $\to$ real block solve.}
+Intel MKL PARDISO (via \texttt{pypardiso}) supplies the direct LU
+factorisation with OpenMP threading, but its scipy-facing interface
+does not natively handle complex-valued systems. We therefore solve
+the equivalent real $2\times 2$ block system
+
+\begin{equation}
+\boxed{\;
+\begin{bmatrix} \operatorname{Re} A & -\operatorname{Im} A \\
+                \operatorname{Im} A &  \operatorname{Re} A \end{bmatrix}
+\begin{bmatrix} \operatorname{Re}\vect u_{\mathrm{flat}} \\
+                \operatorname{Im}\vect u_{\mathrm{flat}} \end{bmatrix}
+\;=\;
+\begin{bmatrix} \operatorname{Re}\vect b \\
+                \operatorname{Im}\vect b \end{bmatrix}
+\;}
+\label{eq:real-block}
+\end{equation}
+
+which doubles the DOF count but keeps PARDISO on its fast real LU
+path. If PARDISO is unavailable we fall back to scipy's SuperLU
+single-thread \texttt{spsolve}.
 
 \begin{grayb}
-\textbf{System size at $N = 32$:} $3 N^3 = 98\,304$ complex DOFs,
-$\sim 45$ non-zeros per row, $\sim 4.5\,$M total.
-\textbf{SuperLU factorisation:} $\sim \SI{10}{\giga\byte}$ memory,
-$\sim 5$ minutes wall time on a single core.
-Larger grids ($N = 48$) triple the memory and eight-fold the solve time.
+\textbf{System size at $N = 48$:} $3 N^{3} = \num{331776}$ complex
+DOFs; $\sim 45$ non-zeros per row; $\sim \num{15e6}$ total nonzeros.
+The real block system (\ref{eq:real-block}) has $\num{663552}$ real
+DOFs.  \textbf{PARDISO LU on 32 threads:} $\sim \SI{25}{\giga\byte}$
+memory, $\sim 200$ s wall time per phantom
+(bottom-face-only driver: $\sim 130$ s; multi-face broadband adds
+$\sim 70$ s for the extra RHS work). SuperLU fallback runs the same
+job in $\sim 30$ minutes single-threaded.
 \end{grayb}
 
 \section{Inversion pipeline: curl of \boldmath$\vect u$ then Yin TSM MIP}
