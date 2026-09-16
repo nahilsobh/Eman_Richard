@@ -38,8 +38,12 @@ from src.solver.vector_elasticity_3d import (
 )
 
 
-N   = 60
-DX  = 0.18 / N   # 3.0 mm — matches Yin's acquisition voxel resolution exactly
+# Yin's container: 15 cm (x) × 15 cm (y) × 18 cm (z).  Grid at dx = 3 mm to
+# match the 3-mm acquisition voxel resolution exactly.
+# Axis convention: (i, j, k) = (x, y, z), z vertical increasing upward.
+# Bottom (driver) at k=0, top (traction-free) at k=NZ-1.
+NX, NY, NZ = 50, 50, 60
+DX  = 0.003
 FREQ_HZ = 80.0
 RHO = 1000.0
 DAMPING = 0.05
@@ -85,10 +89,11 @@ def _W1_P2(lam):
 
 
 def build_tensor_field(W1_fn):
-    ii, jj, kk = np.indices((N, N, N))
-    c = (N - 1) / 2.0
-    dz = (ii - c) * DX; dy = (jj - c) * DX; dxv = (kk - c) * DX
-    r = np.sqrt(dxv ** 2 + dy ** 2 + dz ** 2)
+    # (i, j, k) = (x, y, z).  Origin at grid centre.
+    ii, jj, kk = np.indices((NX, NY, NZ))
+    cx = (NX - 1) / 2.0; cy = (NY - 1) / 2.0; cz = (NZ - 1) / 2.0
+    dx_c = (ii - cx) * DX; dy_c = (jj - cy) * DX; dz_c = (kk - cz) * DX
+    r = np.sqrt(dx_c ** 2 + dy_c ** 2 + dz_c ** 2)
     in_balloon = r < A_INFL_M
     r_safe = np.where(r < 1e-12, 1e-12, r)
 
@@ -102,10 +107,11 @@ def build_tensor_field(W1_fn):
     mu_tt = np.where(in_balloon, G_WATER, mu_tt)
     mu_rr = np.where(in_balloon, G_WATER, mu_rr)
 
-    rhat_i = dz  / r_safe
-    rhat_j = dy  / r_safe
-    rhat_k = dxv / r_safe
-    rhat = np.stack([rhat_i, rhat_j, rhat_k], axis=-1)
+    # Cartesian components of r̂ in (x, y, z) ordering (matches solver axes).
+    rhat_x = dx_c / r_safe
+    rhat_y = dy_c / r_safe
+    rhat_z = dz_c / r_safe
+    rhat = np.stack([rhat_x, rhat_y, rhat_z], axis=-1)
     RR = rhat[..., :, None] * rhat[..., None, :]
     dij = np.eye(3)[None, None, None, :, :]
     mu_tensor = (mu_rr[..., None, None] * RR
@@ -115,43 +121,40 @@ def build_tensor_field(W1_fn):
 
 
 def multi_face_vector_sources(radius_frac=DRIVER_R_FRAC, amp=DRIVER_AMP):
-    """4-face broadband disk sources (bottom + 4 sides, top left free).
+    """5-face broadband disk sources (bottom + 4 sides, top left free).
 
+    Axis convention (i, j, k) = (x, y, z), z vertical.  Top face at k=NZ-1
+    is left free; bottom face at k=0 carries the driver.
     Each face is driven on its own face-normal displacement component so
     the source behaves like a piston pushing perpendicular to that wall.
+    Disk radius = radius_frac × half-min-in-plane-dim on each face.
     """
     src = []
-    cy = cz = (N - 1) / 2.0
-    r_max = (N / 2.0) * radius_frac
+    cx = (NX - 1) / 2.0; cy = (NY - 1) / 2.0; cz = (NZ - 1) / 2.0
     ampC = complex(amp)
 
-    # Bottom face i = N-1 — driven on i-component (comp 0)
-    for j in range(N):
-        for k in range(N):
-            if (j - cy) ** 2 + (k - cz) ** 2 <= r_max ** 2:
-                src.append((N - 1, j, k, 0, ampC))
-
-    # j = N-1 side — driven on j-component (comp 1)
-    for i in range(N):
-        for k in range(N):
-            if (i - cy) ** 2 + (k - cz) ** 2 <= r_max ** 2:
-                src.append((i, N - 1, k, 1, ampC))
-    # j = 0 side
-    for i in range(N):
-        for k in range(N):
-            if (i - cy) ** 2 + (k - cz) ** 2 <= r_max ** 2:
-                src.append((i, 0, k, 1, ampC))
-
-    # k = N-1 side — driven on k-component (comp 2)
-    for i in range(N):
-        for j in range(N):
-            if (i - cy) ** 2 + (j - cz) ** 2 <= r_max ** 2:
-                src.append((i, j, N - 1, 2, ampC))
-    # k = 0 side
-    for i in range(N):
-        for j in range(N):
-            if (i - cy) ** 2 + (j - cz) ** 2 <= r_max ** 2:
+    # Bottom face k = 0 — driven on k-component (z, comp 2), disk in (i, j)
+    r_max_bot = (min(NX, NY) / 2.0) * radius_frac
+    for i in range(NX):
+        for j in range(NY):
+            if (i - cx) ** 2 + (j - cy) ** 2 <= r_max_bot ** 2:
                 src.append((i, j, 0, 2, ampC))
+
+    # ±x sides (i = NX-1 and i = 0) — driven on i-component (x, comp 0), disk in (j, k)
+    r_max_i = (min(NY, NZ) / 2.0) * radius_frac
+    for j in range(NY):
+        for k in range(NZ):
+            if (j - cy) ** 2 + (k - cz) ** 2 <= r_max_i ** 2:
+                src.append((NX - 1, j, k, 0, ampC))
+                src.append((0,      j, k, 0, ampC))
+
+    # ±y sides (j = NY-1 and j = 0) — driven on j-component (y, comp 1), disk in (i, k)
+    r_max_j = (min(NX, NZ) / 2.0) * radius_frac
+    for i in range(NX):
+        for k in range(NZ):
+            if (i - cx) ** 2 + (k - cz) ** 2 <= r_max_j ** 2:
+                src.append((i, NY - 1, k, 1, ampC))
+                src.append((i, 0,      k, 1, ampC))
 
     return src
 
@@ -166,9 +169,10 @@ def fibonacci_sphere(n):
 
 
 def ring_mask(balloon):
-    ii, jj, kk = np.indices((N, N, N))
-    c = (N - 1) / 2.0
-    r = np.sqrt(((ii - c) * DX) ** 2 + ((jj - c) * DX) ** 2 + ((kk - c) * DX) ** 2)
+    # (i, j, k) = (x, y, z).  12 mm shell around the cavity edge.
+    ii, jj, kk = np.indices((NX, NY, NZ))
+    cx = (NX - 1) / 2.0; cy = (NY - 1) / 2.0; cz = (NZ - 1) / 2.0
+    r = np.sqrt(((ii - cx) * DX) ** 2 + ((jj - cy) * DX) ** 2 + ((kk - cz) * DX) ** 2)
     return (~balloon) & (r >= A_INFL_M) & (r <= A_INFL_M + 0.012)
 
 
@@ -179,11 +183,11 @@ def ring_mean(G, ring):
 
 def curl_mip(u_vec, ring_msk, label):
     q = curl_of_displacement_3d(u_vec, DX)
-    q_z = q[..., 0]
+    q_z = q[..., 2]         # (i,j,k) = (x,y,z), so component 2 is the z-curl
     del q
     directions = fibonacci_sphere(N_DIRECTIONS)
-    G_stack = np.zeros((N_DIRECTIONS, N, N, N), dtype=np.float32)
-    amp_stack = np.zeros((N_DIRECTIONS, N, N, N), dtype=np.float32)
+    G_stack = np.zeros((N_DIRECTIONS, NX, NY, NZ), dtype=np.float32)
+    amp_stack = np.zeros((N_DIRECTIONS, NX, NY, NZ), dtype=np.float32)
     for d, khat in enumerate(directions):
         q_k = directional_filter_3d(q_z, khat=khat, angular_width=WEDGE_WIDTH)
         G_k = direct_inversion_3d(q_k, freq=FREQ_HZ, rho=RHO, dx=DX,
@@ -238,12 +242,14 @@ def run_phantom(W1_fn, label, sources, out_dir):
 
 
 def main():
-    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_N60_sce_rigidball"
+    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_yindim_sce_rigidball"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Grid: {N}³ at dx = {DX*1000:.1f} mm ({N*DX*100:.1f} cm cube)")
+    print(f"Grid: (NX,NY,NZ) = ({NX},{NY},{NZ}) at dx = {DX*1000:.1f} mm "
+          f"({NX*DX*100:.1f} x {NY*DX*100:.1f} x {NZ*DX*100:.1f} cm, "
+          f"matches Yin's 15 x 15 x 18 cm)")
     print(f"Frequency: {FREQ_HZ} Hz (Yin's)")
-    print(f"BCs: 5 walls fixed, top ∂u/∂z=0 (mirror)")
+    print(f"BCs: 5 walls fixed, top σ·n=0 (ghost-node at k=Nz-1)")
     sources = multi_face_vector_sources()
     print(f"Multi-face broadband source: {len(sources)} nodes across "
           f"bottom + 4 sides, driven on face-normal component")
@@ -256,9 +262,10 @@ def main():
         "Vector Navier + tensor µ_ij + multi-face broadband + top-free + curl→MIP",
         f"at Yin's {FREQ_HZ} Hz on the Sobh-Ehman phantoms at 250 mL",
         "=" * 76,
-        f"Grid: {N}³ at dx = {DX*1000:.1f} mm ({N*DX*100:.1f} cm cube)",
-        f"Driver: multi-face broadband, face-normal component per face",
-        f"BCs: 5 walls Dirichlet u=0, top ∂u/∂z=0 (mirror)",
+        f"Grid: (NX,NY,NZ) = ({NX},{NY},{NZ}) at dx = {DX*1000:.1f} mm "
+        f"({NX*DX*100:.1f} x {NY*DX*100:.1f} x {NZ*DX*100:.1f} cm, matches Yin)",
+        f"Driver: multi-face broadband at bottom + 4 sides, face-normal component",
+        f"BCs: 5 walls Dirichlet u=0, top σ·n=0 (ghost-node)",
         "",
         "12 mm perilesional ring means:",
         f"{'':16s}{'GT µ_θθ':>12s}{'µ_conv':>12s}{'µ_TSM':>12s}{'TSM/conv':>12s}",

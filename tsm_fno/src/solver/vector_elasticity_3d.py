@@ -87,7 +87,8 @@ def navier_solve_3d_isotropic(
 
     Parameters
     ----------
-    mu_field : (N, N, N) real ndarray — shear modulus field μ(x) [Pa].
+    mu_field : (Nx, Ny, Nz) real ndarray — shear modulus field μ(x) [Pa].
+        Axis convention (i, j, k) = (x, y, z), z vertical increasing upward.
     lam : float — Lamé's first parameter (bulk-related), assumed constant [Pa].
         For nearly-incompressible tissue set lam ≈ 100·μ_max as a soft
         incompressibility penalty (true incompressibility λ→∞ needs a
@@ -99,7 +100,7 @@ def navier_solve_3d_isotropic(
 
     Returns
     -------
-    u : (N, N, N, 3) complex ndarray — the vector displacement field.
+    u : (Nx, Ny, Nz, 3) complex ndarray — the vector displacement field.
 
     Boundary conditions
     -------------------
@@ -107,34 +108,43 @@ def navier_solve_3d_isotropic(
     Free-surface (traction-free) BCs are more involved for vector elasticity
     (need σ_ij n_j = 0, not just u_i = 0) and are not implemented here.
     """
-    N = mu_field.shape[0]
-    assert mu_field.shape == (N, N, N), f"expected (N,N,N), got {mu_field.shape}"
+    # Axis convention: (i, j, k) = (x, y, z), z vertical increasing upward.
+    # Domain layout: bottom face at k=0 (driver), top face at k=Nz-1 (traction-free).
+    Nx, Ny, Nz = mu_field.shape[:3]
+    assert mu_field.shape == (Nx, Ny, Nz), f"expected (Nx,Ny,Nz), got {mu_field.shape}"
     omega = 2.0 * np.pi * freq
     mu = mu_field.astype(complex) * (1.0 + 1j * float(damping))
     lam_c = complex(lam)
 
-    # Global row/col index for (component, i, j, k).
-    n_vox = N ** 3
+    # Global row/col index for (component, i, j, k) = (component, x, y, z).
+    n_vox = Nx * Ny * Nz
     n_dof = 3 * n_vox
 
     def idx(comp, i, j, k):
-        return comp * n_vox + (i * N + j) * N + k
+        return comp * n_vox + (i * Ny + j) * Nz + k
 
     def in_bounds(i, j, k):
-        return 0 <= i < N and 0 <= j < N and 0 <= k < N
+        return 0 <= i < Nx and 0 <= j < Ny and 0 <= k < Nz
 
     # Boundary set (all six faces, per component).
     boundary: set[int] = set()
     bc_values: dict[int, complex] = {}
     for c in range(3):
-        for a in range(N):
-            for b in range(N):
-                boundary.add(idx(c, 0, a, b))
-                boundary.add(idx(c, N - 1, a, b))
-                boundary.add(idx(c, a, 0, b))
-                boundary.add(idx(c, a, N - 1, b))
-                boundary.add(idx(c, a, b, 0))
-                boundary.add(idx(c, a, b, N - 1))
+        # ±x faces (i-axis normal): j ∈ [0,Ny), k ∈ [0,Nz)
+        for j in range(Ny):
+            for k in range(Nz):
+                boundary.add(idx(c, 0,      j, k))
+                boundary.add(idx(c, Nx - 1, j, k))
+        # ±y faces (j-axis normal): i ∈ [0,Nx), k ∈ [0,Nz)
+        for i in range(Nx):
+            for k in range(Nz):
+                boundary.add(idx(c, i, 0,      k))
+                boundary.add(idx(c, i, Ny - 1, k))
+        # Bottom (k=0, z_min) and top (k=Nz-1, z_max) — k-axis normal
+        for i in range(Nx):
+            for j in range(Ny):
+                boundary.add(idx(c, i, j, 0))
+                boundary.add(idx(c, i, j, Nz - 1))
 
     if sources is not None:
         for (i, j, k, comp, amp) in sources:
@@ -149,14 +159,14 @@ def navier_solve_3d_isotropic(
     inv_4dx2 = 0.25 / dx ** 2
 
     # Precompute half-point mu averages (arithmetic) for each face:
-    # mu_half_x[i, j, k] = mu at (i + 1/2, j, k). Shape (N-1, N, N).
-    mu_hx = 0.5 * (mu[1:, :, :] + mu[:-1, :, :])   # μ(i+½, j, k)
-    mu_hy = 0.5 * (mu[:, 1:, :] + mu[:, :-1, :])
-    mu_hz = 0.5 * (mu[:, :, 1:] + mu[:, :, :-1])
+    # mu_hi[i, j, k] = mu at (i + 1/2, j, k). Shapes (Nx-1, Ny, Nz) etc.
+    mu_hi = 0.5 * (mu[1:, :, :] + mu[:-1, :, :])   # μ(i+½, j, k)  — x-face
+    mu_hj = 0.5 * (mu[:, 1:, :] + mu[:, :-1, :])   # μ(i, j+½, k)  — y-face
+    mu_hk = 0.5 * (mu[:, :, 1:] + mu[:, :, :-1])   # μ(i, j, k+½)  — z-face
 
-    for i in range(N):
-        for j in range(N):
-            for k in range(N):
+    for i in range(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
                 for c in range(3):
                     m = idx(c, i, j, k)
                     if m in boundary:
@@ -166,21 +176,21 @@ def navier_solve_3d_isotropic(
 
                     # ── Term 1: ∂_j (μ ∂_j u_c) for j = 0,1,2  (variable-μ Laplacian) ──
                     # Half-point μ averages:
-                    mu_xp = mu_hx[i, j, k]     if i + 1 < N else mu[i, j, k]
-                    mu_xm = mu_hx[i - 1, j, k] if i - 1 >= 0 else mu[i, j, k]
-                    mu_yp = mu_hy[i, j, k]     if j + 1 < N else mu[i, j, k]
-                    mu_ym = mu_hy[i, j - 1, k] if j - 1 >= 0 else mu[i, j, k]
-                    mu_zp = mu_hz[i, j, k]     if k + 1 < N else mu[i, j, k]
-                    mu_zm = mu_hz[i, j, k - 1] if k - 1 >= 0 else mu[i, j, k]
+                    mu_xp = mu_hi[i, j, k]     if i + 1 < Nx else mu[i, j, k]
+                    mu_xm = mu_hi[i - 1, j, k] if i - 1 >= 0 else mu[i, j, k]
+                    mu_yp = mu_hj[i, j, k]     if j + 1 < Ny else mu[i, j, k]
+                    mu_ym = mu_hj[i, j - 1, k] if j - 1 >= 0 else mu[i, j, k]
+                    mu_zp = mu_hk[i, j, k]     if k + 1 < Nz else mu[i, j, k]
+                    mu_zm = mu_hk[i, j, k - 1] if k - 1 >= 0 else mu[i, j, k]
 
                     diag = -(mu_xp + mu_xm + mu_yp + mu_ym + mu_zp + mu_zm) * inv_dx2 \
                             + rho * omega ** 2
                     A[m, m] = diag
-                    A[m, idx(c, i + 1, j, k)] = mu_xp * inv_dx2 if i + 1 < N else 0
+                    A[m, idx(c, i + 1, j, k)] = mu_xp * inv_dx2 if i + 1 < Nx else 0
                     A[m, idx(c, i - 1, j, k)] = mu_xm * inv_dx2 if i - 1 >= 0 else 0
-                    A[m, idx(c, i, j + 1, k)] = mu_yp * inv_dx2 if j + 1 < N else 0
+                    A[m, idx(c, i, j + 1, k)] = mu_yp * inv_dx2 if j + 1 < Ny else 0
                     A[m, idx(c, i, j - 1, k)] = mu_ym * inv_dx2 if j - 1 >= 0 else 0
-                    A[m, idx(c, i, j, k + 1)] = mu_zp * inv_dx2 if k + 1 < N else 0
+                    A[m, idx(c, i, j, k + 1)] = mu_zp * inv_dx2 if k + 1 < Nz else 0
                     A[m, idx(c, i, j, k - 1)] = mu_zm * inv_dx2 if k - 1 >= 0 else 0
 
                     # ── Term 2: ∂_j (μ ∂_c u_j) for j ≠ c  (shear cross-coupling) ──
@@ -244,7 +254,7 @@ def navier_solve_3d_isotropic(
 
     print(f"[navier] solving {n_dof} DOF sparse system (nnz ~ {A.nnz})...")
     u_flat = _multithreaded_spsolve(A.tocsr(), b)
-    return u_flat.reshape(3, N, N, N).transpose(1, 2, 3, 0)
+    return u_flat.reshape(3, Nx, Ny, Nz).transpose(1, 2, 3, 0)
 
 
 def navier_solve_3d_tensor_mu(
@@ -277,24 +287,25 @@ def navier_solve_3d_tensor_mu(
 
     Parameters
     ----------
-    mu_tensor : (N, N, N, 3, 3) real ndarray — symmetric shear tensor field.
+    mu_tensor : (Nx, Ny, Nz, 3, 3) real ndarray — symmetric shear tensor field.
+        Axis convention (i, j, k) = (x, y, z), z vertical increasing upward.
     lam, freq, rho, dx, damping, sources : same as ``navier_solve_3d_isotropic``.
     top_free : bool
-        If True, the top face (i = 0) enforces the traction-free BC
-        σ·n = 0 (with n = -ẑ) using a ghost-node method: the three
-        conditions σ_c0(0) = 0 for c ∈ {0, 1, 2} determine the ghost
-        values u_c(-1, j, k) in terms of the interior u values at
-        (0, j±1, k), (0, j, k±1), and (+1, j, k):
+        If True, the top face (k = Nz-1, z_max) enforces the traction-free BC
+        σ·n = 0 (with n = +ẑ) using a ghost-node method: the three
+        conditions σ_c2(i,j,Nz-1) = 0 for c ∈ {0, 1, 2} determine the ghost
+        values u_c(i, j, Nz) in terms of the interior u values at
+        (i±1, j, Nz-1), (i, j±1, Nz-1), and (i, j, Nz-2):
 
-            u_0(-1) = u_0(+1) + f·[u_1(0,j+1,k) - u_1(0,j-1,k)
-                                 + u_2(0,j,k+1) - u_2(0,j,k-1)]
-            u_1(-1) = u_1(+1) + [u_0(0,j+1,k) - u_0(0,j-1,k)]
-            u_2(-1) = u_2(+1) + [u_0(0,j,k+1) - u_0(0,j,k-1)]
+            u_2(Nz) = u_2(Nz-2) - f·[u_0(i+1,j,Nz-1) - u_0(i-1,j,Nz-1)
+                                    + u_1(i,j+1,Nz-1) - u_1(i,j-1,Nz-1)]
+            u_0(Nz) = u_0(Nz-2) - [u_2(i+1,j,Nz-1) - u_2(i-1,j,Nz-1)]
+            u_1(Nz) = u_1(Nz-2) - [u_2(i,j+1,Nz-1) - u_2(i,j-1,Nz-1)]
 
         with f = λ / (λ + 2µ_bg), µ_bg = tr(µ)/3 at the top slab
         (locally isotropic material at the top face — valid because
         the top face sits far from the balloon where the phantom is
-        unstretched). Every u(-1) access in the assembly is expanded
+        unstretched). Every u(i,j,Nz) access in the assembly is expanded
         into this linear combination, so no ghost DOF is introduced.
 
         This is the physically correct free-surface BC (clamps normal
@@ -303,7 +314,7 @@ def navier_solve_3d_tensor_mu(
 
     Returns
     -------
-    u : (N, N, N, 3) complex ndarray — vector displacement field.
+    u : (Nx, Ny, Nz, 3) complex ndarray — vector displacement field.
 
     Notes
     -----
@@ -314,35 +325,43 @@ def navier_solve_3d_tensor_mu(
     (~2× more nonzeros than scalar case) while capturing directional
     shear response.
     """
-    N = mu_tensor.shape[0]
-    assert mu_tensor.shape == (N, N, N, 3, 3), \
-        f"expected (N,N,N,3,3), got {mu_tensor.shape}"
+    # Axis convention: (i, j, k) = (x, y, z), z vertical increasing upward.
+    # Domain layout: bottom face at k=0 (driver), top face at k=Nz-1 (traction-free).
+    Nx, Ny, Nz = mu_tensor.shape[:3]
+    assert mu_tensor.shape == (Nx, Ny, Nz, 3, 3), \
+        f"expected (Nx,Ny,Nz,3,3), got {mu_tensor.shape}"
     omega = 2.0 * np.pi * freq
     mu = mu_tensor.astype(complex) * (1.0 + 1j * float(damping))
     lam_c = complex(lam)
 
-    n_vox = N ** 3
+    n_vox = Nx * Ny * Nz
     n_dof = 3 * n_vox
 
     def idx(comp, i, j, k):
-        return comp * n_vox + (i * N + j) * N + k
+        return comp * n_vox + (i * Ny + j) * Nz + k
 
     def in_bounds(i, j, k):
-        return 0 <= i < N and 0 <= j < N and 0 <= k < N
+        return 0 <= i < Nx and 0 <= j < Ny and 0 <= k < Nz
 
     boundary: set[int] = set()
     bc_values: dict[int, complex] = {}
     for c in range(3):
-        for a in range(N):
-            for b in range(N):
-                # Top face (i = 0) — Dirichlet unless top_free.
+        # ±x faces (i-axis normal): j ∈ [0,Ny), k ∈ [0,Nz)
+        for j in range(Ny):
+            for k in range(Nz):
+                boundary.add(idx(c, 0,      j, k))
+                boundary.add(idx(c, Nx - 1, j, k))
+        # ±y faces (j-axis normal): i ∈ [0,Nx), k ∈ [0,Nz)
+        for i in range(Nx):
+            for k in range(Nz):
+                boundary.add(idx(c, i, 0,      k))
+                boundary.add(idx(c, i, Ny - 1, k))
+        # Bottom face (k = 0, z_min = driver) and top face (k = Nz-1, z_max)
+        for i in range(Nx):
+            for j in range(Ny):
+                boundary.add(idx(c, i, j, 0))
                 if not top_free:
-                    boundary.add(idx(c, 0, a, b))
-                boundary.add(idx(c, N - 1, a, b))
-                boundary.add(idx(c, a, 0, b))
-                boundary.add(idx(c, a, N - 1, b))
-                boundary.add(idx(c, a, b, 0))
-                boundary.add(idx(c, a, b, N - 1))
+                    boundary.add(idx(c, i, j, Nz - 1))
 
     if sources is not None:
         for (i, j, k, comp, amp) in sources:
@@ -362,75 +381,77 @@ def navier_solve_3d_tensor_mu(
     inv_4dx2 = 0.25 / dx ** 2
 
     # ── Traction-free ghost helpers for top_free (σ·n = 0) ──────────
-    # When top_free is True, the top face (i = 0) enforces the physically
-    # correct traction-free BC σ·n = 0 with n = -ẑ, which means
-    # σ_c0(0) = 0 for c ∈ {0, 1, 2}. Using central FD at i=0 with the
-    # locally-isotropic material at the top (µ_ij ≈ µ_bg δ_ij since the
+    # When top_free is True, the top face (k = Nz-1) enforces the physically
+    # correct traction-free BC σ·n = 0 with n = +ẑ, which means
+    # σ_c2(i,j,Nz-1) = 0 for c ∈ {0, 1, 2}. Using central FD at k=Nz-1 with
+    # the locally-isotropic material at the top (µ_ij ≈ µ_bg δ_ij since the
     # top face is far from the balloon), the three conditions determine
-    # the ghost values u_c(-1, j, k):
+    # the ghost values u_c(i, j, Nz):
     #
-    #   u_0(-1) = u_0(+1) + f·[u_1(0,j+1,k) - u_1(0,j-1,k)
-    #                        + u_2(0,j,k+1) - u_2(0,j,k-1)]
-    #   u_1(-1) = u_1(+1) + [u_0(0,j+1,k) - u_0(0,j-1,k)]
-    #   u_2(-1) = u_2(+1) + [u_0(0,j,k+1) - u_0(0,j,k-1)]
+    #   u_2(Nz) = u_2(Nz-2) - f·[u_0(i+1,j,Nz-1) - u_0(i-1,j,Nz-1)
+    #                          + u_1(i,j+1,Nz-1) - u_1(i,j-1,Nz-1)]
+    #   u_0(Nz) = u_0(Nz-2) - [u_2(i+1,j,Nz-1) - u_2(i-1,j,Nz-1)]
+    #   u_1(Nz) = u_1(Nz-2) - [u_2(i,j+1,Nz-1) - u_2(i,j-1,Nz-1)]
     #
     # where f = λ / (λ + 2µ_bg), µ_bg = tr(µ)/3 at the top slab.
+    # (Signs are opposite to the k=0 top convention because the ghost
+    # now sits above the interior instead of below.)
     #
     # In the sparse-matrix assembly, whenever a stencil accesses
-    # u_c(-1, j, k), the coefficient X is distributed across the
+    # u_c(i, j, Nz), the coefficient X is distributed across the
     # interior DOFs listed above.
 
     # Local isotropic-material factor at the top face (used only when
     # unwrapping ghost accesses).
-    mu_bg_top = float(np.mean(np.trace(mu_tensor[0].real, axis1=-2, axis2=-1)) / 3.0)
+    mu_bg_top = float(np.mean(np.trace(mu_tensor[:, :, Nz - 1].real, axis1=-2, axis2=-1)) / 3.0)
     f_top = float(lam.real / (lam.real + 2.0 * mu_bg_top))
 
-    def _expand_ghost(comp, jj, kk):
+    def _expand_ghost(comp, ii, jj):
         """Return [(target_comp, ti, tj, tk, multiplier), ...] that replaces
-        u_comp(-1, jj, kk) for the traction-free top BC.
+        u_comp(ii, jj, Nz) for the traction-free top BC.
         Out-of-bounds lateral neighbours are dropped."""
-        out = [(comp, 1, jj, kk, 1.0)]        # direct mirror partner
+        out = [(comp, ii, jj, Nz - 2, 1.0)]        # direct mirror partner
         if comp == 0:
-            if 0 <= jj + 1 < N: out.append((1, 0, jj + 1, kk, +f_top))
-            if 0 <= jj - 1 < N: out.append((1, 0, jj - 1, kk, -f_top))
-            if 0 <= kk + 1 < N: out.append((2, 0, jj, kk + 1, +f_top))
-            if 0 <= kk - 1 < N: out.append((2, 0, jj, kk - 1, -f_top))
+            if 0 <= ii + 1 < Nx: out.append((2, ii + 1, jj, Nz - 1, -1.0))
+            if 0 <= ii - 1 < Nx: out.append((2, ii - 1, jj, Nz - 1, +1.0))
         elif comp == 1:
-            if 0 <= jj + 1 < N: out.append((0, 0, jj + 1, kk, +1.0))
-            if 0 <= jj - 1 < N: out.append((0, 0, jj - 1, kk, -1.0))
+            if 0 <= jj + 1 < Ny: out.append((2, ii, jj + 1, Nz - 1, -1.0))
+            if 0 <= jj - 1 < Ny: out.append((2, ii, jj - 1, Nz - 1, +1.0))
         elif comp == 2:
-            if 0 <= kk + 1 < N: out.append((0, 0, jj, kk + 1, +1.0))
-            if 0 <= kk - 1 < N: out.append((0, 0, jj, kk - 1, -1.0))
+            if 0 <= ii + 1 < Nx: out.append((0, ii + 1, jj, Nz - 1, -f_top))
+            if 0 <= ii - 1 < Nx: out.append((0, ii - 1, jj, Nz - 1, +f_top))
+            if 0 <= jj + 1 < Ny: out.append((1, ii, jj + 1, Nz - 1, -f_top))
+            if 0 <= jj - 1 < Ny: out.append((1, ii, jj - 1, Nz - 1, +f_top))
         return out
 
     def in_bounds_mirror(ii, jj, kk):
         """True if (ii,jj,kk) is inside the grid OR is a valid top ghost."""
-        if 0 <= jj < N and 0 <= kk < N:
-            if 0 <= ii < N:
+        if 0 <= ii < Nx and 0 <= jj < Ny:
+            if 0 <= kk < Nz:
                 return True
-            if top_free and ii == -1:
+            if top_free and kk == Nz:
                 return True
         return False
 
     def add_A(m_row, comp, ii, jj, kk, coef):
         """Append (row, col, val) triplet for A[m_row, u_comp(ii, jj, kk)].
         Handles the traction-free top ghost by distributing across interior DOFs."""
-        if not (0 <= jj < N and 0 <= kk < N):
+        if not (0 <= ii < Nx and 0 <= jj < Ny):
             return
-        if 0 <= ii < N:
+        if 0 <= kk < Nz:
             _rows.append(m_row); _cols.append(idx(comp, ii, jj, kk))
             _vals.append(coef)
             return
-        if top_free and ii == -1:
-            for (tc, ti, tj, tk, mult) in _expand_ghost(comp, jj, kk):
+        if top_free and kk == Nz:
+            for (tc, ti, tj, tk, mult) in _expand_ghost(comp, ii, jj):
                 _rows.append(m_row); _cols.append(idx(tc, ti, tj, tk))
                 _vals.append(coef * mult)
 
     def eff_mu(ii, jj, kk):
-        """Return µ tensor at (ii,jj,kk) — uses the top-slab value for i=-1
+        """Return µ tensor at (ii,jj,kk) — uses the top-slab value for kk=Nz
         (locally-isotropic material assumption at the top face)."""
-        if top_free and ii == -1:
-            return mu[1, jj, kk]
+        if top_free and kk == Nz:
+            return mu[ii, jj, Nz - 2]
         return mu[ii, jj, kk]
 
     # Assembly:
@@ -443,9 +464,9 @@ def navier_solve_3d_tensor_mu(
     # Use central differences on σ (which itself uses first derivatives of u).
     # This gives a wider stencil than the isotropic case — up to 2·dx reach.
 
-    for i in range(N):
-        for j in range(N):
-            for k in range(N):
+    for i in range(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
                 for c in range(3):
                     m = idx(c, i, j, k)
                     if m in boundary:
@@ -528,25 +549,27 @@ def navier_solve_3d_tensor_mu(
     A_csr = A_coo.tocsr()
     print(f"[navier-tensor] solving {n_dof} DOF, nnz ~ {A_csr.nnz}...")
     u_flat = _multithreaded_spsolve(A_csr, b)
-    return u_flat.reshape(3, N, N, N).transpose(1, 2, 3, 0)
+    return u_flat.reshape(3, Nx, Ny, Nz).transpose(1, 2, 3, 0)
 
 
 def curl_of_displacement_3d(u_vec: np.ndarray, dx: float) -> np.ndarray:
-    """Discrete curl of a vector displacement field. Returns a (N,N,N,3) field.
+    """Discrete curl of a vector displacement field. Returns a (Nx,Ny,Nz,3) field.
 
     Isolates the S-wave (rotational) part of the elastic wave field:
     for a P-wave u = ∇φ, curl u = 0. Passing curl-u to a scalar direct
     inversion gives a cleaner shear-modulus estimate than DI on the raw
     displacement (which mixes P and S).
+
+    Axis convention (i, j, k) = (x, y, z).
     """
-    N = u_vec.shape[0]
+    Nx, Ny, Nz = u_vec.shape[:3]
     inv_2dx = 0.5 / dx
-    du = np.zeros((N, N, N, 3, 3), dtype=u_vec.dtype)
-    # du[..., i, j] = ∂_j u_i
+    du = np.zeros((Nx, Ny, Nz, 3, 3), dtype=u_vec.dtype)
+    # du[..., i, j] = ∂_j u_i    (j: 0=x, 1=y, 2=z)
     du[1:-1, :, :, :, 0] = (u_vec[2:, :, :, :] - u_vec[:-2, :, :, :]) * inv_2dx
     du[:, 1:-1, :, :, 1] = (u_vec[:, 2:, :, :] - u_vec[:, :-2, :, :]) * inv_2dx
     du[:, :, 1:-1, :, 2] = (u_vec[:, :, 2:, :] - u_vec[:, :, :-2, :]) * inv_2dx
-    curl = np.zeros((N, N, N, 3), dtype=u_vec.dtype)
+    curl = np.zeros((Nx, Ny, Nz, 3), dtype=u_vec.dtype)
     curl[..., 0] = du[..., 2, 1] - du[..., 1, 2]
     curl[..., 1] = du[..., 0, 2] - du[..., 2, 0]
     curl[..., 2] = du[..., 1, 0] - du[..., 0, 1]

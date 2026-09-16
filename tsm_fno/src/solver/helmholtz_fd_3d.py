@@ -170,11 +170,12 @@ def directional_filter_3d(
     """
     khat = np.asarray(khat, dtype=np.float64)
     khat = khat / (np.linalg.norm(khat) + 1e-30)
-    N = u.shape[0]
+    # Axis convention (i, j, k) = (x, y, z).
+    Nx, Ny, Nz = u.shape[:3]
     U = np.fft.fftn(u)
-    # k-space grid: fftshift-natural ordering, values in [-π/dx, π/dx].
-    kk = np.fft.fftfreq(N)          # in cycles/voxel, range [-0.5, 0.5)
-    Kx, Ky, Kz = np.meshgrid(kk, kk, kk, indexing="ij")
+    # k-space grid: per-axis fftfreq, values in [-0.5, 0.5) cycles/voxel.
+    kx = np.fft.fftfreq(Nx); ky = np.fft.fftfreq(Ny); kz = np.fft.fftfreq(Nz)
+    Kx, Ky, Kz = np.meshgrid(kx, ky, kz, indexing="ij")
     K_norm = np.sqrt(Kx ** 2 + Ky ** 2 + Kz ** 2)
     # Unit-vector K̂; zero norm → keep zero (DC gets killed by band-pass anyway).
     safe = np.maximum(K_norm, 1e-30)
