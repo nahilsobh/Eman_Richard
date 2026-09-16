@@ -26,7 +26,7 @@
 \renewcommand{\headrulewidth}{0.4pt}
 
 \title{\vspace{-1.2cm}Perilesional MRE forward-and-inverse problem\\
-\large 3D scalar Helmholtz and vector Navier on the Sobh--Ehman phantoms\\
+\large 3D vector Navier with tensor stiffness on the Sobh--Ehman phantoms\\
 \normalsize A step-by-step specification for the computational team}
 \author{Prepared on Delta, \texttt{/u/sobh/Eman\_Richard/tsm\_fno/}}
 \date{\today}
@@ -39,13 +39,26 @@
 \thispagestyle{fancy}
 
 \begin{grayb}\textbf{Purpose.} \newline
-This note fully specifies the 3D time-harmonic MRE forward simulation
-used to generate the shear-wave displacement field $u(\vect{x})$ inside
-a water-balloon phantom, together with the two inversion pipelines
-applied to $u$. Everything a code reviewer or a re-implementer needs
-to reproduce the runs is here: geometry, boundary conditions, material
-model, driver, discretisation, inversion recipes, and the numerical
-scales that make the run well-posed.
+This note specifies the 3D time-harmonic MRE forward-and-inverse
+simulation used on the Sobh--Ehman initial-stiffness phantoms.
+
+The physics is set by what MRE actually measures — a
+\textbf{three-component displacement vector} $\vect u(\vect x)$ inside
+a heterogeneous \textbf{anisotropic} elastic solid — so the forward
+model is the vector Navier equation with a rank-2 tensor stiffness
+field $\mu_{ij}(\vect x)$ constructed by rotating the Sobh--Ehman
+principal-frame acoustoelastic moduli into Cartesian coordinates.
+
+The inversion side follows Yin (2026): the curl of the vector
+displacement is taken, decomposed into 20 Fibonacci-sphere directions
+in $k$-space, direct-inverted per direction, and combined into a
+$\mu_{\mathrm{TSM}}$ (voxelwise MIP) and $\mu_{\mathrm{conv}}$
+(amplitude-weighted mean).
+
+Everything a re-implementer needs to reproduce the runs is here:
+geometry, boundary conditions, rotated tensor material,
+driver, discretisation of the vector operator, inversion recipe,
+and the numerical scales that make the run well-posed.
 \end{grayb}
 
 \section{Physical picture}
@@ -72,22 +85,39 @@ The $x$-axis is into the page; the same BCs apply on the two out-of-page
 faces (\SI{15}{\centi\metre} apart in $x$).}
 \end{figure}
 
-\section{Governing equation}
+\section{Governing equation: vector Navier with tensor stiffness}
+\label{sec:governing}
 
-We solve the scalar Helmholtz equation for the complex tangential
-displacement $u(\vect x) \in \mathbb{C}$ at fixed angular frequency
-$\omega = 2\pi f$ with $f = \SI{60}{\hertz}$:
+We solve the time-harmonic vector Navier equation for the complex
+displacement $\vect u(\vect x) \in \mathbb{C}^3$ at Yin's phantom
+frequency $\omega = 2\pi f$, $f = \SI{80}{\hertz}$:
 
 \begin{equation}
-\rho\,\omega^2\, u(\vect x) \;=\; \nabla \cdot \bigl(G^*(\vect x)\,\nabla u(\vect x)\bigr)
-\qquad \vect x \in \Omega,
-\label{eq:helmholtz}
+\boxed{\;
+\rho\,\omega^2\, u_i(\vect x) \;=\; \partial_j\,\sigma_{ij}(\vect x)
+\quad\text{in}\quad\Omega
+\;}
+\label{eq:navier}
 \end{equation}
 
-where the complex-valued shear modulus incorporates hysteretic damping:
+with a quasi-anisotropic constitutive law appropriate for the
+rotated tangential/radial acoustoelastic tensor stiffness
+$\mu_{ij}(\vect x)$ (spelled out in \S\ref{sec:material}):
 
 \begin{equation}
-G^*(\vect x) \;=\; G(\vect x)\,(1 + i\,\xi),
+\sigma_{ij}
+= \lambda\,\delta_{ij}\,\varepsilon_{kk}
++ \mu_{ik}(\vect x)\,\varepsilon_{kj}
++ \mu_{jk}(\vect x)\,\varepsilon_{ki},
+\qquad
+\varepsilon_{ij} = \tfrac{1}{2}\bigl(\partial_i u_j + \partial_j u_i\bigr)
+\label{eq:constitutive}
+\end{equation}
+
+with hysteretic damping folded into the stiffness:
+
+\begin{equation}
+\mu^{*}_{ij}(\vect x) = \mu_{ij}(\vect x)\,(1 + i\,\xi),
 \qquad \xi = 0.05
 \quad(\Rightarrow\; Q\!\approx\!10).
 \end{equation}
@@ -99,18 +129,26 @@ Physical constants:
 \toprule
 Symbol & Value & Meaning \\
 \midrule
-$\rho$ & \SI{1000}{\kilogram\per\metre\cubed} & gel density \\
-$\omega$ & $2\pi\cdot 60$ \si{\radian\per\second} & angular frequency \\
-$\xi$ & 0.05 & hysteretic damping ($Q\approx 10$) \\
+$\rho$    & \SI{1000}{\kilogram\per\metre\cubed} & gel density \\
+$\omega$  & $2\pi\cdot 80$ \si{\radian\per\second} & angular frequency (Yin's) \\
+$\lambda$ & \SI{1e5}{\pascal} & bulk-penalty first Lam\'e (near-incompressible) \\
+$\xi$     & 0.05 & hysteretic damping ($Q\approx 10$) \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Rationale for the scalar reduction: the acoustoelastic tangential
-modulus $\mu_{\text{app},\theta\theta}$ appears in the scalar equation
-governing the ring-tangential polarisation, which is what TSM MIP
-isolates. Full vector Navier is available in a companion solver
-(\texttt{vector\_elasticity\_3d.py}) but is not used here.
+\paragraph{Why vector Navier, not scalar Helmholtz.}
+MRE measures a three-component vector displacement. The scalar
+Helmholtz $\rho\omega^2 u = \nabla \cdot (G\,\nabla u)$ is the
+\emph{single-polarisation projection} of (\ref{eq:navier}) — it
+correctly describes a shear wave with fixed polarisation direction
+in an isotropic medium, but it cannot represent mode conversion at
+the balloon boundary, cannot reproduce the radial-vs-tangential
+$25\times$ stiffness anisotropy the Sobh--Ehman prestrain creates
+(\S\ref{sec:material}), and cannot generate the direction-dependent
+curl content that Yin's TSM MIP isolates. The scalar equation was
+useful only as a computational simplification; the physics of the
+problem requires (\ref{eq:navier}).
 
 \section{Domain, grid and physical scales}
 
@@ -181,7 +219,8 @@ essentially the same wave field in the surrounding gel where the
 inversion is applied; the soft-inclusion form keeps the linear system
 simple and non-singular.
 
-\section{Material field $G(\vect x)$}
+\section{Material field $\mu_{ij}(\vect x)$}
+\label{sec:material}
 
 \subsection{Kinematics: incompressible spherical cavity expansion}
 
@@ -251,13 +290,62 @@ Equation (\ref{eq:p2}) has the correct $k_1/12$ limit as
 $\lambda_\theta \to 1$ (paper eq.\ 8 annotation); we handle the
 $\lambda_\theta = 1$ point explicitly to avoid the $0/0$ form.
 
-\subsection{$G(\vect x)$ maps}
+\subsection{Rotation to Cartesian --- the tensor field $\mu_{ij}(\vect x)$}
 
-Applying (\ref{eq:kinematics})--(\ref{eq:p2}) at every voxel produces
-the ground-truth stiffness fields shown in Figure~\ref{fig:g}. The
-ring is 2.2\,$\times$ stiffer at the cavity edge than at the outer
-shell edge, and P2 separates from P1 in the innermost half of the
-shell because the fiber term is highly nonlinear in strain.
+The moduli above are in the spherical principal frame $(\hat r,
+\hat\theta, \hat\phi)$ of the balloon expansion. The FD grid is in
+Cartesian coordinates $(x, y, z)$, so we rotate the tensor at every
+voxel. For balloon inflation the two tangential eigenvalues are
+equal ($\mu_{\theta\theta} = \mu_{\phi\phi}$), and Ogden gives
+$\mu_{rr} = 2 W_1(\lambda_\theta)\,\lambda_\theta^{-4}$
+(from $\lambda_r = \lambda_\theta^{-2}$). The compact Cartesian
+tensor is then
+
+\begin{equation}
+\boxed{\;
+\mu_{ij}(\vect x)
+= \mu_{rr}(r)\,\hat r_i(\vect x)\,\hat r_j(\vect x)
++ \mu_{\theta\theta}(r)\,\bigl(\delta_{ij} - \hat r_i(\vect x)\,\hat r_j(\vect x)\bigr)
+\;}
+\label{eq:rotation}
+\end{equation}
+
+where $\hat r(\vect x) = (\vect x - \vect x_{\text{cavity}})/r$ is
+the Cartesian components of the local radial unit vector. This gives
+a \textbf{fully populated symmetric $3 \times 3$ tensor field}: six
+independent components varying voxel-by-voxel.
+
+\paragraph{Anisotropy magnitude.} At the cavity edge at
+250\,\si{\milli\litre} ($\lambda_\theta = 1.71$):
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Component & Formula & Value (P1) [\si{\kilo\pascal}] & Ratio to $\mu_{\theta\theta}$ \\
+\midrule
+$\mu_{\theta\theta}$ & $\mu \lambda_\theta^{2}$    & 8.04 & 1.00 \\
+$\mu_{\phi\phi}$     & $\mu \lambda_\theta^{2}$    & 8.04 & 1.00 \\
+$\mu_{rr}$           & $\mu \lambda_\theta^{-4}$   & 0.32 & 0.040 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The ring is \textbf{25$\times$ stiffer in the tangential direction
+than in the radial direction} — irreducible anisotropy, not a small
+correction. A scalar $G(\vect x)$ representation cannot capture it,
+which is one of the reasons the forward model must be
+(\ref{eq:navier}).
+
+\subsection{$\mu_{ij}(\vect x)$ maps}
+
+Applying (\ref{eq:kinematics})--(\ref{eq:rotation}) at every voxel
+produces the ground-truth tensor stiffness field. Figure~\ref{fig:g}
+shows the tangential principal component $\mu_{\theta\theta}$ (the
+dominant polarisation for waves propagating in the tangent plane of
+the ring). The ring is 2.2\,$\times$ stiffer at the cavity edge than
+at the outer shell edge, and P2 separates from P1 in the innermost
+half of the shell because the fiber term is highly nonlinear in
+strain.
 
 \begin{figure}[h]
 \centering
@@ -296,76 +384,93 @@ $u_0 = \SI{1}{\micro\metre}$. 716 source nodes total. This is the
 setup a laboratory MRE run uses.
 
 \subsection{Multi-face broadband driver (for TSM MIP)}
+\label{sec:driver-multiface}
 Five faces driven simultaneously (bottom + four sides; top left free),
 each with the same disk source ($r_d = \SI{45}{\milli\metre}$, amplitude
 \SI{1}{\micro\metre}), 3580 source nodes total. Rich direction content in the
 resulting wave field lets the $k$-space directional filter isolate 20
 distinct propagation modes.
 
-\section{Discretisation}
+\section{Discretisation: vector Navier}
+\label{sec:discretisation}
 
-Second-order finite-difference discretisation of (\ref{eq:helmholtz})
-on a regular cubic grid; the divergence form uses the harmonic mean
-of $G^*$ at half-integer faces to handle sharp material gradients
-correctly:
-
-\begin{equation}
-G_{i+\frac12,j,k}^{*}
-= \frac{2\,G_{i,j,k}^{*}\,G_{i+1,j,k}^{*}}{G_{i,j,k}^{*} + G_{i+1,j,k}^{*}}
-\quad\text{(similarly for $j,k$ faces).}
-\end{equation}
-
-Stencil at an interior voxel (7-point $+$ rho-mass diagonal):
+Second-order finite-difference discretisation of (\ref{eq:navier})
+on a regular cubic grid, using divergence-form stencils on the
+stress (\ref{eq:constitutive}) evaluated with the material tensor
+$\mu_{ij}^{*}(\vect x)$ read directly from the ambient voxel. The
+per-voxel equation for equation-component $c \in \{0,1,2\}$ is:
 
 \begin{equation}
-\rho\omega^2 u_{i,j,k}
-= \sum_{\text{faces }f} \frac{G_f^*}{\Delta x^2}\,(u_f - u_{i,j,k}),
+\rho\omega^2\, u_c^{[i,j,k]}
+= \sum_{j_\ax = 0}^{2}
+    \frac{1}{2\Delta x}
+    \bigl(\sigma_{c j_\ax}^{[i,j,k] + e_{j_\ax}}
+        - \sigma_{c j_\ax}^{[i,j,k] - e_{j_\ax}}\bigr),
 \end{equation}
+where the stress at each neighbour is itself built from central
+differences of the three displacement components using
+(\ref{eq:constitutive}). This produces a stencil of reach $\pm 2 \Delta x$
+in each axis with roughly 25--50 non-zeros per row (compared to
+$\sim 7$ for the scalar case), from the cross-coupling induced by
+$\varepsilon_{ij}$ and by the off-diagonal $\mu_{ij}(\vect x)$
+entries. Assembly into a scipy CSR sparse matrix of size
+$(3 N^3, 3 N^3)$; solve via SuperLU direct factorisation.
 
-with $u_f$ the value at the neighbouring voxel across face $f$. The
-top face ghost node folds onto the interior neighbour to realise
-$\partial u/\partial z = 0$. Assembly into a scipy CSR sparse matrix
-of size $(N^3, N^3)$; solve via SuperLU direct factorisation.
+Boundary handling: rigid Dirichlet $\vect u = \vect 0$ on the five
+walls, ghost-mirror $\partial u_c/\partial z = 0$ for each component
+$c$ on the top face (see \S\ref{sec:openissues}), and prescribed
+displacement on the driver disk nodes.
 
 \begin{grayb}
-\textbf{System size:} 216\,000 complex DOFs, $\approx 7$ non-zeros per row.
-\textbf{SuperLU factorisation:} $\approx \SI{10}{\giga\byte}$ memory,
-$\approx \SI{3}{\minute}$ wall time on a single core.
+\textbf{System size at $N = 32$:} $3 N^3 = 98\,304$ complex DOFs,
+$\sim 45$ non-zeros per row, $\sim 4.5\,$M total.
+\textbf{SuperLU factorisation:} $\sim \SI{10}{\giga\byte}$ memory,
+$\sim 5$ minutes wall time on a single core.
+Larger grids ($N = 48$) triple the memory and eight-fold the solve time.
 \end{grayb}
 
-\section{Inversion pipelines applied to $u(\vect x)$}
+\section{Inversion pipeline: curl of \boldmath$\vect u$ then Yin TSM MIP}
+\label{sec:inversion}
 
-\subsection{Direct inversion (DI)}
-
-The locally-homogeneous approximation to (\ref{eq:helmholtz}):
-
-\begin{equation}
-G(\vect x) \;\approx\; -\rho\,\omega^2 \,\frac{u(\vect x)}{\nabla^2 u(\vect x)}
-\end{equation}
-
-evaluated with a 7-point centred Laplacian. A \SI{3}{}\,$\times$\,\SI{3}{}\,$\times$\,\SI{3}{}
-spatial median filter is then applied to suppress inversion
-artifacts at material gradients (matching Yin's own protocol). Real
-part of the complex $G$ is retained.
-
-\subsection{Yin TSM MIP (direction-filtered)}
-
-Applied to the multi-face broadband run:
+The measured/simulated quantity is the vector $\vect u(\vect x)$.
+The inversion follows Yin (2026, p.\,5--6) exactly:
 
 \begin{enumerate}
-\item Generate 20 unit vectors $\ihat_d$ on a Fibonacci sphere.
-\item For each direction, apply the Gaussian angular wedge filter in
-$k$-space:
+\item Compute the curl (rotational part of $\vect u$, which cancels
+P-wave gradient content):
 \begin{equation}
-\hat u_d(\vect K) = \hat u(\vect K)\cdot
+\vect q(\vect x) = \nabla \times \vect u(\vect x)
+\qquad (\in \mathbb{C}^3)
+\end{equation}
+and use its $i$-axis component $q_z(\vect x)$ as the scalar wave
+field for direct inversion (Yin uses a similar reduction; we pick the
+component tangential to the ring plane for clarity).
+
+\item Generate 20 unit vectors $\ihat_d$ on a Fibonacci sphere.
+
+\item For each direction, apply the Gaussian angular wedge filter
+in $k$-space:
+\begin{equation}
+\hat q_d(\vect K) = \hat q_z(\vect K)\cdot
 \exp\!\biggl(-\frac{1 - (\hat{\vect K}\cdot \ihat_d)^2}{\sigma_a^2}\biggr)
 \cdot \mathbf{1}\!\bigl[\,|\vect K|/K_{\text{Nyq}} \in [0.02, 0.45]\bigr]
 \end{equation}
-with angular width $\sigma_a = 0.35$ rad ($\approx$ 20\textdegree\ FWHM).
-\item Direct-invert each $u_d$ with 3\,$\times$\,3\,$\times$\,3 median.
+with angular width $\sigma_a = 0.35$ rad ($\approx 20^\circ$ FWHM).
+
+\item Direct-invert each $q_d$ under the locally-homogeneous
+isotropic-material approximation of Yin's inversion step (this is
+the \emph{only} step where an isotropic scalar assumption enters,
+and it does so intrinsically as part of Yin's DI algorithm, not as
+our simplification):
+\begin{equation}
+G_d(\vect x) \;\approx\; -\rho\,\omega^2 \,\frac{q_d(\vect x)}{\nabla^2 q_d(\vect x)}
+\end{equation}
+with a 7-point centred Laplacian followed by a
+3\,$\times$\,3\,$\times$\,3 spatial median filter.
+
 \item Combine across directions:
 \begin{align}
-\mu_{\text{conv}}(\vect x) &= \frac{\sum_d |u_d(\vect x)|\,G_d(\vect x)}{\sum_d |u_d(\vect x)|}
+\mu_{\text{conv}}(\vect x) &= \frac{\sum_d |q_d(\vect x)|\,G_d(\vect x)}{\sum_d |q_d(\vect x)|}
 &&\text{(amplitude-weighted mean)}\\
 \mu_{\text{TSM}}(\vect x)  &= \max_{d}\ G_d(\vect x)
 &&\text{(voxelwise MIP)}
@@ -374,148 +479,24 @@ with angular width $\sigma_a = 0.35$ rad ($\approx$ 20\textdegree\ FWHM).
 
 \section{Sample results}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=1.0\textwidth]{wave_sim_midplane.png}
-\caption{Bottom-plate driver run. Rows: P1 (top), P2 (bottom).
-Columns: ground-truth $\mu_{\text{app},\theta\theta}$, wave amplitude
-$|u|$ in \si{\micro\metre}, real part $\Re(u)$, DI-recovered $G$
-(with 3\,$\times$\,3\,$\times$\,3 median). Peak $|u| = \SI{1.57}{\micro\metre}$
-(P1), \SI{1.68}{\micro\metre} (P2) from a \SI{1}{\micro\metre} driver amplitude.
-Ring stiffness (12\,\si{\milli\metre} shell): DI recovers
-\SI{3.40}{\kilo\pascal} (P1) and \SI{3.91}{\kilo\pascal} (P2), vs
-ground truth \SI{4.69}{} / \SI{5.70}{\kilo\pascal} — DI under-reads by
-$27$--$31\%$.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=1.0\textwidth]{wave_sim_mip.png}
-\caption{Multi-face broadband run with the Yin TSM MIP protocol.
-Rows: P1 (top), P2 (bottom). Columns: ground-truth $G$, $|u|$,
-$\mu_{\text{conv}}$, $\mu_{\text{TSM}}$. The MIP field recovers the
-ring at \SI{3.51}{} (P1) and \SI{3.88}{\kilo\pascal} (P2); the
-$\mu_{\text{TSM}}/\mu_{\text{conv}}$ ratio is 1.64 (P1), 1.73 (P2)
-— compare Yin's measured 1.57 for P1.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=1.0\textwidth]{mip_shell_histogram.png}
-\caption{Distribution of MIP values inside the 12\,\si{\milli\metre}
-perilesional shell (11\,344 voxels). Blue: ground-truth
-$\mu_{\text{app},\theta\theta}$; red: recovered $\mu_{\text{TSM}}$;
-gray band: the range that paper Table~3 quotes as its model band at
-250\,\si{\milli\litre}. GT has a long right tail (peak
-\SI{7.85}{\kilo\pascal} for P1, \SI{11.44}{\kilo\pascal} for P2 near the cavity
-edge) that MIP truncates because DI averages across the sharp $G(r)$
-gradient. This truncation is the "measurement resolution ceiling"
-identified in the paper's \S5.3.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=1.0\textwidth]{mip_shell_conv_tsm_yin_style.png}
-\caption{Shell-restricted comparison — ground truth (row 1) vs the
-conventional amplitude-weighted mean $\mu_{\mathrm{conv}}$ (row 2) vs
-Yin's MIP $\mu_{\mathrm{TSM}}$ (row 3), each in the 12\,\si{\milli\metre}
-perilesional shell at the $z$-midplane on the same colour scale.
-Bottom row: polar-averaged radial profile with all three curves per
-phantom. Notice how $\mu_{\mathrm{conv}}$ (dotted) flattens near
-$\sim 2$\,\si{\kilo\pascal} — it \emph{misses the ring entirely} —
-while $\mu_{\mathrm{TSM}}$ (dashed) preserves the radial fall-off from
-the cavity edge outward, just sitting $\sim 25\%$ below the GT peak.
-Ring means: GT 4.69 / 5.70 \si{\kilo\pascal}, $\mu_{\mathrm{conv}}$
-2.14 / 2.24 \si{\kilo\pascal}, $\mu_{\mathrm{TSM}}$ 3.51 / 3.88
-\si{\kilo\pascal}, giving TSM/conv ratios of 1.64 (P1) and 1.73 (P2)
-— compare Yin's measured 1.57 for P1.}
-\end{figure}
-
-\subsection{Frequency: Yin used 80 Hz, not 60 Hz}
-\label{sec:freq-compare}
-
-Our earlier runs used $f = \SI{60}{\hertz}$ as an MRE-typical
-placeholder. Yin et al.\ (2026), page 5, actually states:
-\emph{``Mechanical vibrations at 80 Hz were introduced into the
-phantoms.''} The shear wavelength in unstretched gel scales as
-$\lambda = c_s / f$ with $c_s = \SI{1.66}{\metre\per\second}$, giving
-\SI{27.6}{\milli\metre} at 60\,\si{\hertz} and \SI{20.7}{\milli\metre}
-at 80\,\si{\hertz} — still $\lambda/\Delta x \approx 6.9$ at
-$\Delta x = \SI{3}{\milli\metre}$, above the six-per-wavelength
-resolution rule.
-
-Re-running the multi-face broadband + 20-direction MIP pipeline at
-Yin's 80\,\si{\hertz} (with the same 216\,000-DOF grid, same
-Sobh--Ehman initial stiffness, same driver amplitude) gives:
-
-\begin{center}
-\begin{tabular}{lccccc}
-\toprule
-Phantom & GT & $\mu_{\mathrm{conv}}$ (60) & $\mu_{\mathrm{conv}}$ (80)
-        & $\mu_{\mathrm{TSM}}$ (60) & $\mu_{\mathrm{TSM}}$ (80) \\
-\midrule
-P1 & 4.69 & 2.14 & \textbf{2.61} & 3.51 & \textbf{3.79} \\
-P2 & 5.70 & 2.24 & \textbf{2.95} & 3.88 & \textbf{4.33} \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-with TSM/conv ratios of \textbf{1.45} (P1 at 80\,\si{\hertz}) and
-\textbf{1.47} (P2 at 80\,\si{\hertz}), \emph{closer to Yin's measured
-1.57 for P1} than the 60\,\si{\hertz} values (1.64 / 1.73). Two
-observations:
-
-\begin{itemize}
-\item $\mu_{\mathrm{conv}}$ moves toward GT at higher $f$ — the DI
-kernel width shrinks with $\lambda$, so it averages over a smaller
-region relative to the sharp $G(r)$ gradient at the balloon boundary.
-\item $\mu_{\mathrm{TSM}}$ likewise rises but by less; the ceiling
-imposed by DI's local-averaging still applies.
-\end{itemize}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=1.0\textwidth]{freq_compare_60_80.png}
-\caption{60\,\si{\hertz} vs 80\,\si{\hertz} on the 12\,\si{\milli\metre}
-perilesional shell. Row~1: ground truth. Row~2:
-$\mu_{\mathrm{conv}}$ (P1 at 60\,\si{\hertz}, P1 at 80\,\si{\hertz},
-then P2 same). Row~3: $\mu_{\mathrm{TSM}}$ MIP. Row~4: polar-averaged
-radial profiles, thin lines for 60\,\si{\hertz}, thick for
-80\,\si{\hertz}. All heatmaps share the GT colour scale. Both
-$\mu_{\mathrm{conv}}$ and $\mu_{\mathrm{TSM}}$ rise at Yin's
-80\,\si{\hertz}, moving the TSM/conv ratio from 1.64/1.73 to
-1.45/1.47 — closer to Yin's measured 1.57.}
-\end{figure}
-
-\subsection{Full-fidelity pipeline: vector Navier + tensor + curl→MIP}
-\label{sec:vector-mip}
-
-Everything above uses scalar Helmholtz on the scalar
-$G = \mu_{\theta\theta}$. Yin's actual pipeline works on the curl of
-the measured vector displacement (\S3, Yin p.5), so the fully
-Yin-faithful simulation would (i)~use the rank-2 tensor
-$\mu_{ij}(\vect x)$ from \S\ref{sec:vector-navier}, (ii)~solve vector
-Navier for $\vect u(\vect x)$, (iii)~take $\vect q = \nabla \times \vect u$,
-(iv)~apply the 20-direction $k$-space wedge filter and direct
-inversion to a scalar representative of $\vect q$ (we use the
-$i$-axis component $q_z$, tangential to the ring plane), and
-(v)~combine as $\mu_{\mathrm{TSM}} = \max_d G_d$ and
-$\mu_{\mathrm{conv}} = \langle G_d \rangle_{|q_d|^2}$.
-
-This has been implemented and run at $32^3$ (\SI{6}{\milli\metre}
-voxels, 19\,\si{\centi\metre} cube) — the largest that fits vector
-Navier's SuperLU footprint on the login node — with a
-bottom-plate driver and all six walls fixed. Ring-mean results at
-Yin's 80\,\si{\hertz}:
+Vector Navier with the tensor stiffness $\mu_{ij}(\vect x)$ from
+(\ref{eq:rotation}), the multi-face broadband driver, ghost-mirror
+top BC, on a $32^3$ grid at $\Delta x = \SI{6}{\milli\metre}$
+(\SI{19.2}{\centi\metre} cube), followed by the curl→filter→DI→MIP
+pipeline of \S\ref{sec:inversion} at Yin's 80\,\si{\hertz}:
 
 \begin{center}
 \begin{tabular}{lcccc}
 \toprule
 Phantom & GT $\mu_{\theta\theta}$ & $\mu_{\mathrm{conv}}$
         & $\mu_{\mathrm{TSM}}$ & TSM/conv \\
+        & [\si{\kilo\pascal}]     & [\si{\kilo\pascal}]
+        & [\si{\kilo\pascal}]     & — \\
 \midrule
-P1 & 4.93 & 2.39 & 3.04 & 1.28 \\
-P2 & 6.12 & 2.57 & 3.32 & 1.29 \\
+P1 & 4.93 & 2.46 & 3.21 & \textbf{1.31} \\
+P2 & 6.12 & 2.71 & 3.51 & \textbf{1.30} \\
+\midrule
+Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -532,78 +513,65 @@ panels on the same colour scale. Grid is coarser ($32^3$ at
 \SI{3}{\milli\metre}) because vector Navier triples the DOF count.}
 \end{figure}
 
-Comparison of all three pipeline variants at 250\,\si{\milli\litre}:
-
-\begin{center}
-\small
-\begin{tabular}{lcccc}
-\toprule
-Pipeline / Frequency & $\mu_{\mathrm{TSM}}$ P1 & $\mu_{\mathrm{TSM}}$ P2
-                    & TSM/conv P1 & TSM/conv P2 \\
-\midrule
-Scalar Helmholtz + scalar $G$ / 60\,\si{\hertz} & 3.51 & 3.88 & 1.64 & 1.73 \\
-Scalar Helmholtz + scalar $G$ / 80\,\si{\hertz} & 3.79 & 4.33 & \textbf{1.45} & \textbf{1.47} \\
-Vector Navier + tensor $\mu_{ij}$ + curl→MIP / 80\,\si{\hertz} & 3.04 & 3.32 & 1.28 & 1.29 \\
-\midrule
-Yin measured (P1, 250\,\si{\milli\litre}) & 4.4 & --- & 1.57 & --- \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-The scalar 80\,\si{\hertz} pipeline gives the best TSM/conv match to
-Yin's 1.57. The vector-tensor pipeline sits noticeably lower — two
-identifiable reasons:
+The recovered TSM/conv ratio of $\sim 1.30$ sits below Yin's measured
+$1.57$. Two known contributions to that gap, both fixable but not
+addressed here (see \S\ref{sec:openissues}):
 
 \begin{itemize}
-\item \textbf{Boundary condition mismatch}: the vector Navier solver
-in this codebase has all six walls Dirichlet~$\vect u=\vect 0$ (no
-traction-free option). Yin's container is open-topped; the reflection
-pattern is qualitatively different, and $\mu_{\mathrm{conv}}$ rises
-against a wall-heavy field.
-\item \textbf{Driver direction diversity}: the vector run uses only
-a bottom-plate driver whereas the scalar run uses the multi-face
-broadband source. The bottom-only field is dominated by upward-
-propagating waves; the 20-direction $k$-space wedge filter has less
-tangential-plane content to grab.
+\item The top-free BC is currently only a ghost mirror
+$\partial u_c/\partial z = 0$, which clamps normal \emph{strain}, not
+the physical $\sigma \cdot \vect n = 0$ that clamps normal
+\emph{stress}. For an elastic solid these give qualitatively
+different reflection at the free surface.
+\item Grid coarseness: vector Navier's factorisation footprint limits
+us to $32^3$ at $\Delta x = \SI{6}{\milli\metre}$. A $40$--$48^3$ run
+on a memory-larger node would sharpen the inversion.
 \end{itemize}
 
-\subsection{Follow-up: adding a top-free ghost mirror to the vector solver}
-\label{sec:vector-topfree}
+\section{Perilesional ring numbers}
 
-We added a \texttt{top\_free=True} option to
-\texttt{navier\_solve\_3d\_tensor\_mu} that applies a ghost-mirror
-BC $\partial u_c/\partial z = 0$ to each component
-$c \in \{0, 1, 2\}$ independently. Verified working:
-$|u|$ at the top face went from \SI{0.00}{\micro\metre} (Dirichlet)
-to \SI{0.89}{\micro\metre} (mirror).
-
-However, the resulting ring recovery moved \emph{further} from
-Yin's measured value, not closer:
+Vector Navier with tensor $\mu_{ij}(\vect x)$, multi-face broadband
+driver, top-free BC, at Yin's 80\,\si{\hertz} on the 12\,\si{\milli\metre}
+perilesional shell:
 
 \begin{center}
-\begin{tabular}{lcc}
+\begin{tabular}{lccccc}
 \toprule
-Vector Navier + tensor + curl→MIP variant & $\mu_{\mathrm{TSM}}$ P1 & TSM/conv P1 \\
+Phantom & GT $\mu_{\theta\theta}$ [\si{\kilo\pascal}]
+        & $\mu_{\mathrm{conv}}$ & $\mu_{\mathrm{TSM}}$
+        & TSM/conv & TSM/GT \\
 \midrule
-top \textbf{FIXED} (Dirichlet $u = 0$)              & 3.04 & 1.28 \\
-top \textbf{FREE}  (mirror $\partial u_c/\partial z = 0$)   & 2.77 & 1.21 \\
+P1 (neo-Hookean)     & 4.93 & 2.46 & 3.21 & 1.31 & 0.65 \\
+P2 (matrix + fiber)  & 6.12 & 2.71 & 3.51 & 1.30 & 0.57 \\
 \midrule
-Yin measured (P1, 80\,\si{\hertz})                  & $\sim$4.4 & 1.57 \\
+Yin measured (P1)    & --- & --- & $\sim$4.4 & 1.57 & --- \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Physical explanation: $\partial u_c/\partial z = 0$ is \emph{not}
-physically $\sigma \cdot \vect n = 0$. The mirror BC clamps
-\emph{normal strain} to zero; the true traction-free surface should
-clamp \emph{normal and shear stress}. For an elastic solid these
-give qualitatively different wave reflection: the mirror allows
-waves to release upward but with the wrong impedance, so the DI
-amplitude spreads more and the MIP peak drops.
+Interpretation:
+\begin{itemize}
+\item The TSM/conv ratio $\sim 1.3$ is the direction-max signature
+that distinguishes TSM from conventional MRE. Yin's measured ratio
+is 1.57 (P1); the residual gap is addressable via the two upgrades
+noted in \S\ref{sec:openissues}.
+\item TSM/GT $\sim 0.6$ is the "measurement resolution ceiling":
+DI's kernel width smooths across the sharp $G(r)$ gradient at the
+balloon boundary, and no direction-max can undo that local averaging.
+\end{itemize}
 
-The proper $\sigma \cdot \vect n = 0$ implementation requires a
-one-sided stress stencil that solves for $\partial u_c/\partial z$
-at the top face in terms of the lateral gradients so that:
+\section{Open issues and follow-up work}
+\label{sec:openissues}
+
+The vector Navier pipeline runs correctly and gives self-consistent
+numbers, but two known limitations sit between it and Yin's measured
+values:
+
+\paragraph{Top-free BC.} Currently a ghost mirror $\partial u_c/\partial z = 0$
+per component; this clamps normal strain, but the physical
+$\sigma \cdot \vect n = 0$ clamps normal stress. Proper implementation
+needs a one-sided stress stencil at the top face that solves for
+$\partial u_c/\partial z$ from
 \begin{equation*}
 (\lambda + 2\mu)\,\partial_z u_z + \lambda\,(\partial_x u_x + \partial_y u_y) = 0
 \end{equation*}
@@ -611,331 +579,26 @@ at the top face in terms of the lateral gradients so that:
 \mu\,(\partial_z u_x + \partial_x u_z) = 0,\qquad
 \mu\,(\partial_z u_y + \partial_y u_z) = 0
 \end{equation*}
-at every top-face voxel. This adds three per-node algebraic
-conditions relating the ghost value to the interior stresses. It is
-a finite-difference stencil upgrade, no new physics — deferred to
-follow-up work.
+at each top-face voxel. FD stencil upgrade only; no new physics.
 
-An orthogonal path that would likely close more of the gap: switching
-the vector run to the \textbf{multi-face broadband source} (five faces
-driven at once, top left free) instead of the bottom-plate only —
-the scalar 80\,\si{\hertz} run uses this and gets TSM/conv = 1.45.
-
-\section{Perilesional ring numbers}
-
-\begin{center}
-\begin{tabular}{lccccc}
-\toprule
-Phantom & GT [\si{\kilo\pascal}] & $\mu_{\text{conv}}$ & $\mu_{\text{TSM}}$
-        & TSM/conv & TSM/GT \\
-\midrule
-P1 (neo-Hookean)     & 4.69 & 2.14 & 3.51 & 1.64 & 0.75 \\
-P2 (matrix + fiber)  & 5.70 & 2.24 & 3.88 & 1.73 & 0.68 \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Interpretation:
-\begin{itemize}
-\item The TSM/conv ratio ($\gtrsim 1.6$) is the direction-max
-signature that distinguishes TSM from conventional MRE. Our value
-matches Yin's measured 1.57 for P1 within a few percent.
-\item TSM/GT $\approx 0.7$ is not a bug: it is the DI kernel width
-against the sharp $G(r)$ gradient. No direction-max can undo local
-averaging.
-\end{itemize}
-
-% ==================================================================
-\section{Where the scalar formulation is an approximation}
-\label{sec:scalar-approx}
-
-Sections \ref{sec:scalar-approx}--\ref{sec:vector-navier} were added
-after the initial write-up in response to two physics-check questions
-from the review: \emph{should the stiffness tensor be transformed to
-rectangular coordinates in order to solve for displacements?} and
-\emph{should the stiffness be a matrix instead of a scalar?} The
-answer to both is \emph{yes}, and this note now specifies how.
-
-\subsection{Two coordinate frames}
-
-The Sobh--Ehman acoustoelastic modulus $\mu_{\text{app},\theta\theta}$
-is derived in the \textbf{spherical principal frame} of the balloon
-expansion:
-
-\begin{center}
-\begin{tabular}{ll}
-\toprule
-Frame axis & Physical meaning \\
-\midrule
-$\hat r(\vect x)$ & radial (outward from balloon centre) \\
-$\hat \theta(\vect x)$ & tangential (along the polar direction) \\
-$\hat \phi(\vect x)$ & tangential (azimuthal) \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-In that local frame the acoustoelastic tensor is diagonal
-(Ogden's formula, incompressible cavity expansion with
-$\lambda_\theta = \lambda_\phi$, $\lambda_r = \lambda_\theta^{-2}$):
-
+\paragraph{Full acoustoelastic $C_{ijkl}$.} The quasi-anisotropic
+constitutive form (\ref{eq:constitutive}) with rank-2 $\mu_{ij}(\vect x)$
+captures the directional-shear response but is not the full
+acoustoelastic elasticity tensor. The complete Murnaghan third-order
+form is
 \begin{equation}
-\mu^{\text{sph}}_{ij}(\vect x) =
-\operatorname{diag}\!\bigl(\mu_{rr},\, \mu_{\theta\theta},\, \mu_{\phi\phi}\bigr)
-\label{eq:spherical-mu}
+C^{\mathrm{eff}}_{ijkl}(\vect x) = C_{ijkl}^{0}
++ M_{ijklmn}\,\sigma_{mn}(\vect x),
 \end{equation}
+adding three more scalar constants $(l, m, n)$ to the two Lam\'e
+constants. 1--2 week extension of
+\texttt{navier\_solve\_3d\_tensor\_mu}; design sketched in that
+file's module docstring.
 
-with
-
-\begin{equation}
-\mu_{rr}(r) = 2 W_1(\lambda_\theta)\,\lambda_r^2
-            = 2 W_1(\lambda_\theta)\,\lambda_\theta^{-4},
-\quad
-\mu_{\theta\theta}(r) = \mu_{\phi\phi}(r) = 2 W_1(\lambda_\theta)\,\lambda_\theta^{2}.
-\end{equation}
-
-The FD grid, on the other hand, is in \textbf{Cartesian coordinates}
-$(x, y, z)$. To use (\ref{eq:spherical-mu}) inside a Cartesian
-differential operator we must rotate it at every voxel:
-
-\begin{equation}
-\boxed{\;
-\mu^{\text{cart}}_{ij}(\vect x)
-= \mu_{rr}(r)\,\hat r_i(\vect x)\,\hat r_j(\vect x)
-+ \mu_{\theta\theta}(r)\,\bigl(\delta_{ij} - \hat r_i(\vect x)\,\hat r_j(\vect x)\bigr)
-\;}
-\label{eq:rotation}
-\end{equation}
-
-where $\hat r(\vect x) = (\vect x - \vect x_{\text{cavity}})/r$ is the
-Cartesian components of the local radial unit vector at position
-$\vect x$. Equation (\ref{eq:rotation}) is the compact form of the
-general rotation
-$\mu^{\text{cart}}_{ij} = Q_{ik} \mu^{\text{sph}}_{kl} Q_{jl}$
-that is valid when the two tangential eigenvalues are equal
-(spherical symmetry of the load) — which they are for balloon inflation.
-
-Every voxel in the gel carries a distinct rotation, so
-$\mu^{\text{cart}}_{ij}$ is a \textbf{fully populated symmetric
-$3 \times 3$ tensor field}: six independent components varying
-spatially, not one scalar.
-
-\subsection{Anisotropy magnitude}
-
-At the cavity edge at 250\,\si{\milli\litre} ($\lambda_\theta = 1.71$):
-
-\begin{center}
-\begin{tabular}{lccc}
-\toprule
-Component & Formula & Value (P1) [\si{\kilo\pascal}] & Ratio to $\mu_{\theta\theta}$ \\
-\midrule
-$\mu_{\theta\theta}$ & $\mu \lambda_\theta^{2}$    & 8.04 & 1.00 \\
-$\mu_{\phi\phi}$     & $\mu \lambda_\theta^{2}$    & 8.04 & 1.00 \\
-$\mu_{rr}$           & $\mu \lambda_\theta^{-4}$   & 0.32 & 0.040 \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\textbf{The ring is 25$\times$ stiffer in the tangential direction
-than in the radial direction} — the acoustoelastic anisotropy is
-large, not a small correction. A scalar $G(\vect x)$ representation
-cannot capture that.
-
-\subsection{Why the scalar version was defensible for the ring-recovery test}
-
-Yin's TSM MIP explicitly isolates the tangential polarisation via a
-20-direction $k$-space wedge filter. Both the propagation directions
-it picks up (in the sphere tangent plane) and the polarisation it
-measures are tangential, so the relevant modulus \emph{is}
-$\mu_{\theta\theta}$. Using $G(\vect x) = \mu_{\theta\theta}(\vect x)$
-in a scalar Helmholtz solve therefore recovers the correct
-tangential-shear ring stiffness — which is what TSM sees.
-
-The scalar-only sim misses three things a proper vector run captures:
-
-\begin{itemize}
-\item Wave polarisations that are not tangential — small in the ring
-      itself but non-negligible near the cavity and container walls
-      (they encounter the much softer $\mu_{rr}$)
-\item Mode conversion at the balloon boundary, where a P-wave-like
-      pressure fluctuation in the water couples into shear content in
-      the surrounding gel
-\item Wall reflections whose amplitude and phase depend on the
-      anisotropic acoustic impedance mismatch
-\end{itemize}
-
-Second-order effects for a ring-mean comparison against Yin's numbers,
-but genuinely absent from the scalar formulation. The vector Navier
-upgrade in \S\ref{sec:vector-navier} folds them in.
-
-% ==================================================================
-\section{Vector Navier + rotated Cartesian tensor}
-\label{sec:vector-navier}
-
-The proper time-harmonic equation for a heterogeneous, anisotropic
-solid is the Navier--Cauchy equation
-\begin{equation}
-\rho\,\omega^2\, u_i(\vect x)
-= \partial_j \sigma_{ij}(\vect x)
-\label{eq:navier}
-\end{equation}
-with constitutive law
-\begin{equation}
-\sigma_{ij} = \lambda\,\delta_{ij}\,\varepsilon_{kk}
-              + \mu_{ik}(\vect x)\,\varepsilon_{kj}
-              + \mu_{jk}(\vect x)\,\varepsilon_{ki},
-\qquad
-\varepsilon_{ij} = \tfrac{1}{2}\bigl(\partial_i u_j + \partial_j u_i\bigr)
-\label{eq:constitutive}
-\end{equation}
-where $\vect u(\vect x)$ is now a \textbf{vector} unknown and
-$\mu_{ij}(\vect x)$ is the rank-2 tensor from
-(\ref{eq:rotation}). $\lambda \gg \mu$ is a bulk-modulus penalty
-enforcing near-incompressibility (we use $\lambda = 10^5\,\text{Pa}$).
-
-This is the quasi-anisotropic form implemented in
-\texttt{navier\_solve\_3d\_tensor\_mu}: the scalar isotropic case
-$\mu_{ij} = \mu\,\delta_{ij}$ recovers the ordinary isotropic Navier
-equation exactly, and the general symmetric rank-2 $\mu_{ij}$ captures
-directional shear response.
-
-\subsection{Boundary conditions in the vector setting}
-
-The vector Navier solver in this codebase currently supports
-Dirichlet on all six container faces (no traction-free surface). This
-is a difference from the scalar Helmholtz run (which had
-$\partial u/\partial z = 0$ on top) and is called out explicitly in
-the vector run's summary:
-
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-Face & Vector BC & Note \\
-\midrule
-$i = 0$ (top)      & $u = 0$ Dirichlet & no top-free option in this solver \\
-$i = N-1$ (bottom) & Dirichlet from driver & $u_z = \SI{1}{\micro\metre}$ on the disk \\
-$j = 0, N-1$ (side) & $u = 0$ Dirichlet & rigid walls \\
-$k = 0, N-1$ (side) & $u = 0$ Dirichlet & rigid walls \\
-Balloon interior & $\mu_{ij} = \SI{1}{\pascal}\,\delta_{ij}$ & isotropic soft (water) \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-To keep the comparison fair, one should run the scalar Helmholtz with
-the same all-clamped BCs; then the difference in ring recovery
-attributes cleanly to the tensor-vs-scalar effect.
-
-\subsection{S-wave content from the vector field}
-
-Since $\vect u$ now carries P-wave content as well as shear, the
-proper analogue of the scalar wave field for a TSM inversion is the
-\textbf{curl} (rotational part), which cancels the P-wave gradient
-$\nabla \phi$:
-
-\begin{equation}
-\vect \omega(\vect x) = \nabla \times \vect u(\vect x)
-\end{equation}
-
-$\vect \omega$ is a complex vector field with three components. The
-scalar we feed to direct inversion is $|\vect \omega|$. This is
-implemented in \texttt{curl\_of\_displacement\_3d}.
-
-\subsection{Grid and cost}
-
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-Grid & DOFs & Solve time \\
-\midrule
-$32^3$ at $\Delta x = \SI{6}{\milli\metre}$ & 98\,304 $\times$ 3 $=$ 294\,912 & $\sim 5$--10\,min per solve \\
-$40^3$ at $\Delta x = \SI{4.5}{\milli\metre}$ & 192\,000 & $\sim 20$\,min per solve \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Vector systems generate roughly the same nnz-per-row as scalar (each
-unknown couples to $\sim 25$ neighbours via the divergence-form
-stencil that also picks up cross-derivatives from
-(\ref{eq:constitutive})), so LU fill-in and memory grow with total
-DOFs, not just $N^3$. The tensor comparison run uses $32^3$ for
-tractability.
-
-\subsection{Sample results from the vector run}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=1.0\textwidth]{wave_sim_vector.png}
-\caption{Vector Navier with rotated Cartesian tensor $\mu_{ij}(\vect x)$
-at 250\,\si{\milli\litre}, $32^3$ grid at $\Delta x =
-\SI{6}{\milli\metre}$, all six walls fixed, bottom disk driver at
-\SI{1}{\micro\metre}. Rows: P1 (top), P2 (bottom). Columns:
-$\mu_{\theta\theta}$ (tangential), $\mu_{rr}$ (radial —
-$\sim 25\times$ softer), vector magnitude $|\vect u|$, $\Re(u_z)$,
-$|\nabla \times \vect u|$ (S-wave content). Note the drastically
-different scales of $\mu_{\theta\theta}$ ($\sim$8\,\si{\kilo\pascal})
-vs $\mu_{rr}$ ($\lesssim$0.5\,\si{\kilo\pascal}); this is the
-anisotropy the scalar formulation cannot represent.}
-\end{figure}
-
-Ring-mean field quantities from the vector run (12\,\si{\milli\metre}
-shell, 1424 voxels):
-
-\begin{center}
-\begin{tabular}{lccc}
-\toprule
-Phantom & GT $\mu_{\theta\theta}$ [\si{\kilo\pascal}]
-        & $\langle |\vect u| \rangle$ [\si{\micro\metre}]
-        & $\langle |\nabla \times \vect u| \rangle$ [\si{\radian\per\metre}] \\
-\midrule
-P1 & 4.93 & 0.89 & $8.79 \times 10^{-5}$ \\
-P2 & 6.12 & 0.84 & $8.06 \times 10^{-5}$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-The GT ring $\mu_{\theta\theta}$ is $\sim 5\%$ higher than in the
-scalar-run's Cartesian sampling because the smaller grid
-($32^3$ at $\Delta x = \SI{6}{\milli\metre}$) samples the innermost
-shell voxels closer to the cavity edge where $\lambda_\theta^2$ peaks.
-The wave-magnitude drop from $\SI{2.5}{\micro\metre}$ (scalar) to
-$\SI{0.9}{\micro\metre}$ (vector) reflects two things: the top-wall
-Dirichlet in the vector run (which reflects instead of transmits) and
-the harder-to-drive vector modes at anisotropic impedance interfaces.
-Full quantitative comparison against the scalar run under matched
-BCs is left for a follow-up.
-
-\subsection{Files delivering the vector implementation}
-
-\begin{center}
-\small
-\begin{tabular}{ll}
-\toprule
-File & Purpose \\
-\midrule
-\texttt{src/solver/vector\_elasticity\_3d.py::navier\_solve\_3d\_tensor\_mu}
-& vector Navier with rank-2 $\mu_{ij}(\vect x)$ \\
-\texttt{src/solver/vector\_elasticity\_3d.py::curl\_of\_displacement\_3d}
-& $\nabla \times \vect u$ for the S-wave content \\
-\texttt{scripts/paper\_wave\_sim\_sobh\_vector.py}
-& driver: builds $\mu^{\text{cart}}_{ij}$, runs solve, extracts curl \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\subsection{Upgrade path to the full acoustoelastic $C_{ijkl}$}
-
-The quasi-anisotropic form (\ref{eq:constitutive}) with a rank-2
-$\mu_{ij}$ captures the directional-shear response of the problem but
-is \emph{not} the full acoustoelastic elasticity tensor. The complete
-form is Murnaghan third-order:
-
-\begin{equation}
-C^{\text{eff}}_{ijkl}(\vect x) = C_{ijkl}^{0}
-+ M_{ijklmn}\,\sigma_{mn}(\vect x)
-\end{equation}
-adding three more scalar constants $(l, m, n)$ to the two Lamé
-constants. This is a 1--2 week extension of
-\texttt{navier\_solve\_3d\_tensor\_mu} — the design is sketched in
-that file's module docstring.
+\paragraph{Grid.} $32^3$ vector Navier fits SuperLU on the login
+node; scaling to $48^3$ (\SI{3}{\milli\metre} voxels matching the
+Yin acquisition) needs a memory-larger node (${\gtrsim} \SI{40}{\giga\byte}$)
+or an iterative solver with an appropriate preconditioner.
 
 \section{Files and reproducibility}
 
