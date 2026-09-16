@@ -40,19 +40,14 @@ from __future__ import annotations
 
 import numpy as np
 from scipy.sparse import lil_matrix
-from scipy.sparse.linalg import spsolve as _scipy_spsolve
 
-# Prefer Intel MKL PARDISO (multi-threaded, respects OMP_NUM_THREADS) when
-# available; fall back to scipy's single-threaded SuperLU otherwise.
-try:
-    from pypardiso import spsolve as _pardiso_spsolve
-    _HAS_PARDISO = True
-except ImportError:
-    _HAS_PARDISO = False
+# Intel MKL PARDISO (multi-threaded, respects OMP_NUM_THREADS) is required.
+# Install via `pip install pypardiso` (needs MKL runtime).
+from pypardiso import spsolve as _pardiso_spsolve
 
 
 def _multithreaded_spsolve(A_csr, b):
-    """Multi-threaded LU solve for a complex sparse system.
+    """Multi-threaded LU solve for a complex sparse system via PARDISO.
 
     PARDISO does not natively handle complex-valued systems in the
     scipy interface, so we solve the real 2×2 block system
@@ -64,10 +59,8 @@ def _multithreaded_spsolve(A_csr, b):
     real, letting PARDISO use its (fast, threaded) real LU. For real
     inputs we call PARDISO directly.
     """
-    if not _HAS_PARDISO:
-        return _scipy_spsolve(A_csr, b)
     import numpy as _np
-    from scipy.sparse import bmat, csr_matrix
+    from scipy.sparse import bmat
     if _np.iscomplexobj(A_csr.data) or _np.iscomplexobj(b):
         Ar = A_csr.real
         Ai = A_csr.imag

@@ -688,8 +688,9 @@ the equivalent real $2\times 2$ block system
 \end{equation}
 
 which doubles the DOF count but keeps PARDISO on its fast real LU
-path. If PARDISO is unavailable we fall back to scipy's SuperLU
-single-thread \texttt{spsolve}.
+path. \texttt{pypardiso} is a hard dependency of the solver module
+(\texttt{vector\_elasticity\_3d.py} imports it at the top level with
+no fallback), so PARDISO must be available at solve time.
 
 \begin{grayb}
 \textbf{System size at $N = 48$:} $3 N^{3} = \num{331776}$ complex
@@ -700,9 +701,9 @@ DOFs.
 $\sim \SI{25}{\giga\byte}$ memory, $\sim 200$ s wall time per phantom
 (bottom-face-only driver: $\sim 130$ s; multi-face broadband adds
 $\sim 70$ s for the extra RHS work).
-\textbf{SuperLU fallback:} single-threaded, wall time not measured
-at $N = 48$ (order-of-magnitude expectation: PARDISO time
-multiplied by thread count minus threading efficiency losses).
+Threading scales with \texttt{OMP\_NUM\_THREADS}; use
+\texttt{cpu-interactive} or a batch reservation with $\ge\!32$ cores
+to reproduce the wall-time figures.
 \end{grayb}
 
 \section{Inversion pipeline: curl of \boldmath$\vect u$ then Yin TSM MIP}
