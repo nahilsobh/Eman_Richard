@@ -626,6 +626,66 @@ what drives the direction-selective wave response Yin's TSM MIP
 picks out. P2 is ${\sim}1.5\times$ stiffer tangentially than P1 in
 the shell — the power-law fibre recruitment kicking in.
 
+\paragraph{Full Cartesian $\mu_{ij}(\vect x)$ at representative voxels.}
+The two spherical-frame eigenvalues rotate to a
+\textbf{fully-populated symmetric $3\times 3$ matrix} at every voxel.
+Six regions sampled from the $48^3$ production grid, all values in
+\si{\kilo\pascal}, axis convention $(0, 1, 2) = (z, y, x)$:
+
+\vspace{2pt}
+\begin{center}
+\small
+\textbf{Phantom P1 (neo-Hookean)}\\[2pt]
+\begin{tabular}{lrrrr|rrrrrr|rr}
+\toprule
+Region & $r$ (mm) & $\hat r_z$ & $\hat r_y$ & $\hat r_x$ & $\mu_{zz}$ & $\mu_{yy}$ & $\mu_{xx}$ & $\mu_{zy}$ & $\mu_{zx}$ & $\mu_{yx}$ & $\mu_{rr}$ & $\mu_{\theta\theta}$ \\
+\midrule
+Cavity edge       & 43.2  & $-$0.998 & $-$0.043 & $-$0.043 & 1.088 & 6.407 & 6.407 & $-$0.232 & $-$0.232 & $-$0.010 & 1.068 & 6.417 \\
+Mid-shell         & 42.2  & $-$0.755 & $+$0.577 & $+$0.311 & 3.495 & 4.912 & 6.328 & $+$2.608 & $+$1.405 & $-$1.074 & 0.922 & 6.906 \\
+Outer shell       & 50.7  & $-$0.703 & $+$0.629 & $+$0.333 & 3.371 & 3.653 & 4.468 & $+$1.266 & $+$0.670 & $-$0.600 & 1.920 & 4.786 \\
+Mid-domain        & 68.4  & $-$0.521 & $+$0.630 & $+$0.576 & 3.637 & 3.500 & 3.572 & $+$0.356 & $+$0.325 & $-$0.394 & 2.846 & 3.931 \\
+Far corner        & 139.6 & $-$0.577 & $-$0.577 & $-$0.577 & 3.530 & 3.530 & 3.530 & $-$0.041 & $-$0.041 & $-$0.041 & 3.448 & 3.572 \\
+Balloon interior  &   3.2 & $-$0.577 & $-$0.577 & $-$0.577 & 0.001 & 0.001 & 0.001 & \phantom{$-$}0.000 & \phantom{$-$}0.000 & \phantom{$-$}0.000 & 0.001 & 0.001 \\
+\bottomrule
+\end{tabular}
+
+\vspace{6pt}
+\textbf{Phantom P2 (matrix + power-law fibre)}\\[2pt]
+\begin{tabular}{lrrrr|rrrrrr|rr}
+\toprule
+Region & $r$ (mm) & $\hat r_z$ & $\hat r_y$ & $\hat r_x$ & $\mu_{zz}$ & $\mu_{yy}$ & $\mu_{xx}$ & $\mu_{zy}$ & $\mu_{zx}$ & $\mu_{yx}$ & $\mu_{rr}$ & $\mu_{\theta\theta}$ \\
+\midrule
+Cavity edge       & 43.2  & $-$0.998 & $-$0.043 & $-$0.043 & 1.300 & 7.657 & 7.657 & $-$0.277 & $-$0.277 & $-$0.012 & 1.276 & 7.669 \\
+Mid-shell         & 42.2  & $-$0.755 & $+$0.577 & $+$0.311 & 4.297 & 6.038 & 7.780 & $+$3.207 & $+$1.727 & $-$1.320 & 1.134 & 8.491 \\
+Outer shell       & 50.7  & $-$0.703 & $+$0.629 & $+$0.333 & 3.584 & 3.884 & 4.751 & $+$1.346 & $+$0.713 & $-$0.638 & 2.042 & 5.089 \\
+Mid-domain        & 68.4  & $-$0.521 & $+$0.630 & $+$0.576 & 3.573 & 3.438 & 3.509 & $+$0.350 & $+$0.320 & $-$0.387 & 2.796 & 3.862 \\
+Far corner        & 139.6 & $-$0.577 & $-$0.577 & $-$0.577 & 3.350 & 3.350 & 3.350 & $-$0.039 & $-$0.039 & $-$0.039 & 3.272 & 3.390 \\
+Balloon interior  &   3.2 & $-$0.577 & $-$0.577 & $-$0.577 & 0.001 & 0.001 & 0.001 & \phantom{$-$}0.000 & \phantom{$-$}0.000 & \phantom{$-$}0.000 & 0.001 & 0.001 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{2pt}
+
+\noindent Key patterns:
+\begin{itemize}
+\item \textbf{Cavity edge on the $-z$ axis} ($\hat r \approx -\hat z$):
+      $\mu_{zz} = \mu_{rr}$ isolates on the $z$-diagonal;
+      $\mu_{yy} = \mu_{xx} = \mu_{\theta\theta}$ split the
+      tangent-plane stiffness across $y,x$. Off-diagonals in the
+      tangent block ($\mu_{yx}$) drop to $-0.01$~kPa.
+\item \textbf{Mid-shell off-axis}: all three $\hat r$ components
+      non-zero, so the tensor is fully populated — off-diagonals
+      reach $+2.6$~kPa (P1) and $+3.2$~kPa (P2), comparable to the
+      diagonal entries. This is where the DI direction-content is
+      richest.
+\item \textbf{Far corner} ($\lambda_\theta \approx 1$): near-isotropic
+      but not exactly — residual off-diagonals of $-0.04$~kPa reflect
+      the small remaining acoustoelastic sensitivity in the corner.
+\item \textbf{Eigenvalues always factor as} $[\mu_{rr}, \mu_{\theta\theta}, \mu_{\theta\theta}]$
+      regardless of $\hat r$ — a direct check that the rotation is
+      exactly $Q\,\mu_{\text{sph}}\,Q^{\!\top}$ everywhere.
+\end{itemize}
+
 \paragraph{What the solver does NOT read.}
 \begin{itemize}
 \item \textbf{No pre-stress tensor} $\sigma^{\text{pre}}(\vect x)$
