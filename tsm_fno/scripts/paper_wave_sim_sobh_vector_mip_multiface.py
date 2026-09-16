@@ -38,8 +38,8 @@ from src.solver.vector_elasticity_3d import (
 )
 
 
-N   = 32
-DX  = 0.006
+N   = 48
+DX  = 0.18 / N   # 3.75 mm — near Yin's 3 mm voxel resolution
 FREQ_HZ = 80.0
 RHO = 1000.0
 DAMPING = 0.05
@@ -228,7 +228,7 @@ def run_phantom(W1_fn, label, sources, out_dir):
 
 
 def main():
-    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree"
+    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_N48"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Grid: {N}³ at dx = {DX*1000:.1f} mm ({N*DX*100:.1f} cm cube)")

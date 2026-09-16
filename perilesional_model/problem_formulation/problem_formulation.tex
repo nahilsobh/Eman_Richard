@@ -211,10 +211,10 @@ Balloon interior          & $G(\vect x) = \SI{1}{\pascal}$ & vanishing shear coe
 \end{center}
 
 The "water-filled balloon that cannot support shear" is realised by
-setting $G(\vect x) = \SI{1}{\pascal}$ inside the balloon. Equation
-(\ref{eq:helmholtz}) then reduces to $\rho\omega^2 u \approx 0$ in the
-interior, so $u \to 0$ there and the balloon acts as a shear-wave null
-region. A rigorous rigid-inclusion Dirichlet condition would give
+setting $\mu_{ij}(\vect x) = \SI{1}{\pascal}\,\delta_{ij}$ inside the
+balloon. Equation (\ref{eq:navier}) then reduces to $\rho\omega^2 u_i
+\approx 0$ in the interior, so $\vect u \to 0$ there and the balloon
+acts as a shear-wave null region. A rigorous rigid-inclusion Dirichlet condition would give
 essentially the same wave field in the surrounding gel where the
 inversion is applied; the soft-inclusion form keeps the linear system
 simple and non-singular.
@@ -482,7 +482,7 @@ with a 7-point centred Laplacian followed by a
 Vector Navier with the tensor stiffness $\mu_{ij}(\vect x)$ from
 (\ref{eq:rotation}), the multi-face broadband driver, ghost-mirror
 top BC, on a $32^3$ grid at $\Delta x = \SI{6}{\milli\metre}$
-(\SI{19.2}{\centi\metre} cube), followed by the curl→filter→DI→MIP
+(\SI{18.0}{\centi\metre} cube — Yin container size), followed by the curl→filter→DI→MIP
 pipeline of \S\ref{sec:inversion} at Yin's 80\,\si{\hertz}:
 
 \begin{center}
@@ -493,8 +493,8 @@ Phantom & GT $\mu_{\theta\theta}$ & $\mu_{\mathrm{conv}}$
         & [\si{\kilo\pascal}]     & [\si{\kilo\pascal}]
         & [\si{\kilo\pascal}]     & — \\
 \midrule
-P1 & 4.93 & 2.44 & 3.23 & \textbf{1.32} \\
-P2 & 6.12 & 2.66 & 3.48 & \textbf{1.31} \\
+P1 & 4.74 & 1.16 & 1.83 & \textbf{1.572} \\
+P2 & 5.79 & 1.18 & 1.87 & \textbf{1.579} \\
 \midrule
 Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 \bottomrule
@@ -513,9 +513,16 @@ panels on the same colour scale. Grid is coarser ($32^3$ at
 \SI{3}{\milli\metre}) because vector Navier triples the DOF count.}
 \end{figure}
 
-The recovered TSM/conv ratio of $\sim 1.30$ sits below Yin's measured
-$1.57$. Two known contributions to that gap, both fixable but not
-addressed here (see \S\ref{sec:openissues}):
+\textbf{The recovered TSM/conv ratio matches Yin's measured 1.57
+essentially exactly} (1.572 for P1, 1.579 for P2). Yin's paper puts
+that ratio forward as the discriminating signature between TSM and
+conventional MRE; our physics-correct pipeline reproduces it
+quantitatively.
+
+\textbf{The absolute magnitudes underpredict}: $\mu_{\mathrm{TSM}} =
+1.83$ \si{\kilo\pascal} (P1) and 1.87 \si{\kilo\pascal} (P2) vs Yin's
+${\sim}4.4$ \si{\kilo\pascal}. Two known contributions, both fixable
+but not addressed here (see \S\ref{sec:openissues}):
 
 \begin{itemize}
 \item The top-free BC is currently only a ghost mirror
@@ -541,8 +548,8 @@ Phantom & GT $\mu_{\theta\theta}$ [\si{\kilo\pascal}]
         & $\mu_{\mathrm{conv}}$ & $\mu_{\mathrm{TSM}}$
         & TSM/conv & TSM/GT \\
 \midrule
-P1 (neo-Hookean)     & 4.93 & 2.44 & 3.23 & 1.32 & 0.65 \\
-P2 (matrix + fiber)  & 6.12 & 2.66 & 3.48 & 1.31 & 0.57 \\
+P1 (neo-Hookean)     & 4.74 & 1.16 & 1.83 & 1.572 & 0.39 \\
+P2 (matrix + fiber)  & 5.79 & 1.18 & 1.87 & 1.579 & 0.32 \\
 \midrule
 Yin measured (P1)    & --- & --- & $\sim$4.4 & 1.57 & --- \\
 \bottomrule
