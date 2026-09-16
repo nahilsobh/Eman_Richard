@@ -854,6 +854,45 @@ $zy$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}
       shear); only the bulk penalty remains.
 \end{itemize}
 
+\paragraph{Negative entries in the 6$\times$6 --- provenance and status.}
+Some 6$\times$6 entries are negative (e.g.\ $C_{yy,yx} = -1.07$~kPa
+at the mid-shell voxel). These are neither numerical artifacts nor
+round-off errors --- they are exact analytical consequences of the
+tensor rotation. From (\ref{eq:C-eff}), the off-diagonal Voigt
+entries collapse to specific $\mu_{ij}$ components, e.g.\
+$C_{yyyx} = \mu_{yx}$, $C_{yxyy} = \mu_{yx}$ (symmetric),
+$C_{zxzy} = \tfrac{1}{2}\mu_{yx}$, and so on. At the mid-shell voxel
+where $\mu_{yx} = -1.07$~kPa, $\mu_{zx} = +1.40$~kPa,
+$\mu_{zy} = +2.61$~kPa, every negative 6$\times$6 entry matches its
+analytical prediction to nine decimals:
+
+\begin{center}
+\small
+\begin{tabular}{lccc}
+\toprule
+Voigt entry & Analytical form & Prediction & Numerical (kPa) \\
+\midrule
+$C_{yy,yx}$ & $\mu_{yx}$              & $-1.074$ & $-1.074$ \\
+$C_{xx,yx}$ & $\mu_{yx}$              & $-1.074$ & $-1.074$ \\
+$C_{yx,yy}$ & $\mu_{yx}$ (symm)       & $-1.074$ & $-1.074$ \\
+$C_{yx,xx}$ & $\mu_{yx}$              & $-1.074$ & $-1.074$ \\
+$C_{zx,zy}$ & $\tfrac{1}{2}\mu_{yx}$  & $-0.537$ & $-0.537$ \\
+$C_{zy,zx}$ & $\tfrac{1}{2}\mu_{yx}$  & $-0.537$ & $-0.537$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The 6$\times$6 remains \textbf{positive-definite} everywhere; at the
+mid-shell voxel its eigenvalues are $\{3.00, 4.33, 5.99, 8.88,
+12.13, 309.88\}$~kPa (all positive, no exceptions across the
+domain). The chain from $\mu_{\text{sph}} > 0$ (positive Ogden
+eigenvalues) $\to$ rotated $\mu_{ij}$ (some negative Cartesian
+components) $\to$ built $C_{ijkl}$ (some negative Voigt components,
+but positive-definite as an operator) preserves physical stability
+at every step. Same principle as for the 3$\times$3 $\mu_{ij}$
+tensor, one rank higher: individual coordinate-frame components are
+not required to be positive; the invariants (eigenvalues) are.
+
 \paragraph{Comparison against the Sobh--Ehman paper's canonical values.}
 The paper's Fig.~1 caption gives $\mu_{\text{app},\theta\theta}$ at the
 cavity edge at 250\,\si{\milli\litre} as \textbf{10.3~kPa (P1)} and
