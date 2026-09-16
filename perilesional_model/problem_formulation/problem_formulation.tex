@@ -137,19 +137,6 @@ $\xi$     & 0.05 & hysteretic damping ($Q\approx 10$) \\
 \end{tabular}
 \end{center}
 
-\paragraph{Why vector Navier, not scalar Helmholtz.}
-MRE measures a three-component vector displacement. The scalar
-Helmholtz $\rho\omega^2 u = \nabla \cdot (G\,\nabla u)$ is the
-\emph{single-polarisation projection} of (\ref{eq:navier}) — it
-correctly describes a shear wave with fixed polarisation direction
-in an isotropic medium, but it cannot represent mode conversion at
-the balloon boundary, cannot reproduce the radial-vs-tangential
-$25\times$ stiffness anisotropy the Sobh--Ehman prestrain creates
-(\S\ref{sec:material}), and cannot generate the direction-dependent
-curl content that Yin's TSM MIP isolates. The scalar equation was
-useful only as a computational simplification; the physics of the
-problem requires (\ref{eq:navier}).
-
 \section{Domain, grid and physical scales}
 \label{sec:domain}
 
