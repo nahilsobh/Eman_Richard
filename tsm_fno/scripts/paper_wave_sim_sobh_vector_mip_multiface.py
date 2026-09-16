@@ -38,8 +38,8 @@ from src.solver.vector_elasticity_3d import (
 )
 
 
-N   = 48
-DX  = 0.18 / N   # 3.75 mm — near Yin's 3 mm voxel resolution
+N   = 60
+DX  = 0.18 / N   # 3.0 mm — matches Yin's acquisition voxel resolution exactly
 FREQ_HZ = 80.0
 RHO = 1000.0
 DAMPING = 0.05
@@ -58,7 +58,10 @@ P1_MU0 = 3530.0   # Pa   — neo-Hookean matrix baseline
 P2_MU0 = 3340.0   # Pa   — matrix + fibre baseline
 P2_C   = 0.2728   # power-law fibre recruitment coefficient (dimensionless)
 P2_M   = 0.5791   # power-law fibre recruitment exponent    (dimensionless)
-G_WATER = 1.0
+# Balloon + water treated as one nearly-rigid inclusion.  At 1e6 Pa:
+# shear wavelength inside balloon = 395 mm (>> 78 mm ball diameter) → rigid;
+# stiffness contrast vs softest gel = ~3500× (well within PARDISO's safe range 1e8).
+G_WATER = 1.0e6
 
 N_DIRECTIONS = 20
 WEDGE_WIDTH = 0.35
@@ -235,7 +238,7 @@ def run_phantom(W1_fn, label, sources, out_dir):
 
 
 def main():
-    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_N48_sce"
+    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_N60_sce_rigidball"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Grid: {N}³ at dx = {DX*1000:.1f} mm ({N*DX*100:.1f} cm cube)")
