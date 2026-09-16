@@ -908,6 +908,7 @@ on a memory-larger node would sharpen the inversion.
 \end{itemize}
 
 \section{Perilesional ring numbers}
+\label{sec:ring}
 
 Vector Navier with tensor $\mu_{ij}(\vect x)$, multi-face broadband
 driver, top-free BC, at Yin's 80\,\si{\hertz} on the 12\,\si{\milli\metre}
@@ -942,42 +943,82 @@ balloon boundary, and no direction-max can undo that local averaging.
 \section{Open issues and follow-up work}
 \label{sec:openissues}
 
-The vector Navier pipeline runs correctly and gives self-consistent
-numbers, but two known limitations sit between it and Yin's measured
-values:
+At $N=48$ the pipeline reproduces Yin's TSM/conv ratio $= 1.57$
+essentially exactly (\S\ref{sec:ring}), but the \emph{absolute}
+$\mu_{\mathrm{TSM}}$ is about half of Yin's $\sim\!4.4$~kPa. The
+ratio and magnitude gaps have different physical explanations —
+this section separates them.
 
-\paragraph{Top-free BC — implemented.} The proper $\sigma \cdot \vect n = 0$
-BC is now in \texttt{navier\_solve\_3d\_tensor\_mu} via a ghost-node
-method: the three conditions
-$(\lambda + 2\mu)\,\partial_z u_z + \lambda\,(\partial_x u_x + \partial_y u_y) = 0$
-and $\mu\,(\partial_z u_c + \partial_c u_z) = 0$ for $c \in \{x, y\}$
-solve for the three ghost values $u_c(-1, j, k)$ in terms of the
-interior u's at $(0, j\pm 1, k)$, $(0, j, k\pm 1)$, and $(+1, j, k)$,
-which are then folded into the sparse-matrix assembly. Uses local
-isotropic material at the top face (valid because that region is
-unstretched). Impact on the ring recovery is small: TSM/conv moved
-from 1.31 (ghost mirror) to \textbf{1.32} (proper $\sigma \cdot \vect n = 0$)
-for P1, ruling out the top BC as the main source of the residual
-1.32 → 1.57 gap to Yin.
+\paragraph{Ratio (TSM/conv) — closed.}
+Two implementation choices moved the ratio from an early
+$1.31$--$1.32$ up to Yin's $1.57$:
+\begin{itemize}
+\item Proper $\sigma\cdot\vect n = 0$ top BC via the ghost-node
+      stencil (\S\ref{sec:bcs}, eq.~\ref{eq:ghost}) — replacing the
+      earlier $\partial u/\partial z=0$ ghost mirror. Impact was
+      small on its own (${\sim}1.31\to 1.32$) but corrected the
+      stress boundary structurally.
+\item Refining to $N=48$ ($\Delta x = 3.75$~mm, at the Yin voxel
+      scale) — the dominant lift. The $\lambda/\Delta x\approx 9$
+      resolution captures the sharp $\mu_{ij}(\vect x)$ gradient
+      across the perilesional shell.
+\end{itemize}
+Together these bring both phantoms to TSM/conv $\in\{1.572, 1.579\}$
+— matching Yin's $1.57$ signature.
 
-\paragraph{Full acoustoelastic $C_{ijkl}$.} The quasi-anisotropic
-constitutive form (\ref{eq:constitutive}) with rank-2 $\mu_{ij}(\vect x)$
-captures the directional-shear response but is not the full
-acoustoelastic elasticity tensor. The complete Murnaghan third-order
-form is
+\paragraph{Magnitude — open.}
+$\mu_{\mathrm{TSM}} = 1.83$~kPa (P1) and $1.87$~kPa (P2) at $N=48$,
+versus Yin's $\sim\!4.4$~kPa. The following is the current best
+understanding of where the factor-of-two comes from.
+
+The material tensor $\mu_{ij}(\vect x)$ we plug into the solver
+\emph{already includes} the incompressible-neo-Hookean acoustoelastic
+response — Ogden's small-on-large formula
+$\mu_{\theta\theta} = 2W_1\lambda_\theta^{2}$ and
+$\mu_{rr} = 2W_1\lambda_\theta^{-4}$ bundles the base modulus and
+the geometric pre-stress contribution into a single principal-frame
+wave modulus. So this is \textbf{not} a "missing acoustoelastic
+term" problem for our chosen constitutive laws.
+
+The residual gap is a \textbf{rank-2 vs rank-4 projection loss}. The
+full effective elasticity tensor $C^{\text{eff}}_{ijkl}(\vect x)$ at
+a pre-stressed voxel has more independent shear moduli than the two
+principal eigenvalues $(\mu_{rr},\mu_{\theta\theta})$ we extract. A
+wave propagating in a non-principal direction feels an effective
+modulus that our rank-2 $\mu_{ij}$ can only approximate as a
+mixture. Concretely, our constitutive law
 \begin{equation}
-C^{\mathrm{eff}}_{ijkl}(\vect x) = C_{ijkl}^{0}
-+ M_{ijklmn}\,\sigma_{mn}(\vect x),
+\sigma_{ij} = \lambda\delta_{ij}\varepsilon_{kk}
+           + \mu_{ik}\varepsilon_{kj} + \mu_{jk}\varepsilon_{ki}
 \end{equation}
-adding three more scalar constants $(l, m, n)$ to the two Lam\'e
-constants. 1--2 week extension of
-\texttt{navier\_solve\_3d\_tensor\_mu}; design sketched in that
-file's module docstring.
+coincides with full isotropic elasticity when
+$\mu_{ij}=\mu\delta_{ij}$, but when $\mu_{ij}$ has directional
+structure it is a specific rank-2 realisation of an anisotropic
+stress--strain map, not the general rank-4 $C^{\text{eff}}_{ijkl}$.
+Direct inversion of curl$\,\vect u$ recovers a wave modulus averaged
+over the directional content of the local field, and that average
+comes out systematically lower than the principal $\mu_{\theta\theta}$
+that Yin's phantom data seems to reveal.
 
-\paragraph{Grid.} $32^3$ vector Navier fits SuperLU on the login
-node; scaling to $48^3$ (\SI{3}{\milli\metre} voxels matching the
-Yin acquisition) needs a memory-larger node (${\gtrsim} \SI{40}{\giga\byte}$)
-or an iterative solver with an appropriate preconditioner.
+\textbf{Follow-up.} Upgrade the constitutive core of
+\texttt{navier\_solve\_3d\_tensor\_mu} from the rank-2 $\mu_{ij}$
+form to a full rank-4 $C^{\text{eff}}_{ijkl}(\vect x)$ field. For
+incompressible neo-Hookean, $C^{\text{eff}}_{ijkl}$ has a closed
+form in terms of the principal stretches $\lambda_i(\vect x)$ and
+the pre-stress $\sigma^{\text{pre}}$ (Ogden \S6.1); no new material
+constants needed. Third-order Murnaghan coefficients
+$(l, m, n)$ would be a further refinement on top, but those are not
+measured for the Sobh--Ehman phantoms and are expected to give
+smaller corrections than the rank-2$\to$rank-4 upgrade.
+
+\paragraph{Grid.} $N=48$ ($\Delta x = 3.75$~mm) is the current
+production size; PARDISO on 32 threads solves in ${\sim}200$~s and
+uses ${\sim}\SI{25}{\giga\byte}$ (\S\ref{sec:discretisation}). Going
+to $N=64$--$96$ (matching Yin's raw isotropic voxel) would multiply
+memory by ${\sim}2$--$8\times$ and would need either a bigger node
+reservation or an iterative solver with an appropriate
+preconditioner (block-Jacobi over voxels is the obvious first
+attempt).
 
 \section{Files and reproducibility}
 
