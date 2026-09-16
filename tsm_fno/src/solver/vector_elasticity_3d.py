@@ -40,7 +40,45 @@ from __future__ import annotations
 
 import numpy as np
 from scipy.sparse import lil_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve as _scipy_spsolve
+
+# Prefer Intel MKL PARDISO (multi-threaded, respects OMP_NUM_THREADS) when
+# available; fall back to scipy's single-threaded SuperLU otherwise.
+try:
+    from pypardiso import spsolve as _pardiso_spsolve
+    _HAS_PARDISO = True
+except ImportError:
+    _HAS_PARDISO = False
+
+
+def _multithreaded_spsolve(A_csr, b):
+    """Multi-threaded LU solve for a complex sparse system.
+
+    PARDISO does not natively handle complex-valued systems in the
+    scipy interface, so we solve the real 2×2 block system
+
+        [Re(A)  -Im(A)] [Re(x)]   [Re(b)]
+        [Im(A)   Re(A)] [Im(x)] = [Im(b)]
+
+    when the input is complex. This doubles the DOF count but stays
+    real, letting PARDISO use its (fast, threaded) real LU. For real
+    inputs we call PARDISO directly.
+    """
+    if not _HAS_PARDISO:
+        return _scipy_spsolve(A_csr, b)
+    import numpy as _np
+    from scipy.sparse import bmat, csr_matrix
+    if _np.iscomplexobj(A_csr.data) or _np.iscomplexobj(b):
+        Ar = A_csr.real
+        Ai = A_csr.imag
+        top = bmat([[Ar, -Ai]], format="csr")
+        bot = bmat([[Ai,  Ar]], format="csr")
+        A2 = bmat([[top], [bot]], format="csr")
+        b2 = _np.concatenate([b.real, b.imag])
+        x2 = _pardiso_spsolve(A2, b2)
+        n = A_csr.shape[0]
+        return x2[:n] + 1j * x2[n:]
+    return _pardiso_spsolve(A_csr, b)
 
 
 def navier_solve_3d_isotropic(
@@ -212,7 +250,7 @@ def navier_solve_3d_isotropic(
                                 A[m, m_col] = A[m, m_col] + (sc * sk) * lam_c * inv_4dx2
 
     print(f"[navier] solving {n_dof} DOF sparse system (nnz ~ {A.nnz})...")
-    u_flat = spsolve(A.tocsr(), b)
+    u_flat = _multithreaded_spsolve(A.tocsr(), b)
     return u_flat.reshape(3, N, N, N).transpose(1, 2, 3, 0)
 
 
@@ -319,7 +357,12 @@ def navier_solve_3d_tensor_mu(
             bc_values[m] = complex(amp)
             boundary.add(m)
 
-    A = lil_matrix((n_dof, n_dof), dtype=complex)
+    # COO triplet arrays — assemble into three growing lists, convert
+    # to CSR at the end. This is ~50× faster than incremental lil_matrix
+    # writes for large stencils.
+    _rows: list[int]     = []
+    _cols: list[int]     = []
+    _vals: list[complex] = []
     b = np.zeros(n_dof, dtype=complex)
 
     inv_dx2 = 1.0 / dx ** 2
@@ -377,16 +420,18 @@ def navier_solve_3d_tensor_mu(
         return False
 
     def add_A(m_row, comp, ii, jj, kk, coef):
-        """Add ``coef`` to A[m_row, u_comp(ii, jj, kk)].  Handles the
-        traction-free top ghost by distributing across interior DOFs."""
+        """Append (row, col, val) triplet for A[m_row, u_comp(ii, jj, kk)].
+        Handles the traction-free top ghost by distributing across interior DOFs."""
         if not (0 <= jj < N and 0 <= kk < N):
             return
         if 0 <= ii < N:
-            A[m_row, idx(comp, ii, jj, kk)] += coef
+            _rows.append(m_row); _cols.append(idx(comp, ii, jj, kk))
+            _vals.append(coef)
             return
         if top_free and ii == -1:
             for (tc, ti, tj, tk, mult) in _expand_ghost(comp, jj, kk):
-                A[m_row, idx(tc, ti, tj, tk)] += coef * mult
+                _rows.append(m_row); _cols.append(idx(tc, ti, tj, tk))
+                _vals.append(coef * mult)
 
     def eff_mu(ii, jj, kk):
         """Return µ tensor at (ii,jj,kk) — uses the top-slab value for i=-1
@@ -411,12 +456,13 @@ def navier_solve_3d_tensor_mu(
                 for c in range(3):
                     m = idx(c, i, j, k)
                     if m in boundary:
-                        A[m, m] = 1.0
+                        _rows.append(m); _cols.append(m); _vals.append(1.0 + 0.0j)
                         b[m] = bc_values.get(m, 0.0 + 0.0j)
                         continue
 
                     # Mass term.
-                    A[m, m] = rho * omega ** 2
+                    _rows.append(m); _cols.append(m)
+                    _vals.append(rho * omega ** 2 + 0.0j)
 
                     # ── Contribution: 2·∂_{j_ax} (μ_{c,k_ax} ∂_{k_ax} u_{j_ax}) etc.
                     # Instead of building σ explicitly, we implement:
@@ -481,8 +527,14 @@ def navier_solve_3d_tensor_mu(
                                 add_A(m, k_ax, *ip, +mu_jaxk * coef_scale)
                                 add_A(m, k_ax, *im, -mu_jaxk * coef_scale)
 
-    print(f"[navier-tensor] solving {n_dof} DOF, nnz ~ {A.nnz}...")
-    u_flat = spsolve(A.tocsr(), b)
+    from scipy.sparse import coo_matrix as _coo_matrix
+    A_coo = _coo_matrix((np.asarray(_vals, dtype=complex),
+                              (np.asarray(_rows, dtype=np.int64),
+                               np.asarray(_cols, dtype=np.int64))),
+                             shape=(n_dof, n_dof))
+    A_csr = A_coo.tocsr()
+    print(f"[navier-tensor] solving {n_dof} DOF, nnz ~ {A_csr.nnz}...")
+    u_flat = _multithreaded_spsolve(A_csr, b)
     return u_flat.reshape(3, N, N, N).transpose(1, 2, 3, 0)
 
 
