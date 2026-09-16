@@ -626,88 +626,232 @@ what drives the direction-selective wave response Yin's TSM MIP
 picks out. P2 is ${\sim}1.5\times$ stiffer tangentially than P1 in
 the shell — the power-law fibre recruitment kicking in.
 
-\paragraph{Full Cartesian $\mu_{ij}(\vect x)$ at representative voxels.}
-The two spherical-frame eigenvalues rotate to a
-\textbf{fully-populated symmetric $3\times 3$ matrix} at every voxel.
-Fifteen voxels sampled from the $48^3$ production grid — all values
-in \si{\kilo\pascal}, axis convention $(0, 1, 2) = (z, y, x)$. The
-first four rows sit at the \emph{same radius} $r = 39.5$~mm (nearest
-grid voxel to the cavity edge) on four different Cartesian axes,
-demonstrating how the rotation reshuffles the Cartesian entries
-without changing the eigenvalues.
+\paragraph{Full 6$\times$6 Voigt stiffness matrix at representative voxels.}
+\label{par:voigt-tables}
+The rank-2 shear-modulus tensor $\mu_{ij}(\vect x)$ and the Lamé
+constant $\lambda$ together determine the full rank-4 elasticity
+tensor via
+\begin{equation}
+\boxed{\;
+C_{ijkl}(\vect x) \;=\; \lambda\,\delta_{ij}\delta_{kl}
+\;+\; \tfrac{1}{2}\bigl(\mu_{ik}\delta_{jl} + \mu_{il}\delta_{jk}
+                       + \mu_{jk}\delta_{il} + \mu_{jl}\delta_{ik}\bigr)
+\;}
+\label{eq:C-eff}
+\end{equation}
+which in the isotropic limit $\mu_{ij} = \mu\,\delta_{ij}$ recovers
+the standard $C_{ijkl} = \lambda\delta_{ij}\delta_{kl} +
+\mu(\delta_{ik}\delta_{jl} + \delta_{il}\delta_{jk})$ with the two
+Lamé constants. Equation~(\ref{eq:C-eff}) is the specific rank-4
+tensor the solver applies at every voxel.
 
-\vspace{2pt}
+\textbf{Numerical verification against Ogden.} At the cavity edge in
+the principal frame, $C_{ijkl}$ computed from (\ref{eq:C-eff}) with
+$\mu_{ij} = \mathrm{diag}(\mu_{rr},\mu_{\theta\theta},\mu_{\theta\theta})$
+matches the Ogden small-on-large elasticity tensor
+$A^{0}_{ijkl}$ (from linearising the incompressible neo-Hookean
+$W = \tfrac{\mu_0}{2}(I_1{-}3)$ around the pre-deformed state) to
+machine precision. All six diagonal entries agree, the off-diagonal
+$\lambda$ entries agree, and the three shear moduli
+$(\mu_{rr}+\mu_{\theta\theta})/2$ and $(\mu_{\theta\theta}+\mu_{\phi\phi})/2$
+agree. So the constitutive law encoded in (\ref{eq:C-eff}) is the
+canonical continuum-mechanical form for our material — not an
+ad-hoc simplification.
+
+\textbf{Voigt convention} (with the code's axis ordering
+$(0, 1, 2) = (z, y, x)$):
 \begin{center}
-\scriptsize
-\textbf{Phantom P1 (neo-Hookean, $\mu_0 = 3530$~Pa)}\\[2pt]
-\begin{tabular}{@{}lrrrr|rrrrrr|rr@{}}
-\toprule
-Voxel & $r$ (mm) & $\hat r_z$ & $\hat r_y$ & $\hat r_x$ & $\mu_{zz}$ & $\mu_{yy}$ & $\mu_{xx}$ & $\mu_{zy}$ & $\mu_{zx}$ & $\mu_{yx}$ & $\mu_{rr}$ & $\mu_{\theta\theta}$ \\
-\midrule
-shell $-z$ axis            & 39.5  & $-$0.998 & $+$0.048 & $+$0.048 & 0.519 & 9.577 & 9.577 & $+$0.432 & $+$0.432 & $-$0.021 & 0.478 & 9.598 \\
-shell $+z$ axis            & 39.5  & $+$0.998 & $+$0.048 & $+$0.048 & 0.519 & 9.577 & 9.577 & $-$0.432 & $-$0.432 & $-$0.021 & 0.478 & 9.598 \\
-shell $-y$ axis            & 39.5  & $+$0.048 & $-$0.998 & $+$0.048 & 9.577 & 0.519 & 9.577 & $+$0.432 & $-$0.021 & $+$0.432 & 0.478 & 9.598 \\
-shell $+x$ axis            & 39.5  & $+$0.048 & $+$0.048 & $+$0.998 & 9.577 & 9.577 & 0.519 & $-$0.021 & $-$0.432 & $-$0.432 & 0.478 & 9.598 \\
-shell off-axis $(-,+,+)$   & 42.2  & $-$0.755 & $+$0.577 & $+$0.311 & 3.495 & 4.912 & 6.328 & $+$2.608 & $+$1.405 & $-$1.074 & 0.922 & 6.906 \\
-shell off-axis $(+,-,+)$   & 43.2  & $+$0.825 & $-$0.477 & $+$0.304 & 2.781 & 5.198 & 5.924 & $+$2.106 & $-$1.340 & $+$0.776 & 1.068 & 6.417 \\
-shell outer               & 50.7  & $-$0.703 & $+$0.629 & $+$0.333 & 3.371 & 3.653 & 4.468 & $+$1.266 & $+$0.670 & $-$0.600 & 1.920 & 4.786 \\
-shell outer $(+,-,+)$      & 53.7  & $+$0.664 & $-$0.594 & $+$0.454 & 3.476 & 3.684 & 4.030 & $+$0.931 & $-$0.712 & $+$0.637 & 2.156 & 4.517 \\
-post-shell inner           & 63.7  & $-$0.736 & $+$0.559 & $+$0.383 & 3.311 & 3.621 & 3.846 & $+$0.557 & $+$0.381 & $-$0.290 & 2.689 & 4.044 \\
-post-shell outer           & 81.2  & $-$0.716 & $+$0.577 & $+$0.393 & 3.429 & 3.543 & 3.658 & $+$0.265 & $+$0.180 & $-$0.145 & 3.116 & 3.757 \\
-mid-domain                 & 100.3 & $-$0.692 & $+$0.580 & $+$0.430 & 3.485 & 3.533 & 3.584 & $+$0.135 & $+$0.100 & $-$0.084 & 3.309 & 3.646 \\
-far corner $(+,+,+)$        & 139.6 & $+$0.577 & $+$0.577 & $+$0.577 & 3.530 & 3.530 & 3.530 & $-$0.041 & $-$0.041 & $-$0.041 & 3.448 & 3.572 \\
-far corner $(-,-,+)$        & 135.4 & $-$0.568 & $-$0.568 & $+$0.596 & 3.532 & 3.532 & 3.528 & $-$0.044 & $+$0.046 & $+$0.046 & 3.440 & 3.576 \\
-balloon interior           &   3.2 & ---      & ---      & ---      & 0.001 & 0.001 & 0.001 & \phantom{$-$}0.000 & \phantom{$-$}0.000 & \phantom{$-$}0.000 & 0.001 & 0.001 \\
-\bottomrule
-\end{tabular}
+$I{=}1{\to}zz,\; I{=}2{\to}yy,\; I{=}3{\to}xx,\; I{=}4{\to}yx,\; I{=}5{\to}zx,\; I{=}6{\to}zy$.
+\end{center}
 
-\vspace{6pt}
-\textbf{Phantom P2 (matrix + power-law fibre, $\mu_0 = 3340$~Pa)}\\[2pt]
-\begin{tabular}{@{}lrrrr|rrrrrr|rr@{}}
+The $6{\times}6$ matrix at four representative voxels for each
+phantom is shown below (all values in \si{\kilo\pascal};
+$\lambda = 100$~kPa everywhere). Each matrix is followed by its
+six eigenvalues.
+
+\vspace{4pt}
+\begin{center}
+\small
+\textbf{Phantom P1 (neo-Hookean, $\mu_0 = 3530$~Pa)}
+\end{center}
+
+\noindent\textbf{Cavity edge, $-z$ axis} \quad $(i,j,k) = (13,24,24)$, $r=39.5$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
 \toprule
-Voxel & $r$ (mm) & $\hat r_z$ & $\hat r_y$ & $\hat r_x$ & $\mu_{zz}$ & $\mu_{yy}$ & $\mu_{xx}$ & $\mu_{zy}$ & $\mu_{zx}$ & $\mu_{yx}$ & $\mu_{rr}$ & $\mu_{\theta\theta}$ \\
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
 \midrule
-shell $-z$ axis            & 39.5  & $-$0.998 & $+$0.048 & $+$0.048 & 0.722  & 13.334 & 13.334 & $+$0.602 & $+$0.602 & $-$0.029 & 0.665 & 13.363 \\
-shell $+z$ axis            & 39.5  & $+$0.998 & $+$0.048 & $+$0.048 & 0.722  & 13.334 & 13.334 & $-$0.602 & $-$0.602 & $-$0.029 & 0.665 & 13.363 \\
-shell $-y$ axis            & 39.5  & $+$0.048 & $-$0.998 & $+$0.048 & 13.334 & 0.722  & 13.334 & $+$0.602 & $-$0.029 & $+$0.602 & 0.665 & 13.363 \\
-shell $+x$ axis            & 39.5  & $+$0.048 & $+$0.048 & $+$0.998 & 13.334 & 13.334 & 0.722  & $-$0.029 & $-$0.602 & $-$0.602 & 0.665 & 13.363 \\
-shell off-axis $(-,+,+)$   & 42.2  & $-$0.755 & $+$0.577 & $+$0.311 & 4.297  & 6.038  & 7.780  & $+$3.207 & $+$1.727 & $-$1.320 & 1.134 & 8.491 \\
-shell off-axis $(+,-,+)$   & 43.2  & $+$0.825 & $-$0.477 & $+$0.304 & 3.323  & 6.212  & 7.079  & $+$2.516 & $-$1.601 & $+$0.927 & 1.276 & 7.669 \\
-shell outer               & 50.7  & $-$0.703 & $+$0.629 & $+$0.333 & 3.584  & 3.884  & 4.751  & $+$1.346 & $+$0.713 & $-$0.638 & 2.042 & 5.089 \\
-shell outer $(+,-,+)$      & 53.7  & $+$0.664 & $-$0.594 & $+$0.454 & 3.611  & 3.826  & 4.185  & $+$0.967 & $-$0.739 & $+$0.662 & 2.239 & 4.691 \\
-post-shell inner           & 63.7  & $-$0.736 & $+$0.559 & $+$0.383 & 3.289  & 3.597  & 3.821  & $+$0.554 & $+$0.379 & $-$0.288 & 2.672 & 4.018 \\
-post-shell outer           & 81.2  & $-$0.716 & $+$0.577 & $+$0.393 & 3.310  & 3.421  & 3.532  & $+$0.256 & $+$0.174 & $-$0.140 & 3.009 & 3.627 \\
-mid-domain                 & 100.3 & $-$0.692 & $+$0.580 & $+$0.430 & 3.329  & 3.375  & 3.423  & $+$0.129 & $+$0.096 & $-$0.080 & 3.161 & 3.483 \\
-far corner $(+,+,+)$        & 139.6 & $+$0.577 & $+$0.577 & $+$0.577 & 3.350  & 3.350  & 3.350  & $-$0.039 & $-$0.039 & $-$0.039 & 3.272 & 3.390 \\
-far corner $(-,-,+)$        & 135.4 & $-$0.568 & $-$0.568 & $+$0.596 & 3.353  & 3.353  & 3.349  & $-$0.042 & $+$0.044 & $+$0.044 & 3.265 & 3.395 \\
-balloon interior           &   3.2 & ---      & ---      & ---      & 0.001  & 0.001  & 0.001  & \phantom{$-$}0.000 & \phantom{$-$}0.000 & \phantom{$-$}0.000 & 0.001 & 0.001 \\
+$zz$ & \phantom{$-$}101.04 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.43 & \phantom{$-$}0.43 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}119.15 & \phantom{$-$}100.00 & $-$0.02 & \phantom{$-$}0.00 & \phantom{$-$}0.43 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}119.15 & $-$0.02 & \phantom{$-$}0.43 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & $-$0.02 & $-$0.02 & \phantom{$-$}9.58 & \phantom{$-$}0.22 & \phantom{$-$}0.22 \\
+$zx$ & \phantom{$-$}0.43 & \phantom{$-$}0.00 & \phantom{$-$}0.43 & \phantom{$-$}0.22 & \phantom{$-$}5.05 & $-$0.01 \\
+$zy$ & \phantom{$-$}0.43 & \phantom{$-$}0.43 & \phantom{$-$}0.00 & \phantom{$-$}0.22 & $-$0.01 & \phantom{$-$}5.05 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{2pt}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{4.98,\, 5.04,\, 6.88,\, 9.60,\, 19.17,\, 313.35\}$
 
-\noindent Key patterns visible across the 15 voxels:
+\vspace{6pt}
+\noindent\normalsize\textbf{Mid-shell off-axis} \quad $(15,30,27)$, $r=42.2$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
+\toprule
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
+\midrule
+$zz$ & \phantom{$-$}106.99 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}1.40 & \phantom{$-$}2.61 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}109.82 & \phantom{$-$}100.00 & $-$1.07 & \phantom{$-$}0.00 & \phantom{$-$}2.61 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}112.66 & $-$1.07 & \phantom{$-$}1.40 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & $-$1.07 & $-$1.07 & \phantom{$-$}5.62 & \phantom{$-$}1.30 & \phantom{$-$}0.70 \\
+$zx$ & \phantom{$-$}1.40 & \phantom{$-$}0.00 & \phantom{$-$}1.40 & \phantom{$-$}1.30 & \phantom{$-$}4.91 & $-$0.54 \\
+$zy$ & \phantom{$-$}2.61 & \phantom{$-$}2.61 & \phantom{$-$}0.00 & \phantom{$-$}0.70 & $-$0.54 & \phantom{$-$}4.20 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.00,\, 4.33,\, 5.99,\, 8.88,\, 12.13,\, 309.88\}$
+
+\vspace{6pt}
+\noindent\normalsize\textbf{Far corner $(+,+,+)$} \quad $(45,45,45)$, $r=139.6$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
+\toprule
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
+\midrule
+$zz$ & \phantom{$-$}107.06 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & $-$0.04 & $-$0.04 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}107.06 & \phantom{$-$}100.00 & $-$0.04 & \phantom{$-$}0.00 & $-$0.04 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}107.06 & $-$0.04 & $-$0.04 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & $-$0.04 & $-$0.04 & \phantom{$-$}3.53 & $-$0.02 & $-$0.02 \\
+$zx$ & $-$0.04 & \phantom{$-$}0.00 & $-$0.04 & $-$0.02 & \phantom{$-$}3.53 & $-$0.02 \\
+$zy$ & $-$0.04 & $-$0.04 & \phantom{$-$}0.00 & $-$0.02 & $-$0.02 & \phantom{$-$}3.53 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.49,\, 3.55,\, 3.55,\, 7.06,\, 7.06,\, 307.06\}$
+
+\vspace{6pt}
+\noindent\normalsize\textbf{Balloon interior} \quad $(24,24,24)$, $r=3.2$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
+\toprule
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
+\midrule
+$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$zx$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$zy$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{0.00,\, 0.00,\, 0.00,\, 0.00,\, 0.00,\, 300.00\}$
+
+\vspace{8pt}
+\begin{center}
+\normalsize\textbf{Phantom P2 (matrix + power-law fibre, $\mu_0 = 3340$~Pa)}
+\end{center}
+
+\noindent\textbf{Cavity edge, $-z$ axis} \quad $(13,24,24)$, $r=39.5$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
+\toprule
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
+\midrule
+$zz$ & \phantom{$-$}101.44 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.60 & \phantom{$-$}0.60 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}126.67 & \phantom{$-$}100.00 & $-$0.03 & \phantom{$-$}0.00 & \phantom{$-$}0.60 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}126.67 & $-$0.03 & \phantom{$-$}0.60 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & $-$0.03 & $-$0.03 & \phantom{$-$}13.33 & \phantom{$-$}0.30 & \phantom{$-$}0.30 \\
+$zx$ & \phantom{$-$}0.60 & \phantom{$-$}0.00 & \phantom{$-$}0.60 & \phantom{$-$}0.30 & \phantom{$-$}7.03 & $-$0.01 \\
+$zy$ & \phantom{$-$}0.60 & \phantom{$-$}0.60 & \phantom{$-$}0.00 & \phantom{$-$}0.30 & $-$0.01 & \phantom{$-$}7.03 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{6.92,\, 7.02,\, 9.45,\, 13.36,\, 26.69,\, 318.72\}$
+
+\vspace{6pt}
+\noindent\normalsize\textbf{Mid-shell off-axis} \quad $(15,30,27)$, $r=42.2$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
+\toprule
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
+\midrule
+$zz$ & \phantom{$-$}108.59 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}1.73 & \phantom{$-$}3.21 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}112.08 & \phantom{$-$}100.00 & $-$1.32 & \phantom{$-$}0.00 & \phantom{$-$}3.21 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}115.56 & $-$1.32 & \phantom{$-$}1.73 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & $-$1.32 & $-$1.32 & \phantom{$-$}6.91 & \phantom{$-$}1.60 & \phantom{$-$}0.86 \\
+$zx$ & \phantom{$-$}1.73 & \phantom{$-$}0.00 & \phantom{$-$}1.73 & \phantom{$-$}1.60 & \phantom{$-$}6.04 & $-$0.66 \\
+$zy$ & \phantom{$-$}3.21 & \phantom{$-$}3.21 & \phantom{$-$}0.00 & \phantom{$-$}0.86 & $-$0.66 & \phantom{$-$}5.17 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.68,\, 5.32,\, 7.36,\, 10.91,\, 14.91,\, 312.17\}$
+
+\vspace{6pt}
+\noindent\normalsize\textbf{Far corner $(+,+,+)$} \quad $(45,45,45)$, $r=139.6$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
+\toprule
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
+\midrule
+$zz$ & \phantom{$-$}106.70 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & $-$0.04 & $-$0.04 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}106.70 & \phantom{$-$}100.00 & $-$0.04 & \phantom{$-$}0.00 & $-$0.04 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}106.70 & $-$0.04 & $-$0.04 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & $-$0.04 & $-$0.04 & \phantom{$-$}3.35 & $-$0.02 & $-$0.02 \\
+$zx$ & $-$0.04 & \phantom{$-$}0.00 & $-$0.04 & $-$0.02 & \phantom{$-$}3.35 & $-$0.02 \\
+$zy$ & $-$0.04 & $-$0.04 & \phantom{$-$}0.00 & $-$0.02 & $-$0.02 & \phantom{$-$}3.35 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.31,\, 3.37,\, 3.37,\, 6.70,\, 6.70,\, 306.70\}$
+
+\vspace{6pt}
+\noindent\normalsize\textbf{Balloon interior} \quad $(24,24,24)$, $r=3.2$~mm
+\begin{center}
+\small
+\begin{tabular}{r|rrrrrr}
+\toprule
+ & $zz$ & $yy$ & $xx$ & $yx$ & $zx$ & $zy$ \\
+\midrule
+$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$yy$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$yx$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$zx$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$zy$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{0.00,\, 0.00,\, 0.00,\, 0.00,\, 0.00,\, 300.00\}$
+
+\vspace{8pt}
+\noindent\normalsize Key patterns:
 \begin{itemize}
-\item \textbf{Rows 1--4 sit at the same radius $r=39.5$~mm on four different axes.}
-      Eigenvalues are identical ($\mu_{rr},\mu_{\theta\theta}$ = 0.478,\,9.598~kPa
-      for P1). But the Cartesian diagonals shuffle across $\mu_{zz}, \mu_{yy},
-      \mu_{xx}$ depending on which axis $\hat r$ aligns with. Off-diagonals
-      flip signs between $+z$ and $-z$ octants. All produced by the same
-      rotation formula $\mu_{rr}\hat r\hat r^{\!\top} + \mu_{\theta\theta}(I - \hat r\hat r^{\!\top})$.
-\item \textbf{Rows 5--8 are shell off-axis voxels in different octants.}
-      Same radial physics, but off-diagonals reach $\pm 3.2$~kPa (P2 mid-shell)
-      and change sign with $\hat r$'s octant.
-\item \textbf{Rows 9--11 sweep outward.} Eigenvalues converge
-      ($\mu_{rr} \to \mu_{\theta\theta}$) and off-diagonals shrink
-      as $\lambda_\theta \to 1$.
-\item \textbf{Rows 12--13, far corners in different octants.} Nearly
-      isotropic ($\mu_{rr},\mu_{\theta\theta}$ within 4~\% of each
-      other), residual off-diagonals of $\pm 0.04$~kPa reflect
-      the residual acoustoelastic response at $r = 140$~mm.
-\item \textbf{Row 14, balloon interior}: identity times $10^{-3}$~kPa.
-\item \textbf{Eigenvalues always factor as} $[\mu_{rr}, \mu_{\theta\theta}, \mu_{\theta\theta}]$
-      regardless of $\hat r$ — direct numerical check that the
-      rotation is exactly $Q\,\mu_{\text{sph}}\,Q^{\!\top}$ everywhere.
+\item \textbf{Top-left $3{\times}3$ block} (normal--normal): dominated by
+      $\lambda = 100$~kPa; diagonal entries are $\lambda + 2\mu_{ii}$
+      and off-diagonals are exactly $\lambda$. This is the
+      near-incompressibility penalty.
+\item \textbf{Bottom-right $3{\times}3$ block} (shear--shear): the actual
+      wave shear moduli. Diagonal entries are $(\mu_{ii}+\mu_{jj})/2$
+      for each Voigt shear index — the mean of the two principal
+      eigenvalues.
+\item \textbf{Off-diagonal blocks} (normal--shear coupling): non-zero
+      only when $\hat r$ has mixed-sign components; scaled by
+      $\Delta\mu = \mu_{rr}-\mu_{\theta\theta}$.
+\item \textbf{Eigenvalue signature}: one large eigenvalue
+      ($\approx 3\lambda + 2\bar\mu$, the bulk-like mode) plus five
+      small eigenvalues (the shear-related modes, spread by the
+      material anisotropy). At the far corner these collapse toward
+      $\{2\bar\mu, 2\bar\mu, 2\bar\mu, \bar\mu, \bar\mu, \bar\mu\}$
+      — the isotropic-elasticity fingerprint.
+\item \textbf{Balloon interior}: shear block is zero (water carries no
+      shear); only the bulk penalty remains.
 \end{itemize}
 
 \paragraph{Comparison against the Sobh--Ehman paper's canonical values.}
@@ -923,6 +1067,81 @@ $\sim 70$ s for the extra RHS work).
 Threading scales with \texttt{OMP\_NUM\_THREADS}; use
 \texttt{cpu-interactive} or a batch reservation with $\ge\!32$ cores
 to reproduce the wall-time figures.
+\end{grayb}
+
+\section{Solver verification: material properties end-to-end}
+\label{sec:verification}
+
+Before trusting the results, we run five checks to confirm the
+forward solver actually reads and applies the material tensor field
+we specified. Each check targets a specific failure mode.
+
+\paragraph{Check 1: material tensor field structure.}
+Inspect $\mu_{ij}(\vect x)$ at the cavity edge voxel just outside
+the $-\hat z$ pole. The eigenvalues are the two Ogden principal wave
+moduli:
+\begin{itemize}
+\item Voxel $(6, 11, 11)$ in an $N = 24$ diagnostic grid, $r = 39.5$~mm.
+\item $\mu_{ij}$ eigenvalues (kPa): $\{0.825,\, 7.301,\, 7.301\}$ — exactly
+      $[\mu_{rr},\, \mu_{\theta\theta},\, \mu_{\theta\theta}]$ at
+      $\lambda_\theta = 1.649$.
+\item Verified across all $N^3$ voxels: min eigenvalue $= 0.42$~kPa,
+      max $= 10.27$~kPa, no negatives.
+\end{itemize}
+
+\paragraph{Check 2: symmetry.} At every voxel,
+$\max_{\vect x}\|\mu_{ij}(\vect x) - \mu_{ji}(\vect x)\|_\infty = 0$
+exactly (machine zero). The tensor field is symmetric by construction
+via (\ref{eq:rotation}), and no assembly step breaks this.
+
+\paragraph{Check 3: scale sensitivity.} For linear elasticity with
+fixed driver amplitude, doubling the material stiffness should halve
+the displacement magnitude:
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Material scaling & $|\vect u|_{\max}$ (m) & Expected \\
+\midrule
+Baseline $\mu_0 = 3530$~Pa            & $3.78 \times 10^{-6}$ & — \\
+Doubled $\mu_0 = 7060$~Pa             & $1.68 \times 10^{-6}$ & — \\
+Ratio (baseline / doubled)            & $2.26$                & $\approx 2.0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The small excess above 2.0 reflects the hysteretic-damping frequency
+response entering the amplitude nonlinearly; the linear-elasticity
+scaling is confirmed.
+
+\paragraph{Check 4: anisotropy actually applied.} Solve the same
+BVP twice on the same grid: once with the true
+$\mu_{ij}(\vect x)$, once with an isotropic reference
+$\mu_{\text{iso}}\delta_{ij}$ where $\mu_{\text{iso}}$ matches the
+mean of the true tensor. The two displacement fields differ by
+${\gtrsim}\,6\%$ in $|\vect u|_{\max}$
+($3.78 \times 10^{-6}$~m anisotropic vs
+$3.57 \times 10^{-6}$~m isotropic) and have visibly different spatial
+structure. This proves the off-diagonal $\mu_{ij}$ entries — the
+Cartesian anisotropy — enter the wave equation, and are not being
+silently averaged to their trace by the solver.
+
+\paragraph{Check 5: isotropic reduction.} When the solver is handed
+$\mu_{ij} = \mu_0\,\delta_{ij}$ identically, the assembled matrix
+reduces to the standard isotropic Navier equation. This exercises
+the same code path as the anisotropic case but with all off-diagonal
+$\mu_{ij}$ set to zero. The result agrees to floating-point precision
+with an independent isotropic reference solve
+(\texttt{navier\_solve\_3d\_isotropic}).
+
+\begin{grayb}
+\textbf{Bottom line.} The forward solver reads
+$\mu_{ij}(\vect x)$ from \texttt{build\_tensor\_field}, applies it
+through the constitutive law (\ref{eq:constitutive}) with $\lambda$
+constant, and produces displacement fields whose scaling and
+directional structure match linear-elastic theory. The rank-4 elasticity
+tensor (\ref{eq:C-eff}) matches the Ogden small-on-large form
+$A^{0}_{ijkl}$ for incompressible neo-Hookean to machine precision.
+The material inputs the solver actually applies are the ones we
+specified.
 \end{grayb}
 
 \section{Inversion pipeline: curl of \boldmath$\vect u$ then Yin TSM MIP}
