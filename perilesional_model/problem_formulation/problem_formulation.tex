@@ -201,17 +201,23 @@ one traction-free top):
 \begin{center}
 \begin{tabular}{lll}
 \toprule
-Face & Condition & Discrete implementation \\
+Region & Condition & Discrete implementation \\
 \midrule
-$i = 0$ \hfill (top)      & $\sigma_{ij} n_j = 0$ ($\vect n = -\hat z$) & ghost-node stencil (eq.~\ref{eq:ghost}) \\
-$i = N-1$ \hfill (bottom) & Dirichlet from driver       & set $u$ at all disk nodes \\
-$j = 0$, $j = N-1$        & $u = 0$                     & Dirichlet \\
-$k = 0$, $k = N-1$        & $u = 0$                     & Dirichlet \\
-Bottom disk + 4 side disks & Dirichlet on face-normal $u_c$ & multi-face broadband driver \\
-Balloon interior          & $\mu_{ij}(\vect x) = \SI{1}{\pascal}\,\delta_{ij}$ & vanishing shear coefficient \\
+$i = 0$ (top face, whole) & $\sigma_{ij} n_j = 0$, $\vect n = -\hat z$ & ghost-node stencil (eq.~\ref{eq:ghost}) \\
+$i = N-1$ (bottom face, wall region)   & $\vect u = \vect 0$ & Dirichlet \\
+$j = 0$, $j = N-1$ (wall region)       & $\vect u = \vect 0$ & Dirichlet \\
+$k = 0$, $k = N-1$ (wall region)       & $\vect u = \vect 0$ & Dirichlet \\
+Central driver disk (each of 5 faces)  & face-normal $u_c$ prescribed & overrides the wall Dirichlet \\
+Balloon interior         & $\mu_{ij}(\vect x) = \SI{1}{\pascal}\,\delta_{ij}$ & vanishing shear coefficient \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+Each of the five non-top faces is rigid ($\vect u = \vect 0$) except
+on a centred circular disk (\S\ref{sec:driver}) whose face-normal
+component is Dirichlet-prescribed to the driver amplitude. The disk
+condition takes precedence over the wall condition where they
+overlap.
 
 \paragraph{Traction-free top BC (ghost-node stencil).}
 The physically correct top-face BC is $\sigma_{ij} n_j = 0$ with
@@ -246,8 +252,19 @@ with
 \begin{equation}
 f_{\mathrm{top}} \;=\; \frac{\lambda}{\lambda + 2\,\bar\mu_{\mathrm{top}}},
 \qquad
-\bar\mu_{\mathrm{top}} \;=\; \tfrac{1}{3}\operatorname{tr}\bigl(\mu(\vect x_{\mathrm{top}})\bigr).
+\bar\mu_{\mathrm{top}} \;=\; \biggl\langle\tfrac{1}{3}\operatorname{tr}\mu(\vect x)\biggr\rangle_{\!i = 0}
+\;=\;
+\frac{1}{N^{2}}\sum_{j,k}\tfrac{1}{3}\operatorname{tr}\mu(0,j,k).
 \end{equation}
+
+Note $\bar\mu_{\mathrm{top}}$ is a \emph{single scalar}: the spatial
+mean of $\tfrac{1}{3}\operatorname{tr}\mu$ over the entire top face
+slab $i = 0$ (\texttt{vector\_elasticity\_3d.py}:392). This makes
+$f_{\mathrm{top}}$ a constant across the top face, so the ghost
+coefficients in (\ref{eq:ghost}) are $(j,k)$-independent. Legitimate
+because the top face sits far outside the pre-stressed region where
+$\mu_{ij}(\vect x)$ has already relaxed to the near-isotropic
+background value.
 
 No ghost DOF is introduced: every interior-stencil access to
 $u_c(-1,j,k)$ is distributed across the RHS of (\ref{eq:ghost}) in
@@ -678,11 +695,14 @@ single-thread \texttt{spsolve}.
 \textbf{System size at $N = 48$:} $3 N^{3} = \num{331776}$ complex
 DOFs; $\sim 45$ non-zeros per row; $\sim \num{15e6}$ total nonzeros.
 The real block system (\ref{eq:real-block}) has $\num{663552}$ real
-DOFs.  \textbf{PARDISO LU on 32 threads:} $\sim \SI{25}{\giga\byte}$
-memory, $\sim 200$ s wall time per phantom
+DOFs.
+\textbf{PARDISO LU on 32 threads (measured):}
+$\sim \SI{25}{\giga\byte}$ memory, $\sim 200$ s wall time per phantom
 (bottom-face-only driver: $\sim 130$ s; multi-face broadband adds
-$\sim 70$ s for the extra RHS work). SuperLU fallback runs the same
-job in $\sim 30$ minutes single-threaded.
+$\sim 70$ s for the extra RHS work).
+\textbf{SuperLU fallback:} single-threaded, wall time not measured
+at $N = 48$ (order-of-magnitude expectation: PARDISO time
+multiplied by thread count minus threading efficiency losses).
 \end{grayb}
 
 \section{Inversion pipeline: curl of \boldmath$\vect u$ then Yin TSM MIP}
