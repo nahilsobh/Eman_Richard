@@ -219,7 +219,7 @@ def run_phantom(W1_fn, label, out_dir):
     t0 = time.time()
     u_vec = navier_solve_3d_tensor_mu(mu_tensor, lam=LAM_C, freq=FREQ_HZ,
                                           rho=RHO, dx=DX, damping=DAMPING,
-                                          sources=sources)
+                                          sources=sources, top_free=True)
     print(f"  Navier solve: {time.time()-t0:.1f} s   |u| range "
           f"{np.abs(u_vec).min():.2e} – {np.abs(u_vec).max():.2e} m",
           flush=True)
@@ -251,14 +251,14 @@ def run_phantom(W1_fn, label, out_dir):
 
 
 def main():
-    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_mip"
+    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_mip_topfree"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Vector-Navier + tensor µ_ij(x) + curl→MIP pipeline")
     print(f"Grid: {N}³ at dx = {DX*1000:.1f} mm → {CUBE_L_M*100:.1f}³ cm cube")
     print(f"Frequency: {FREQ_HZ} Hz (Yin's phantom frequency)")
     print(f"Balloon at 250 mL (a = {A_INFL_M*100:.3f} cm)")
-    print(f"BCs: all 6 walls fixed (solver limitation), bottom disk driver")
+    print(f"BCs: 5 walls fixed, top ∂u/∂z=0 (mirror), bottom disk driver")
     print()
 
     r_P1 = run_phantom(_W1_P1, "P1", out_dir)

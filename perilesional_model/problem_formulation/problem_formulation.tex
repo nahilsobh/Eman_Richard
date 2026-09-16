@@ -567,13 +567,59 @@ propagating waves; the 20-direction $k$-space wedge filter has less
 tangential-plane content to grab.
 \end{itemize}
 
-Both effects are addressable — the top-free BC needs a discrete
-$\sigma \cdot \vect n = 0$ implementation in
-\texttt{navier\_solve\_3d\_tensor\_mu} (finite-difference stencil
-work, no new physics), and multi-face vector sources are already
-implementable via the existing \texttt{sources} argument. Neither
-was rerun here to keep the tensor-vs-scalar comparison clean at
-matching driver / BC choices.
+\subsection{Follow-up: adding a top-free ghost mirror to the vector solver}
+\label{sec:vector-topfree}
+
+We added a \texttt{top\_free=True} option to
+\texttt{navier\_solve\_3d\_tensor\_mu} that applies a ghost-mirror
+BC $\partial u_c/\partial z = 0$ to each component
+$c \in \{0, 1, 2\}$ independently. Verified working:
+$|u|$ at the top face went from \SI{0.00}{\micro\metre} (Dirichlet)
+to \SI{0.89}{\micro\metre} (mirror).
+
+However, the resulting ring recovery moved \emph{further} from
+Yin's measured value, not closer:
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Vector Navier + tensor + curl→MIP variant & $\mu_{\mathrm{TSM}}$ P1 & TSM/conv P1 \\
+\midrule
+top \textbf{FIXED} (Dirichlet $u = 0$)              & 3.04 & 1.28 \\
+top \textbf{FREE}  (mirror $\partial u_c/\partial z = 0$)   & 2.77 & 1.21 \\
+\midrule
+Yin measured (P1, 80\,\si{\hertz})                  & $\sim$4.4 & 1.57 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Physical explanation: $\partial u_c/\partial z = 0$ is \emph{not}
+physically $\sigma \cdot \vect n = 0$. The mirror BC clamps
+\emph{normal strain} to zero; the true traction-free surface should
+clamp \emph{normal and shear stress}. For an elastic solid these
+give qualitatively different wave reflection: the mirror allows
+waves to release upward but with the wrong impedance, so the DI
+amplitude spreads more and the MIP peak drops.
+
+The proper $\sigma \cdot \vect n = 0$ implementation requires a
+one-sided stress stencil that solves for $\partial u_c/\partial z$
+at the top face in terms of the lateral gradients so that:
+\begin{equation*}
+(\lambda + 2\mu)\,\partial_z u_z + \lambda\,(\partial_x u_x + \partial_y u_y) = 0
+\end{equation*}
+\begin{equation*}
+\mu\,(\partial_z u_x + \partial_x u_z) = 0,\qquad
+\mu\,(\partial_z u_y + \partial_y u_z) = 0
+\end{equation*}
+at every top-face voxel. This adds three per-node algebraic
+conditions relating the ghost value to the interior stresses. It is
+a finite-difference stencil upgrade, no new physics — deferred to
+follow-up work.
+
+An orthogonal path that would likely close more of the gap: switching
+the vector run to the \textbf{multi-face broadband source} (five faces
+driven at once, top left free) instead of the bottom-plate only —
+the scalar 80\,\si{\hertz} run uses this and gets TSM/conv = 1.45.
 
 \section{Perilesional ring numbers}
 
