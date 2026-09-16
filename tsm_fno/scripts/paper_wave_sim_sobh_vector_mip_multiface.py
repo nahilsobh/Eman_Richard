@@ -51,9 +51,13 @@ A_REF_M = 0.02285
 V_INJECTION_ML = 250
 A_INFL_M = ((3 * V_INJECTION_ML * 1e-6) / (4 * math.pi)) ** (1/3)
 
-MU_MEAN = 2750.0
-K1_MEAN = 3250.0
-K2_MEAN = 1.25
+# Fitted Sobh-Ehman material model (see perilesional_model/sce_models.py).
+# mu0 is pinned to the digitised Fig. 6 baseline at lam_theta = 1; P2 carries
+# a power-law fibre recruitment identified from the P1-normalised ratio.
+P1_MU0 = 3530.0   # Pa   — neo-Hookean matrix baseline
+P2_MU0 = 3340.0   # Pa   — matrix + fibre baseline
+P2_C   = 0.2728   # power-law fibre recruitment coefficient (dimensionless)
+P2_M   = 0.5791   # power-law fibre recruitment exponent    (dimensionless)
 G_WATER = 1.0
 
 N_DIRECTIONS = 20
@@ -62,16 +66,19 @@ MEDIAN_FILTER = 3
 
 
 def _W1_P1(lam):
-    return np.full_like(lam, MU_MEAN / 2.0)
+    """Neo-Hookean matrix: W1 = mu0 / 2 (constant)."""
+    return np.full_like(lam, P1_MU0 / 2.0)
 
 
 def _W1_P2(lam):
-    eps = lam - 1.0
-    lam6_m1 = lam ** 6 - 1.0
-    safe = np.where(np.abs(lam6_m1) < 1e-12, 1e-12, lam6_m1)
-    fiber_W1 = K1_MEAN * eps * np.exp(K2_MEAN * eps ** 2) * lam ** 5 / (4.0 * safe)
-    fiber_W1 = np.where(np.abs(lam - 1.0) < 1e-8, K1_MEAN / 24.0, fiber_W1)
-    return MU_MEAN / 2.0 + fiber_W1
+    """Matrix + power-law fibre: W1 = (mu0 / 2) * (1 + c*g^m), g = I1 - 3.
+
+    Incompressible spherical kinematics: I1 = lam^-4 + 2*lam^2.
+    """
+    I1 = lam ** (-4) + 2.0 * lam ** 2
+    g  = np.maximum(I1 - 3.0, 0.0)
+    f  = 1.0 + P2_C * g ** P2_M
+    return (P2_MU0 / 2.0) * f
 
 
 def build_tensor_field(W1_fn):
@@ -228,7 +235,7 @@ def run_phantom(W1_fn, label, sources, out_dir):
 
 
 def main():
-    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_N48"
+    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_N48_sce"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Grid: {N}³ at dx = {DX*1000:.1f} mm ({N*DX*100:.1f} cm cube)")

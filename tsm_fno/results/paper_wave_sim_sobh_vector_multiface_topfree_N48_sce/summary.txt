@@ -1,0 +1,11 @@
+Vector Navier + tensor µ_ij + multi-face broadband + top-free + curl→MIP
+at Yin's 80.0 Hz on the Sobh-Ehman phantoms at 250 mL
+============================================================================
+Grid: 48³ at dx = 3.8 mm (18.0 cm cube)
+Driver: multi-face broadband, face-normal component per face
+BCs: 5 walls Dirichlet u=0, top ∂u/∂z=0 (mirror)
+
+12 mm perilesional ring means:
+                     GT µ_θθ      µ_conv       µ_TSM    TSM/conv
+  P1                     6.088       1.173       1.863       1.587
+  P2                     7.208       1.156       1.934       1.672

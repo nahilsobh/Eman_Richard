@@ -166,17 +166,18 @@ Solver convention (matching \texttt{helmholtz\_fd\_3d.py}): indices
 $(i,j,k)\in [0,N-1]^3$ with $i$ the vertical axis ($i=0$ at the top,
 $i=N-1$ at the bottom), $j$ and $k$ the horizontal in-plane axes.
 
-\paragraph{Shear-wave resolution.} At \SI{60}{\hertz} in unstretched gel:
+\paragraph{Shear-wave resolution.} At \SI{80}{\hertz} in unstretched gel
+(using the P1 baseline $\mu_0 = 3530$~Pa):
 
 \begin{equation}
-c_s = \sqrt{\mu/\rho} = \sqrt{2750 / 1000} = \SI{1.66}{\metre\per\second}
+c_s = \sqrt{\mu_0/\rho} = \sqrt{3530 / 1000} \approx \SI{1.88}{\metre\per\second}
 \quad\Rightarrow\quad
-\lambda_s = c_s / f \approx \SI{27.6}{\milli\metre}
+\lambda_s = c_s / f_{\text{drive}} \approx \SI{23.5}{\milli\metre}
 \quad\Rightarrow\quad
-\lambda_s / \Delta x \approx 9.2.
+\lambda_s / \Delta x \approx 6.3.
 \end{equation}
 
-That is more than the 6-per-wavelength rule of thumb; the scalar-FD
+That is more than the 6-per-wavelength rule of thumb; the FD
 stencil resolves the shear wave without aliasing.
 
 \section{Boundary conditions}
@@ -299,43 +300,63 @@ and at $r = a + \SI{12}{\milli\metre}$ is 1.159 (matches paper Table~1).
 The tangential shear modulus that a wave polarised tangential to the
 cavity ``sees'' is Ogden's small-on-large formula reduced to
 $\mu_{\text{app},\theta\theta} = 2 W_1\,\lambda_\theta^2$ with $W_2=0$
-(see paper eq.\ 4). For the two phantoms this evaluates to:
+(see paper eq.\ 4). We use the \textbf{fitted Sobh--Ehman material
+model} (\texttt{perilesional\_model/sce\_models.py}), which pins the
+baseline $\mu_0$ to the digitised Fig.~6 series at $\lambda_\theta = 1$
+and identifies a P2 fibre correction from the P1-normalised ratio:
 
-\begin{blueb}\textbf{Constitutive laws — mean-of-band material.} \newline
+\begin{blueb}\textbf{Constitutive laws — fitted material.} \newline
+Both phantoms share the same functional form:
+\begin{equation}
+\mu_{\text{app},\theta\theta}(\vect x) \;=\; \mu_0\,f(I_1)\,\lambda_\theta^{2},
+\qquad
+I_1(\vect x) \;=\; \lambda_\theta^{-4} + 2\,\lambda_\theta^{2},
+\label{eq:app-tt}
+\end{equation}
+with $I_1$ the first invariant under incompressible spherical
+kinematics ($\lambda_r = \lambda_\theta^{-2}$).
+
 \textbf{P1} (plain \SI{10}{\percent} bovine gelatin, neo-Hookean matrix):
 \begin{equation}
-\mu_{\text{app},\theta\theta}^{\text{P1}} = \mu\,\lambda_\theta^{2}
+f^{\text{P1}}(I_1) \;\equiv\; 1
+\qquad\Rightarrow\qquad
+\mu_{\text{app},\theta\theta}^{\text{P1}} \;=\; \mu_0^{\text{P1}}\,\lambda_\theta^{2}.
 \label{eq:p1}
 \end{equation}
 
-\textbf{P2} (\SI{8}{\percent} gelatin $+$ \SI{7}{\percent} cellulose fiber,
-matrix + fiber; from paper eq.\ 8, verified symbolically):
+\textbf{P2} (\SI{8}{\percent} gelatin $+$ \SI{7}{\percent} cellulose fibre,
+matrix $+$ power-law fibre recruitment):
 \begin{equation}
-\mu_{\text{app},\theta\theta}^{\text{P2}}
-= \mu\,\lambda_\theta^{2}
-+ \frac{k_1\,\lambda_\theta^{7}(\lambda_\theta-1)\exp\!\bigl(k_2(\lambda_\theta-1)^2\bigr)}
-       {2\,(\lambda_\theta^{6} - 1)}
+f^{\text{P2}}(I_1) \;=\; 1 + c\,(I_1 - 3)^m,
+\qquad c = 0.2728,\;\; m = 0.5791.
 \label{eq:p2}
 \end{equation}
+
 \bigskip
-\textbf{Mean-of-band material constants} (from paper Table~2):
+\textbf{Fitted material constants} (\texttt{sce\_models.py}):
 
 \begin{center}
 \begin{tabular}{llll}
 \toprule
 Symbol & Value & Units & Meaning \\
 \midrule
-$\mu$ & 2750 & \si{\pascal} & mean of $[2.5,3.0]$\,kPa (matrix, both phantoms) \\
-$k_1$ & 3250 & \si{\pascal} & mean of $[1.5,5.0]$\,kPa (P2 fiber reinforcement) \\
-$k_2$ & 1.25 & --- & mean of $[0.5,2.0]$ (P2 nonlinear stiffening) \\
+$\mu_0^{\text{P1}}$ & 3530 & \si{\pascal} & P1 baseline (Fig.~6 pinned at $\lambda_\theta=1$) \\
+$\mu_0^{\text{P2}}$ & 3340 & \si{\pascal} & P2 baseline (same pinning) \\
+$c$ & 0.2728 & --- & P2 power-law fibre recruitment coefficient \\
+$m$ & 0.5791 & --- & P2 power-law fibre recruitment exponent \\
 \bottomrule
 \end{tabular}
 \end{center}
 \end{blueb}
 
-Equation (\ref{eq:p2}) has the correct $k_1/12$ limit as
-$\lambda_\theta \to 1$ (paper eq.\ 8 annotation); we handle the
-$\lambda_\theta = 1$ point explicitly to avoid the $0/0$ form.
+The scalar stiffening factor $f(I_1)$ enters both principal wave
+moduli identically (Ogden's small-on-large with $W_2 = 0$):
+$\mu_{\theta\theta} = \mu_0\,f(I_1)\,\lambda_\theta^{2}$,
+$\mu_{rr} = \mu_0\,f(I_1)\,\lambda_\theta^{-4}$. For P1, $f\equiv 1$
+recovers the plain neo-Hookean case; the P2 power-law form was
+selected because it fits the shell-averaged data across all five
+inflation volumes with just two parameters, and its kinematic factor
+$g = I_1 - 3$ ensures $f\to 1$ at the reference state.
 
 \subsection{Rotation to Cartesian --- the tensor field $\mu_{ij}(\vect x)$}
 \label{sec:rotation}
@@ -505,16 +526,16 @@ ordering $(i,j,k)\leftrightarrow(z,y,x)$ documented in
 components are indexed consistently with that same ordering.
 
 \paragraph{Anisotropy magnitude.} At the cavity edge at
-250\,\si{\milli\litre} ($\lambda_\theta = 1.71$):
+250\,\si{\milli\litre} ($\lambda_\theta = 1.71$, $I_1 = 5.97$,
+$g = 2.97$, $f^{\text{P2}} = 1.516$):
 
 \begin{center}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-Component & Formula & Value (P1) [\si{\kilo\pascal}] & Ratio to $\mu_{\theta\theta}$ \\
+Component & Formula & P1 [\si{\kilo\pascal}] & P2 [\si{\kilo\pascal}] & Ratio to $\mu_{\theta\theta}$ \\
 \midrule
-$\mu_{\theta\theta}$ & $\mu \lambda_\theta^{2}$    & 8.04 & 1.00 \\
-$\mu_{\phi\phi}$     & $\mu \lambda_\theta^{2}$    & 8.04 & 1.00 \\
-$\mu_{rr}$           & $\mu \lambda_\theta^{-4}$   & 0.32 & 0.040 \\
+$\mu_{\theta\theta} = \mu_{\phi\phi}$ & $\mu_0\,f(I_1)\,\lambda_\theta^{2}$    & 10.32 & 14.77 & 1.00 \\
+$\mu_{rr}$                            & $\mu_0\,f(I_1)\,\lambda_\theta^{-4}$   & 0.41  & 0.59  & 0.040 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -523,7 +544,8 @@ The ring is \textbf{25$\times$ stiffer in the tangential direction
 than in the radial direction} — irreducible anisotropy, not a small
 correction. A scalar $G(\vect x)$ representation cannot capture it,
 which is one of the reasons the forward model must be
-(\ref{eq:navier}).
+(\ref{eq:navier}). The P2 fibre boost (${\sim}1.5\times$ over P1)
+sits on top of the same anisotropic structure.
 
 \subsection{Solver inputs: complete summary}
 \label{sec:solver-inputs}
@@ -539,13 +561,14 @@ spherical kinematics. Consolidated here for reproducibility.
 \toprule
 Symbol & Value & Units & Meaning \\
 \midrule
-$\mu$        & 2750       & \si{\pascal}                  & matrix shear (both P1 and P2); mean of $[2.5,3.0]$~kPa \\
-$k_1$        & 3250       & \si{\pascal}                  & P2 fiber reinforcement; mean of $[1.5,5.0]$~kPa \\
-$k_2$        & 1.25       & ---                           & P2 nonlinear stiffening; mean of $[0.5,2.0]$ \\
+$\mu_0^{\text{P1}}$   & 3530       & \si{\pascal}                  & P1 baseline shear modulus (Fig.~6 pinned) \\
+$\mu_0^{\text{P2}}$   & 3340       & \si{\pascal}                  & P2 baseline shear modulus (Fig.~6 pinned) \\
+$c$          & 0.2728     & ---                           & P2 power-law fibre recruitment coefficient \\
+$m$          & 0.5791     & ---                           & P2 power-law fibre recruitment exponent \\
 $\lambda$    & $10^{5}$   & \si{\pascal}                  & first Lamé — near-incompressibility penalty \\
 $\rho$       & 1000       & \si{\kilogram\per\metre\cubed} & gel density \\
 $\xi$        & 0.05       & ---                           & hysteretic damping ($Q\approx 10$) \\
-$f$          & 80         & \si{\hertz}                   & Yin's phantom frequency \\
+$f_{\text{drive}}$ & 80   & \si{\hertz}                   & Yin's phantom frequency \\
 $\mu_{\text{water}}$ & 1  & \si{\pascal}                  & balloon-interior placeholder (no shear support) \\
 \bottomrule
 \end{tabular}
@@ -566,13 +589,15 @@ $a$ & 39.08 & \si{\milli\metre} & current balloon radius (\SI{250}{\milli\litre}
 
 \paragraph{Per-voxel material fields.}
 Two spherical-frame eigenvalues are computed from $\lambda_\theta(r)$
-and one of two constitutive laws:
+and a per-phantom stiffening factor $f(I_1)$:
 
 \begin{itemize}
-\item \textbf{P1 (neo-Hookean matrix):} $W_1^{\text{P1}}(\lambda_\theta) = \mu/2 = 1375$~Pa (constant).
-\item \textbf{P2 (matrix + Holzapfel--Gasser--Ogden fiber):}
-$W_1^{\text{P2}}(\lambda_\theta) = \mu/2 + \dfrac{k_1(\lambda_\theta{-}1)\,e^{k_2(\lambda_\theta - 1)^2}\lambda_\theta^{5}}{4(\lambda_\theta^{6}-1)}$,
-with $W_1^{\text{P2}}(1) = \mu/2 + k_1/24$ handled explicitly.
+\item \textbf{P1 (neo-Hookean matrix):} $f^{\text{P1}}(I_1) \equiv 1$,
+      so $W_1^{\text{P1}} = \mu_0^{\text{P1}}/2 = 1765$~Pa (constant).
+\item \textbf{P2 (matrix + power-law fibre recruitment):}
+$W_1^{\text{P2}}(\lambda_\theta) = (\mu_0^{\text{P2}}/2)\,\bigl[1 + c\,(I_1 - 3)^m\bigr]$
+with $I_1 = \lambda_\theta^{-4} + 2\lambda_\theta^{2}$ from
+incompressible spherical kinematics.
 \end{itemize}
 
 Then $\mu_{\theta\theta} = 2W_1\lambda_\theta^{2}$,
@@ -588,17 +613,18 @@ $\mu^{*}_{ij} = \mu_{ij}(1 + i\xi)$.
 Location & $\lambda_\theta$ & $\mu_{\theta\theta}^{\text{P1}}$ & $\mu_{rr}^{\text{P1}}$ & $\mu_{\theta\theta}^{\text{P2}}$ & $\mu_{rr}^{\text{P2}}$ \\
          &                  & (kPa) & (kPa) & (kPa) & (kPa) \\
 \midrule
-Cavity edge $r=a$            & 1.71 & 8.04 & 0.32 & $\sim$9.9  & $\sim$0.40 \\
-Ring mid $r=a+\SI{12}{\milli\metre}$ & 1.16 & 3.7  & 1.5  & 4.5        & 1.9        \\
-Far field $r\gg a$           & 1.00 & 2.75 & 2.75 & 2.75       & 2.75       \\
-Balloon interior             & ---  & 0.001 & 0.001 & 0.001  & 0.001      \\
+Cavity edge $r=a$            & 1.71 & 10.32 & 0.41 & 14.77 & 0.59 \\
+Ring mid $r=a+\SI{12}{\milli\metre}$ & 1.16 & 4.75  & 1.95  & 5.04  & 2.07 \\
+Far field $r\gg a$           & 1.00 & 3.53  & 3.53  & 3.34  & 3.34 \\
+Balloon interior             & ---  & 0.001 & 0.001 & 0.001 & 0.001 \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 The $25\times$ radial-vs-tangential anisotropy at the cavity edge is
 what drives the direction-selective wave response Yin's TSM MIP
-picks out.
+picks out. P2 is ${\sim}1.5\times$ stiffer tangentially than P1 in
+the shell — the power-law fibre recruitment kicking in.
 
 \paragraph{What the solver does NOT read.}
 \begin{itemize}
@@ -622,10 +648,11 @@ picks out.
 \toprule
 Constant / field & File and line \\
 \midrule
-Scalar mean-of-band constants     & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:53--58 \\
+Fitted material constants          & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:54--59 \\
+Reference model (source of fit)    & \texttt{perilesional\_model/sce\_models.py} \\
 Kinematic parameters ($A, a$)     & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:50--52 \\
-$W_1^{\text{P1}}, W_1^{\text{P2}}$ & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:64--74 \\
-$\mu_{rr}, \mu_{\theta\theta}$    & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:88--90 \\
+$W_1^{\text{P1}}, W_1^{\text{P2}}$ & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:65--80 \\
+$\mu_{rr}, \mu_{\theta\theta}$    & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:94--96 \\
 Cartesian rotation                & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:95--102 \\
 Damping ($\mu^{*}_{ij}$)          & \texttt{vector\_elasticity\_3d.py}:328 \\
 Balloon-interior override         & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:92--93 \\
@@ -852,10 +879,12 @@ with a 7-point centred Laplacian followed by a
 \section{Sample results}
 
 Vector Navier with the tensor stiffness $\mu_{ij}(\vect x)$ from
-(\ref{eq:rotation}), the multi-face broadband driver, ghost-mirror
-top BC, on a $32^3$ grid at $\Delta x = \SI{6}{\milli\metre}$
-(\SI{18.0}{\centi\metre} cube — Yin container size), followed by the curl→filter→DI→MIP
-pipeline of \S\ref{sec:inversion} at Yin's 80\,\si{\hertz}:
+(\ref{eq:rotation}), the multi-face broadband driver, proper
+traction-free top BC (\ref{eq:ghost}), on a $48^3$ grid at
+$\Delta x = \SI{3.75}{\milli\metre}$ (\SI{18.0}{\centi\metre} cube —
+Yin container size), followed by the curl→filter→DI→MIP pipeline of
+\S\ref{sec:inversion} at Yin's 80\,\si{\hertz}, using the fitted
+Sobh--Ehman material model of \S\ref{sec:material}:
 
 \begin{center}
 \begin{tabular}{lcccc}
@@ -865,8 +894,8 @@ Phantom & GT $\mu_{\theta\theta}$ & $\mu_{\mathrm{conv}}$
         & [\si{\kilo\pascal}]     & [\si{\kilo\pascal}]
         & [\si{\kilo\pascal}]     & — \\
 \midrule
-P1 & 4.74 & 1.16 & 1.83 & \textbf{1.572} \\
-P2 & 5.79 & 1.18 & 1.87 & \textbf{1.579} \\
+P1 & 6.09 & 1.17 & 1.86 & \textbf{1.587} \\
+P2 & 7.21 & 1.16 & 1.93 & \textbf{1.672} \\
 \midrule
 Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 \bottomrule
@@ -878,34 +907,28 @@ Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 \includegraphics[width=0.85\textwidth]{vector_mip_shell.png}
 \caption{Shell heatmaps for the vector-Navier + tensor-$\mu_{ij}$ +
 curl→MIP pipeline at 80\,\si{\hertz}. Rows: GT $\mu_{\theta\theta}$
-(top), $\mu_{\mathrm{conv}}$ (middle),
-$\mu_{\mathrm{TSM}}$ (bottom). Columns: P1 (left), P2 (right). All
-panels on the same colour scale. Grid is coarser ($32^3$ at
-\SI{6}{\milli\metre}) than the scalar runs ($60^3$ at
-\SI{3}{\milli\metre}) because vector Navier triples the DOF count.}
+(top), $\mu_{\mathrm{conv}}$ (middle), $\mu_{\mathrm{TSM}}$ (bottom).
+Columns: P1 (left), P2 (right). Note: the plot above is the earlier
+$32^3$ visualisation; the numbers in the table are from the current
+$48^3$, fitted-material production run.}
 \end{figure}
 
-\textbf{The recovered TSM/conv ratio matches Yin's measured 1.57
-essentially exactly} (1.572 for P1, 1.579 for P2). Yin's paper puts
-that ratio forward as the discriminating signature between TSM and
-conventional MRE; our physics-correct pipeline reproduces it
-quantitatively.
+\textbf{TSM/conv ratio: matches Yin.} P1 gives 1.587, P2 gives 1.672,
+against Yin's measured 1.57. The directional discriminating signature
+Yin's paper puts forward is reproduced quantitatively; P2 sits a bit
+above the P1 mark because its higher fibre-driven anisotropy pushes
+the ratio further out. See \S\ref{sec:openissues} for the framing.
 
-\textbf{The absolute magnitudes underpredict}: $\mu_{\mathrm{TSM}} =
-1.83$ \si{\kilo\pascal} (P1) and 1.87 \si{\kilo\pascal} (P2) vs Yin's
-${\sim}4.4$ \si{\kilo\pascal}. Two known contributions, both fixable
-but not addressed here (see \S\ref{sec:openissues}):
-
-\begin{itemize}
-\item The top-free BC is currently only a ghost mirror
-$\partial u_c/\partial z = 0$, which clamps normal \emph{strain}, not
-the physical $\sigma \cdot \vect n = 0$ that clamps normal
-\emph{stress}. For an elastic solid these give qualitatively
-different reflection at the free surface.
-\item Grid coarseness: vector Navier's factorisation footprint limits
-us to $32^3$ at $\Delta x = \SI{6}{\milli\metre}$. A $40$--$48^3$ run
-on a memory-larger node would sharpen the inversion.
-\end{itemize}
+\textbf{Absolute magnitude: still short.} $\mu_{\mathrm{TSM}} =
+\SI{1.86}{\kilo\pascal}$ (P1) and $\SI{1.93}{\kilo\pascal}$ (P2)
+vs Yin's ${\sim}\SI{4.4}{\kilo\pascal}$. Crucially, moving from the
+old mean-of-band material ($\mu = \SI{2750}{\pascal}$) to the fitted
+Sobh--Ehman baselines ($\mu_0^{\text{P1}} = \SI{3530}{\pascal}$,
+$\mu_0^{\text{P2}} = \SI{3340}{\pascal}$) increased the GT ring
+modulus by ${\sim}28\%$ but the recovered $\mu_{\mathrm{TSM}}$ moved
+by only ${\sim}2$--$3\%$. This decoupling shows that the residual
+magnitude gap is \textbf{not} a material-model issue — it is a
+DI-recovery-vs-heterogeneity issue (see \S\ref{sec:openissues}).
 
 \section{Perilesional ring numbers}
 \label{sec:ring}
@@ -921,8 +944,8 @@ Phantom & GT $\mu_{\theta\theta}$ [\si{\kilo\pascal}]
         & $\mu_{\mathrm{conv}}$ & $\mu_{\mathrm{TSM}}$
         & TSM/conv & TSM/GT \\
 \midrule
-P1 (neo-Hookean)     & 4.74 & 1.16 & 1.83 & 1.572 & 0.39 \\
-P2 (matrix + fiber)  & 5.79 & 1.18 & 1.87 & 1.579 & 0.32 \\
+P1 (neo-Hookean, $\mu_0=3530$~Pa) & 6.09 & 1.17 & 1.86 & 1.587 & 0.31 \\
+P2 (matrix + power-law fibre)     & 7.21 & 1.16 & 1.93 & 1.672 & 0.27 \\
 \midrule
 Yin measured (P1)    & --- & --- & $\sim$4.4 & 1.57 & --- \\
 \bottomrule
@@ -943,15 +966,15 @@ balloon boundary, and no direction-max can undo that local averaging.
 \section{Open issues and follow-up work}
 \label{sec:openissues}
 
-At $N=48$ the pipeline reproduces Yin's TSM/conv ratio $= 1.57$
-essentially exactly (\S\ref{sec:ring}), but the \emph{absolute}
-$\mu_{\mathrm{TSM}}$ is about half of Yin's $\sim\!4.4$~kPa. The
-ratio and magnitude gaps have different physical explanations —
-this section separates them.
+At $N=48$ with the fitted material model the pipeline reproduces
+Yin's TSM/conv ratio $\approx 1.57$ (\S\ref{sec:ring}) but recovers
+$\mu_{\mathrm{TSM}} \approx 1.9$~kPa vs Yin's ${\sim}4.4$~kPa. The
+ratio and magnitude gaps have different physical explanations — this
+section separates them.
 
 \paragraph{Ratio (TSM/conv) — closed.}
-Two implementation choices moved the ratio from an early
-$1.31$--$1.32$ up to Yin's $1.57$:
+Two implementation choices moved the ratio from an early $1.31$--$1.32$
+up to Yin's $1.57$:
 \begin{itemize}
 \item Proper $\sigma\cdot\vect n = 0$ top BC via the ghost-node
       stencil (\S\ref{sec:bcs}, eq.~\ref{eq:ghost}) — replacing the
@@ -959,57 +982,79 @@ $1.31$--$1.32$ up to Yin's $1.57$:
       small on its own (${\sim}1.31\to 1.32$) but corrected the
       stress boundary structurally.
 \item Refining to $N=48$ ($\Delta x = 3.75$~mm, at the Yin voxel
-      scale) — the dominant lift. The $\lambda/\Delta x\approx 9$
-      resolution captures the sharp $\mu_{ij}(\vect x)$ gradient
-      across the perilesional shell.
+      scale) — the dominant lift. Resolves the sharp
+      $\mu_{ij}(\vect x)$ gradient across the perilesional shell.
 \end{itemize}
-Together these bring both phantoms to TSM/conv $\in\{1.572, 1.579\}$
-— matching Yin's $1.57$ signature.
+Together these bring both phantoms to TSM/conv $\in \{1.587, 1.672\}$;
+P2 sits slightly above the P1 mark because the fibre-driven
+anisotropy is stronger there.
 
-\paragraph{Magnitude — open.}
-$\mu_{\mathrm{TSM}} = 1.83$~kPa (P1) and $1.87$~kPa (P2) at $N=48$,
-versus Yin's $\sim\!4.4$~kPa. The following is the current best
-understanding of where the factor-of-two comes from.
+\paragraph{Magnitude — open, and NOT a material-model issue.}
+Both phantoms give $\mu_{\mathrm{TSM}} \approx 1.9$~kPa despite very
+different ground-truth ring moduli ($6.1$~kPa for P1, $7.2$~kPa for
+P2). The most informative diagnostic came from swapping the
+constitutive model:
 
-The material tensor $\mu_{ij}(\vect x)$ we plug into the solver
-\emph{already includes} the incompressible-neo-Hookean acoustoelastic
-response — Ogden's small-on-large formula
-$\mu_{\theta\theta} = 2W_1\lambda_\theta^{2}$ and
-$\mu_{rr} = 2W_1\lambda_\theta^{-4}$ bundles the base modulus and
-the geometric pre-stress contribution into a single principal-frame
-wave modulus. So this is \textbf{not} a "missing acoustoelastic
-term" problem for our chosen constitutive laws.
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Material model             & GT $\mu_{\theta\theta}$ (P1) & $\mu_{\mathrm{TSM}}$ (P1) & GT $\mu_{\theta\theta}$ (P2) & $\mu_{\mathrm{TSM}}$ (P2) \\
+\midrule
+Mean-of-band ($\mu = 2750$~Pa) & 4.74 kPa & 1.83 kPa & 5.79 kPa & 1.87 kPa \\
+Fitted (\S\ref{sec:material})  & 6.09 kPa & 1.86 kPa & 7.21 kPa & 1.93 kPa \\
+\midrule
+\emph{Ratio (fitted / mean-of-band)} & 1.28$\times$ & 1.02$\times$ & 1.25$\times$ & 1.03$\times$ \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-The residual gap is a \textbf{rank-2 vs rank-4 projection loss}. The
-full effective elasticity tensor $C^{\text{eff}}_{ijkl}(\vect x)$ at
-a pre-stressed voxel has more independent shear moduli than the two
-principal eigenvalues $(\mu_{rr},\mu_{\theta\theta})$ we extract. A
-wave propagating in a non-principal direction feels an effective
-modulus that our rank-2 $\mu_{ij}$ can only approximate as a
-mixture. Concretely, our constitutive law
-\begin{equation}
-\sigma_{ij} = \lambda\delta_{ij}\varepsilon_{kk}
-           + \mu_{ik}\varepsilon_{kj} + \mu_{jk}\varepsilon_{ki}
-\end{equation}
-coincides with full isotropic elasticity when
-$\mu_{ij}=\mu\delta_{ij}$, but when $\mu_{ij}$ has directional
-structure it is a specific rank-2 realisation of an anisotropic
-stress--strain map, not the general rank-4 $C^{\text{eff}}_{ijkl}$.
-Direct inversion of curl$\,\vect u$ recovers a wave modulus averaged
-over the directional content of the local field, and that average
-comes out systematically lower than the principal $\mu_{\theta\theta}$
-that Yin's phantom data seems to reveal.
+Increasing the true ring modulus by ${\sim}28\%$ produced only a
+${\sim}2$--$3\%$ increase in the recovered $\mu_{\mathrm{TSM}}$.
+Absolute recovery is therefore \textbf{decoupled from the material
+magnitude} — the pipeline is \emph{not} reading back a true
+"averaged principal modulus" from the wave field. Adding more
+constants to the constitutive law (Murnaghan third-order terms,
+rank-4 acoustoelastic $C^{\text{eff}}_{ijkl}$, etc.) will not close
+this gap.
 
-\textbf{Follow-up.} Upgrade the constitutive core of
-\texttt{navier\_solve\_3d\_tensor\_mu} from the rank-2 $\mu_{ij}$
-form to a full rank-4 $C^{\text{eff}}_{ijkl}(\vect x)$ field. For
-incompressible neo-Hookean, $C^{\text{eff}}_{ijkl}$ has a closed
-form in terms of the principal stretches $\lambda_i(\vect x)$ and
-the pre-stress $\sigma^{\text{pre}}$ (Ogden \S6.1); no new material
-constants needed. Third-order Murnaghan coefficients
-$(l, m, n)$ would be a further refinement on top, but those are not
-measured for the Sobh--Ehman phantoms and are expected to give
-smaller corrections than the rank-2$\to$rank-4 upgrade.
+\paragraph{Where the loss actually is.}
+Two mechanisms in the curl-filter-DI-MIP pipeline that together
+cap $\mu_{\mathrm{TSM}}$ at a level far below the true ring
+modulus:
+\begin{itemize}
+\item \textbf{DI kernel width vs shell thickness.} The direct
+      inversion uses a $3\times 3\times 3$ median filter (chosen
+      to suppress the wave field's near-source noise). The
+      $\SI{12}{\milli\metre}$ perilesional shell is only
+      $3.2\Delta x$ wide at $N = 48$. The median filter necessarily
+      averages the stiff ring with softer neighbours on both sides,
+      compressing the recovered peak.
+\item \textbf{Curl-based inversion loses the P-wave "geometric"
+      cross-coupling.} $\nabla\times\vect u$ removes the
+      compressional part exactly by construction, but the residual
+      shear field over the ring carries directional structure that
+      the isotropic direct inversion formula
+      $G = -\rho\omega^{2}\,U/\nabla^{2}U$ under-reads. The MIP over
+      20 directions rescues some of it (that is why $\mu_{\mathrm{TSM}}
+      > \mu_{\mathrm{conv}}$) but not to the level Yin's phantom
+      readings suggest.
+\end{itemize}
+
+\textbf{Follow-up.}
+\begin{itemize}
+\item Remove or shrink the median filter and measure the peak-vs-average
+      compression across the shell. Cheap; can be done as a sweep
+      inside \texttt{curl\_mip}.
+\item Widen the shell definition (e.g.\ report a $\SI{6}{\milli\metre}$
+      inner-half-shell mean rather than the whole $\SI{12}{\milli\metre}$).
+\item Compare Yin's own DI kernel choices with ours — the phantom
+      paper may quote a $\mu_{\mathrm{TSM}}$ under a different DI
+      configuration.
+\item If the peak-vs-average compression is confirmed as the dominant
+      cause, augment the reported number with a peak
+      $\mu_{\mathrm{TSM}}$ (voxelwise maximum across the shell) in
+      addition to the mean.
+\end{itemize}
 
 \paragraph{Grid.} $N=48$ ($\Delta x = 3.75$~mm) is the current
 production size; PARDISO on 32 threads solves in ${\sim}200$~s and
@@ -1018,7 +1063,8 @@ to $N=64$--$96$ (matching Yin's raw isotropic voxel) would multiply
 memory by ${\sim}2$--$8\times$ and would need either a bigger node
 reservation or an iterative solver with an appropriate
 preconditioner (block-Jacobi over voxels is the obvious first
-attempt).
+attempt). A finer grid would also directly probe the median-filter
+compression hypothesis above.
 
 \section{Files and reproducibility}
 
