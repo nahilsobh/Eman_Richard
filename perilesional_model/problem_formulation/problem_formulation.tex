@@ -493,8 +493,8 @@ Phantom & GT $\mu_{\theta\theta}$ & $\mu_{\mathrm{conv}}$
         & [\si{\kilo\pascal}]     & [\si{\kilo\pascal}]
         & [\si{\kilo\pascal}]     & — \\
 \midrule
-P1 & 4.93 & 2.46 & 3.21 & \textbf{1.31} \\
-P2 & 6.12 & 2.71 & 3.51 & \textbf{1.30} \\
+P1 & 4.93 & 2.44 & 3.23 & \textbf{1.32} \\
+P2 & 6.12 & 2.66 & 3.48 & \textbf{1.31} \\
 \midrule
 Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 \bottomrule
@@ -541,8 +541,8 @@ Phantom & GT $\mu_{\theta\theta}$ [\si{\kilo\pascal}]
         & $\mu_{\mathrm{conv}}$ & $\mu_{\mathrm{TSM}}$
         & TSM/conv & TSM/GT \\
 \midrule
-P1 (neo-Hookean)     & 4.93 & 2.46 & 3.21 & 1.31 & 0.65 \\
-P2 (matrix + fiber)  & 6.12 & 2.71 & 3.51 & 1.30 & 0.57 \\
+P1 (neo-Hookean)     & 4.93 & 2.44 & 3.23 & 1.32 & 0.65 \\
+P2 (matrix + fiber)  & 6.12 & 2.66 & 3.48 & 1.31 & 0.57 \\
 \midrule
 Yin measured (P1)    & --- & --- & $\sim$4.4 & 1.57 & --- \\
 \bottomrule
@@ -567,19 +567,19 @@ The vector Navier pipeline runs correctly and gives self-consistent
 numbers, but two known limitations sit between it and Yin's measured
 values:
 
-\paragraph{Top-free BC.} Currently a ghost mirror $\partial u_c/\partial z = 0$
-per component; this clamps normal strain, but the physical
-$\sigma \cdot \vect n = 0$ clamps normal stress. Proper implementation
-needs a one-sided stress stencil at the top face that solves for
-$\partial u_c/\partial z$ from
-\begin{equation*}
-(\lambda + 2\mu)\,\partial_z u_z + \lambda\,(\partial_x u_x + \partial_y u_y) = 0
-\end{equation*}
-\begin{equation*}
-\mu\,(\partial_z u_x + \partial_x u_z) = 0,\qquad
-\mu\,(\partial_z u_y + \partial_y u_z) = 0
-\end{equation*}
-at each top-face voxel. FD stencil upgrade only; no new physics.
+\paragraph{Top-free BC — implemented.} The proper $\sigma \cdot \vect n = 0$
+BC is now in \texttt{navier\_solve\_3d\_tensor\_mu} via a ghost-node
+method: the three conditions
+$(\lambda + 2\mu)\,\partial_z u_z + \lambda\,(\partial_x u_x + \partial_y u_y) = 0$
+and $\mu\,(\partial_z u_c + \partial_c u_z) = 0$ for $c \in \{x, y\}$
+solve for the three ghost values $u_c(-1, j, k)$ in terms of the
+interior u's at $(0, j\pm 1, k)$, $(0, j, k\pm 1)$, and $(+1, j, k)$,
+which are then folded into the sparse-matrix assembly. Uses local
+isotropic material at the top face (valid because that region is
+unstretched). Impact on the ring recovery is small: TSM/conv moved
+from 1.31 (ghost mirror) to \textbf{1.32} (proper $\sigma \cdot \vect n = 0$)
+for P1, ruling out the top BC as the main source of the residual
+1.32 → 1.57 gap to Yin.
 
 \paragraph{Full acoustoelastic $C_{ijkl}$.} The quasi-anisotropic
 constitutive form (\ref{eq:constitutive}) with rank-2 $\mu_{ij}(\vect x)$

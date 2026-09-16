@@ -7,5 +7,5 @@ BCs: 5 walls Dirichlet u=0, top ∂u/∂z=0 (mirror)
 
 12 mm perilesional ring means:
                      GT µ_θθ      µ_conv       µ_TSM    TSM/conv
-  P1                     4.927       2.460       3.211       1.305
-  P2                     6.115       2.706       3.508       1.296
+  P1                     4.927       2.438       3.227       1.324
+  P2                     6.115       2.655       3.482       1.312

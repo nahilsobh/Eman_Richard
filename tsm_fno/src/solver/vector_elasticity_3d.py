@@ -249,16 +249,26 @@ def navier_solve_3d_tensor_mu(
     mu_tensor : (N, N, N, 3, 3) real ndarray — symmetric shear tensor field.
     lam, freq, rho, dx, damping, sources : same as ``navier_solve_3d_isotropic``.
     top_free : bool
-        If True, the top face (i = 0) uses a ghost-mirror BC that applies
-        ∂u_c/∂z = 0 to each component c ∈ {0, 1, 2} independently. This
-        is the vector analogue of the scalar Helmholtz ``top_free`` option;
-        it approximates the traction-free surface without solving the
-        full σ·n = 0 componentwise system (which would require a
-        one-sided stress stencil at the top face and is deferred as
-        follow-up work). At near-incompressible limit (λ ≫ μ) this
-        mirror behaves like a slip-with-shear-release condition —
-        appreciably softer than Dirichlet u = 0 but stiffer than a
-        true σ·n = 0 free surface.
+        If True, the top face (i = 0) enforces the traction-free BC
+        σ·n = 0 (with n = -ẑ) using a ghost-node method: the three
+        conditions σ_c0(0) = 0 for c ∈ {0, 1, 2} determine the ghost
+        values u_c(-1, j, k) in terms of the interior u values at
+        (0, j±1, k), (0, j, k±1), and (+1, j, k):
+
+            u_0(-1) = u_0(+1) + f·[u_1(0,j+1,k) - u_1(0,j-1,k)
+                                 + u_2(0,j,k+1) - u_2(0,j,k-1)]
+            u_1(-1) = u_1(+1) + [u_0(0,j+1,k) - u_0(0,j-1,k)]
+            u_2(-1) = u_2(+1) + [u_0(0,j,k+1) - u_0(0,j,k-1)]
+
+        with f = λ / (λ + 2µ_bg), µ_bg = tr(µ)/3 at the top slab
+        (locally isotropic material at the top face — valid because
+        the top face sits far from the balloon where the phantom is
+        unstretched). Every u(-1) access in the assembly is expanded
+        into this linear combination, so no ghost DOF is introduced.
+
+        This is the physically correct free-surface BC (clamps normal
+        stress) as opposed to the ghost-mirror ∂u_c/∂z = 0 that clamps
+        normal strain.
 
     Returns
     -------
@@ -315,15 +325,50 @@ def navier_solve_3d_tensor_mu(
     inv_dx2 = 1.0 / dx ** 2
     inv_4dx2 = 0.25 / dx ** 2
 
-    # ── Ghost-mirror helpers for top_free ────────────────────────────
-    # When top_free is True, the top face (i = 0) uses the mirror
-    # condition u(-1, j, k) = u(1, j, k) for each component. In the
-    # sparse-matrix assembly, this means: whenever a stencil accesses
-    # index i = -1, redirect to i = 1 (the interior neighbour of the
-    # top slab). Coefficients accumulate additively into that DOF.
+    # ── Traction-free ghost helpers for top_free (σ·n = 0) ──────────
+    # When top_free is True, the top face (i = 0) enforces the physically
+    # correct traction-free BC σ·n = 0 with n = -ẑ, which means
+    # σ_c0(0) = 0 for c ∈ {0, 1, 2}. Using central FD at i=0 with the
+    # locally-isotropic material at the top (µ_ij ≈ µ_bg δ_ij since the
+    # top face is far from the balloon), the three conditions determine
+    # the ghost values u_c(-1, j, k):
+    #
+    #   u_0(-1) = u_0(+1) + f·[u_1(0,j+1,k) - u_1(0,j-1,k)
+    #                        + u_2(0,j,k+1) - u_2(0,j,k-1)]
+    #   u_1(-1) = u_1(+1) + [u_0(0,j+1,k) - u_0(0,j-1,k)]
+    #   u_2(-1) = u_2(+1) + [u_0(0,j,k+1) - u_0(0,j,k-1)]
+    #
+    # where f = λ / (λ + 2µ_bg), µ_bg = tr(µ)/3 at the top slab.
+    #
+    # In the sparse-matrix assembly, whenever a stencil accesses
+    # u_c(-1, j, k), the coefficient X is distributed across the
+    # interior DOFs listed above.
+
+    # Local isotropic-material factor at the top face (used only when
+    # unwrapping ghost accesses).
+    mu_bg_top = float(np.mean(np.trace(mu_tensor[0].real, axis1=-2, axis2=-1)) / 3.0)
+    f_top = float(lam.real / (lam.real + 2.0 * mu_bg_top))
+
+    def _expand_ghost(comp, jj, kk):
+        """Return [(target_comp, ti, tj, tk, multiplier), ...] that replaces
+        u_comp(-1, jj, kk) for the traction-free top BC.
+        Out-of-bounds lateral neighbours are dropped."""
+        out = [(comp, 1, jj, kk, 1.0)]        # direct mirror partner
+        if comp == 0:
+            if 0 <= jj + 1 < N: out.append((1, 0, jj + 1, kk, +f_top))
+            if 0 <= jj - 1 < N: out.append((1, 0, jj - 1, kk, -f_top))
+            if 0 <= kk + 1 < N: out.append((2, 0, jj, kk + 1, +f_top))
+            if 0 <= kk - 1 < N: out.append((2, 0, jj, kk - 1, -f_top))
+        elif comp == 1:
+            if 0 <= jj + 1 < N: out.append((0, 0, jj + 1, kk, +1.0))
+            if 0 <= jj - 1 < N: out.append((0, 0, jj - 1, kk, -1.0))
+        elif comp == 2:
+            if 0 <= kk + 1 < N: out.append((0, 0, jj, kk + 1, +1.0))
+            if 0 <= kk - 1 < N: out.append((0, 0, jj, kk - 1, -1.0))
+        return out
 
     def in_bounds_mirror(ii, jj, kk):
-        """True if (ii,jj,kk) is inside the grid OR is a valid top-mirror ghost."""
+        """True if (ii,jj,kk) is inside the grid OR is a valid top ghost."""
         if 0 <= jj < N and 0 <= kk < N:
             if 0 <= ii < N:
                 return True
@@ -331,16 +376,24 @@ def navier_solve_3d_tensor_mu(
                 return True
         return False
 
-    def eff_ijk(ii, jj, kk):
-        """Return effective indices — mirrors i = -1 to i = 1 if top_free."""
+    def add_A(m_row, comp, ii, jj, kk, coef):
+        """Add ``coef`` to A[m_row, u_comp(ii, jj, kk)].  Handles the
+        traction-free top ghost by distributing across interior DOFs."""
+        if not (0 <= jj < N and 0 <= kk < N):
+            return
+        if 0 <= ii < N:
+            A[m_row, idx(comp, ii, jj, kk)] += coef
+            return
         if top_free and ii == -1:
-            return 1, jj, kk
-        return ii, jj, kk
+            for (tc, ti, tj, tk, mult) in _expand_ghost(comp, jj, kk):
+                A[m_row, idx(tc, ti, tj, tk)] += coef * mult
 
     def eff_mu(ii, jj, kk):
-        """Return µ tensor at (ii,jj,kk) — mirrored on the top-ghost slab."""
-        ie, je, ke = eff_ijk(ii, jj, kk)
-        return mu[ie, je, ke]
+        """Return µ tensor at (ii,jj,kk) — uses the top-slab value for i=-1
+        (locally-isotropic material assumption at the top face)."""
+        if top_free and ii == -1:
+            return mu[1, jj, kk]
+        return mu[ii, jj, kk]
 
     # Assembly:
     #   ρω² u_i = ∂_j σ_ij
@@ -392,60 +445,41 @@ def navier_solve_3d_tensor_mu(
                                     ip = i_j.copy(); im = i_j.copy()
                                     ip[l_ax] += 1; im[l_ax] -= 1
                                     coef_scale = (sj / (2.0 * dx)) * (0.5 / dx)
-                                    if in_bounds_mirror(*ip):
-                                        col = idx(l_ax, *eff_ijk(*ip))
-                                        A[m, col] = A[m, col] + lam_c * coef_scale
-                                    if in_bounds_mirror(*im):
-                                        col = idx(l_ax, *eff_ijk(*im))
-                                        A[m, col] = A[m, col] - lam_c * coef_scale
+                                    add_A(m, l_ax, *ip, +lam_c * coef_scale)
+                                    add_A(m, l_ax, *im, -lam_c * coef_scale)
 
                             # ── μ_{c,k}·(∂_k u_{j_ax} + ∂_{j_ax} u_k)/2 term ──
                             # and μ_{j_ax,k}·(∂_k u_c + ∂_c u_k)/2  (symmetric)
-                            mu_at_neighbor = eff_mu(*i_j)          # top-mirrored µ
+                            mu_at_neighbor = eff_mu(*i_j)          # top-ghost µ
                             for k_ax in range(3):
                                 mu_ck = mu_at_neighbor[c, k_ax]
                                 mu_jaxk = mu_at_neighbor[j_ax, k_ax]
 
+                                coef_scale = (sj / (2.0 * dx)) * (0.5 / dx)
+
                                 # ∂_k u_{j_ax}
                                 ip = i_j.copy(); im = i_j.copy()
                                 ip[k_ax] += 1; im[k_ax] -= 1
-                                coef_scale = (sj / (2.0 * dx)) * (0.5 / dx)
-                                if in_bounds_mirror(*ip):
-                                    col = idx(j_ax, *eff_ijk(*ip))
-                                    A[m, col] = A[m, col] + mu_ck * coef_scale
-                                if in_bounds_mirror(*im):
-                                    col = idx(j_ax, *eff_ijk(*im))
-                                    A[m, col] = A[m, col] - mu_ck * coef_scale
+                                add_A(m, j_ax, *ip, +mu_ck * coef_scale)
+                                add_A(m, j_ax, *im, -mu_ck * coef_scale)
 
                                 # ∂_{j_ax} u_k  (mult by μ_ck / 2)
                                 ip = i_j.copy(); im = i_j.copy()
                                 ip[j_ax] += 1; im[j_ax] -= 1
-                                if in_bounds_mirror(*ip):
-                                    col = idx(k_ax, *eff_ijk(*ip))
-                                    A[m, col] = A[m, col] + mu_ck * coef_scale
-                                if in_bounds_mirror(*im):
-                                    col = idx(k_ax, *eff_ijk(*im))
-                                    A[m, col] = A[m, col] - mu_ck * coef_scale
+                                add_A(m, k_ax, *ip, +mu_ck * coef_scale)
+                                add_A(m, k_ax, *im, -mu_ck * coef_scale)
 
                                 # ∂_k u_c  (mult by μ_{jax,k} / 2)
                                 ip = i_j.copy(); im = i_j.copy()
                                 ip[k_ax] += 1; im[k_ax] -= 1
-                                if in_bounds_mirror(*ip):
-                                    col = idx(c, *eff_ijk(*ip))
-                                    A[m, col] = A[m, col] + mu_jaxk * coef_scale
-                                if in_bounds_mirror(*im):
-                                    col = idx(c, *eff_ijk(*im))
-                                    A[m, col] = A[m, col] - mu_jaxk * coef_scale
+                                add_A(m, c, *ip, +mu_jaxk * coef_scale)
+                                add_A(m, c, *im, -mu_jaxk * coef_scale)
 
                                 # ∂_c u_k  (mult by μ_{jax,k} / 2)
                                 ip = i_j.copy(); im = i_j.copy()
                                 ip[c] += 1; im[c] -= 1
-                                if in_bounds_mirror(*ip):
-                                    col = idx(k_ax, *eff_ijk(*ip))
-                                    A[m, col] = A[m, col] + mu_jaxk * coef_scale
-                                if in_bounds_mirror(*im):
-                                    col = idx(k_ax, *eff_ijk(*im))
-                                    A[m, col] = A[m, col] - mu_jaxk * coef_scale
+                                add_A(m, k_ax, *ip, +mu_jaxk * coef_scale)
+                                add_A(m, k_ax, *im, -mu_jaxk * coef_scale)
 
     print(f"[navier-tensor] solving {n_dof} DOF, nnz ~ {A.nnz}...")
     u_flat = spsolve(A.tocsr(), b)
