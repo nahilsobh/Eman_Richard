@@ -538,6 +538,114 @@ correction. A scalar $G(\vect x)$ representation cannot capture it,
 which is one of the reasons the forward model must be
 (\ref{eq:navier}).
 
+\subsection{Solver inputs: complete summary}
+\label{sec:solver-inputs}
+
+Everything the vector-Navier solver reads at each voxel is derived
+from a small set of scalar constants plus the incompressible
+spherical kinematics. Consolidated here for reproducibility.
+
+\paragraph{Scalar inputs (uniform across the domain).}
+
+\begin{center}
+\begin{tabular}{lllp{6.5cm}}
+\toprule
+Symbol & Value & Units & Meaning \\
+\midrule
+$\mu$        & 2750       & \si{\pascal}                  & matrix shear (both P1 and P2); mean of $[2.5,3.0]$~kPa \\
+$k_1$        & 3250       & \si{\pascal}                  & P2 fiber reinforcement; mean of $[1.5,5.0]$~kPa \\
+$k_2$        & 1.25       & ---                           & P2 nonlinear stiffening; mean of $[0.5,2.0]$ \\
+$\lambda$    & $10^{5}$   & \si{\pascal}                  & first Lamé — near-incompressibility penalty \\
+$\rho$       & 1000       & \si{\kilogram\per\metre\cubed} & gel density \\
+$\xi$        & 0.05       & ---                           & hysteretic damping ($Q\approx 10$) \\
+$f$          & 80         & \si{\hertz}                   & Yin's phantom frequency \\
+$\mu_{\text{water}}$ & 1  & \si{\pascal}                  & balloon-interior placeholder (no shear support) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Kinematic geometry (drives $\lambda_\theta(r)$).}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Symbol & Value & Units & Meaning \\
+\midrule
+$A$ & 22.85 & \si{\milli\metre} & reference balloon radius (\SI{50}{\milli\litre} casting) \\
+$a$ & 39.08 & \si{\milli\metre} & current balloon radius (\SI{250}{\milli\litre} inflated) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Per-voxel material fields.}
+Two spherical-frame eigenvalues are computed from $\lambda_\theta(r)$
+and one of two constitutive laws:
+
+\begin{itemize}
+\item \textbf{P1 (neo-Hookean matrix):} $W_1^{\text{P1}}(\lambda_\theta) = \mu/2 = 1375$~Pa (constant).
+\item \textbf{P2 (matrix + Holzapfel--Gasser--Ogden fiber):}
+$W_1^{\text{P2}}(\lambda_\theta) = \mu/2 + \dfrac{k_1(\lambda_\theta{-}1)\,e^{k_2(\lambda_\theta - 1)^2}\lambda_\theta^{5}}{4(\lambda_\theta^{6}-1)}$,
+with $W_1^{\text{P2}}(1) = \mu/2 + k_1/24$ handled explicitly.
+\end{itemize}
+
+Then $\mu_{\theta\theta} = 2W_1\lambda_\theta^{2}$,
+$\mu_{rr} = 2W_1\lambda_\theta^{-4}$, rotated to Cartesian via
+(\ref{eq:rotation}), with hysteretic damping folded in as
+$\mu^{*}_{ij} = \mu_{ij}(1 + i\xi)$.
+
+\paragraph{Concrete values at representative radii.}
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Location & $\lambda_\theta$ & $\mu_{\theta\theta}^{\text{P1}}$ & $\mu_{rr}^{\text{P1}}$ & $\mu_{\theta\theta}^{\text{P2}}$ & $\mu_{rr}^{\text{P2}}$ \\
+         &                  & (kPa) & (kPa) & (kPa) & (kPa) \\
+\midrule
+Cavity edge $r=a$            & 1.71 & 8.04 & 0.32 & $\sim$9.9  & $\sim$0.40 \\
+Ring mid $r=a+\SI{12}{\milli\metre}$ & 1.16 & 3.7  & 1.5  & 4.5        & 1.9        \\
+Far field $r\gg a$           & 1.00 & 2.75 & 2.75 & 2.75       & 2.75       \\
+Balloon interior             & ---  & 0.001 & 0.001 & 0.001  & 0.001      \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The $25\times$ radial-vs-tangential anisotropy at the cavity edge is
+what drives the direction-selective wave response Yin's TSM MIP
+picks out.
+
+\paragraph{What the solver does NOT read.}
+\begin{itemize}
+\item \textbf{No pre-stress tensor} $\sigma^{\text{pre}}(\vect x)$
+      — the geometric acoustoelastic term $\delta_{ik}\sigma^{\text{pre}}_{jl}$
+      is missing (see \S\ref{sec:openissues}).
+\item \textbf{No third-order Murnaghan constants} $l, m, n$ — the
+      $M_{ijklmn}\sigma^{\text{pre}}_{mn}$ correction to $C^{\text{eff}}$
+      is not modelled.
+\item \textbf{No explicit Poisson's ratio} — near-incompressibility
+      is enforced by $\lambda \gg \mu$ (effective $\nu \approx 0.4999$).
+\item \textbf{No frequency dispersion} of $\mu$ — quasi-static
+      modulus values are used; the wave problem is time-harmonic at
+      a single \SI{80}{\hertz}.
+\end{itemize}
+
+\paragraph{Code locations.}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Constant / field & File and line \\
+\midrule
+Scalar mean-of-band constants     & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:53--58 \\
+Kinematic parameters ($A, a$)     & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:50--52 \\
+$W_1^{\text{P1}}, W_1^{\text{P2}}$ & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:64--74 \\
+$\mu_{rr}, \mu_{\theta\theta}$    & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:88--90 \\
+Cartesian rotation                & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:95--102 \\
+Damping ($\mu^{*}_{ij}$)          & \texttt{vector\_elasticity\_3d.py}:328 \\
+Balloon-interior override         & \texttt{paper\_wave\_sim\_sobh\_vector\_mip\_multiface.py}:92--93 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
 \subsection{$\mu_{ij}(\vect x)$ maps}
 
 Applying (\ref{eq:kinematics})--(\ref{eq:rotation}) at every voxel
