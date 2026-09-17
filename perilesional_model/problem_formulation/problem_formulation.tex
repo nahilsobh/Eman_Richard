@@ -133,7 +133,7 @@ Symbol & Value & Meaning \\
 \midrule
 $\rho$    & \SI{1000}{\kilogram\per\metre\cubed} & gel density \\
 $\omega$  & $2\pi\cdot 80$ \si{\radian\per\second} & angular frequency (Yin's) \\
-$\lambda$ & \SI{1e7}{\pascal} & bulk-penalty first Lam\'e (near-incompressible) \\
+$\lambda$ & \SI{2.2e9}{\pascal} & bulk modulus (physical: both gel and water) \\
 $\xi$     & 0.05 & hysteretic damping ($Q\approx 10$) \\
 \bottomrule
 \end{tabular}
@@ -275,27 +275,22 @@ the sparse assembly.
 
 \paragraph{Balloon: water — incompressible fluid inclusion.}
 \label{par:balloon-model}
-The balloon is treated as a single water inclusion with:
+The balloon is treated as a single water inclusion, with all
+parameters set to their physical values:
 \begin{itemize}
 \item \textbf{No shear support}: $\mu_{\text{ball}} \approx 0$
       (numerically \SI{1}{\pascal}, essentially zero — water is a
       fluid and cannot support shear stress at any timescale).
-\item \textbf{High bulk stiffness}: enforced by the global bulk-penalty
-      first Lamé $\lambda = \SI{1e7}{\pascal} = 10$~MPa. Real water
-      $K \approx 2.2$~GPa — our 10~MPa is 220$\times$ softer, but at
-      \SI{80}{\hertz} the P-wavelength inside the ball is
-      $\sqrt{\lambda/\rho}/f \approx \SI{1.25}{\metre}$, seven times
-      the container extent, so P-waves inside the ball are
-      quasi-static — pressure equilibrates instantly relative to the
-      shear timescale. Increasing $\lambda$ further gives no wave-field
-      change in the perilesional shell.
+\item \textbf{Physical bulk modulus}: $\lambda_{\text{ball}} = \SI{2.2e9}{\pascal} =
+      \SI{2.2}{\giga\pascal}$, the measured bulk modulus of water.
 \end{itemize}
 
-Note that $\lambda = \SI{1e7}{\pascal}$ is a \emph{global} bulk penalty
-— it applies everywhere, gel and ball alike. This is physically
-justified: real gel is also quasi-incompressible ($K \sim $ GPa),
-close to water. Both media are near-incompressible; they differ only
-in shear behaviour, which is what MRE actually measures.
+The surrounding gel (gelatin) has essentially the same physical bulk
+modulus ($K \approx \SI{2.2}{\giga\pascal}$; gelatin is $\sim$99\% water),
+so we take $\lambda_{\text{gel}} = \lambda_{\text{ball}} = \SI{2.2}{\giga\pascal}$
+throughout — a single physical value everywhere. Both media are
+near-incompressible; they differ only in shear behaviour, which is
+what MRE actually measures.
 
 The balloon is \emph{attached} to the surrounding gel: the gel was
 cast against the balloon surface, so at $r = a$ the FD stencil
@@ -613,11 +608,11 @@ $\mu_0^{\text{P1}}$   & 3530       & \si{\pascal}                  & P1 baseline
 $\mu_0^{\text{P2}}$   & 3340       & \si{\pascal}                  & P2 baseline shear modulus (Fig.~6 pinned) \\
 $c$          & 0.2728     & ---                           & P2 power-law fibre recruitment coefficient \\
 $m$          & 0.5791     & ---                           & P2 power-law fibre recruitment exponent \\
-$\lambda$    & $10^{7}$   & \si{\pascal}                  & first Lamé — near-incompressibility penalty \\
+$\lambda$    & $2.2 \times 10^{9}$ & \si{\pascal}         & bulk modulus (physical: both gel and water, $K \approx 2.2$~GPa) \\
 $\rho$       & 1000       & \si{\kilogram\per\metre\cubed} & gel density \\
 $\xi$        & 0.05       & ---                           & hysteretic damping ($Q\approx 10$) \\
 $f_{\text{drive}}$ & 80   & \si{\hertz}                   & Yin's phantom frequency \\
-$\mu_{\text{water}}$ & 1  & \si{\pascal}                  & balloon-interior placeholder (no shear support) \\
+$\mu_{\text{water}}$ & 1  & \si{\pascal}                  & balloon-interior shear ($\approx 0$; 1 Pa is numerical safety) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -715,171 +710,163 @@ $I{=}1{\to}xx,\; I{=}2{\to}yy,\; I{=}3{\to}zz,\; I{=}4{\to}yz,\; I{=}5{\to}xz,\;
 The $6{\times}6$ matrix at four representative voxels for each
 phantom is shown below — showing both the phantom's near-cavity
 anisotropy and the far-field near-isotropy. All values in
-\si{\kilo\pascal}; $\lambda = 100$~kPa everywhere. Voigt indices
+\si{\kilo\pascal}; $\lambda = 2.2$~GPa everywhere. Voigt indices
 follow the $(x,y,z)$ ordering above. Each matrix is followed by its
 six eigenvalues, which are basis-invariant.
 
-\vspace{4pt}
-\begin{center}
-\small
+\vspace{8pt}
+\begin{center}\small
 \textbf{Phantom P1 (neo-Hookean, $\mu_0 = 3530$~Pa)}
 \end{center}
 
-\textbf{Cavity edge, $-z$ axis} \quad $(i,j,k)=(24,24,15)$, $r=43.6$~mm, $\lambda=100$~kPa
-\begin{center}\small
+\textbf{Cavity edge, $-z$ axis} \quad $(i,j,k)=(24,24,15)$, $r=43.6$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}112.54 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & $-$0.18 & $-$0.01 \\
-$yy$ & \phantom{$-$}100.00 & \phantom{$-$}112.54 & \phantom{$-$}100.00 & $-$0.18 & \phantom{$-$}0.00 & $-$0.01 \\
-$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}102.26 & $-$0.18 & $-$0.18 & \phantom{$-$}0.00 \\
-$yz$ & \phantom{$-$}0.00 & $-$0.18 & $-$0.18 & \phantom{$-$}3.70 & \phantom{$-$}0.00 & $-$0.09 \\
-$xz$ & $-$0.18 & \phantom{$-$}0.00 & $-$0.18 & \phantom{$-$}0.00 & \phantom{$-$}3.70 & $-$0.09 \\
+$xx$ & \phantom{$-$}2,200,013 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & $-$0.18 & $-$0.01 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,013 & \phantom{$-$}2,200,000 & $-$0.18 & \phantom{$-$}0.00 & $-$0.01 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,002 & $-$0.18 & $-$0.18 & \phantom{$-$}0.00 \\
+$yz$ & \phantom{$-$}0.00 & $-$0.18 & $-$0.18 & \phantom{$-$}3.70 & $-$0.00 & $-$0.09 \\
+$xz$ & $-$0.18 & \phantom{$-$}0.00 & $-$0.18 & $-$0.00 & \phantom{$-$}3.70 & $-$0.09 \\
 $xy$ & $-$0.01 & $-$0.01 & \phantom{$-$}0.00 & $-$0.09 & $-$0.09 & \phantom{$-$}6.27 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.68,\ 3.70,\ 5.61,\ 6.28,\ 12.54,\ 309.19\}$
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{3.68,\ 3.70,\ 5.69,\ 6.28,\ 12.54\}$, 1 bulk-hydrostatic $6.60$~GPa
 
-\vspace{6pt}
-\textbf{Mid-shell off-axis} \quad $(i,j,k)=(31,29,17)$, $r=44.4$~mm, $\lambda=100$~kPa
-\begin{center}\small
+\textbf{Mid-shell off-axis} \quad $(i,j,k)=(31,29,17)$, $r=44.4$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}110.13 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}1.77 & $-$0.64 \\
-$yy$ & \phantom{$-$}100.00 & \phantom{$-$}111.08 & \phantom{$-$}100.00 & \phantom{$-$}1.22 & \phantom{$-$}0.00 & $-$0.64 \\
-$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}105.17 & \phantom{$-$}1.22 & \phantom{$-$}1.77 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}2,200,010 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}1.77 & $-$0.64 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,011 & \phantom{$-$}2,200,000 & \phantom{$-$}1.22 & \phantom{$-$}0.00 & $-$0.64 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,005 & \phantom{$-$}1.22 & \phantom{$-$}1.77 & \phantom{$-$}0.00 \\
 $yz$ & \phantom{$-$}0.00 & \phantom{$-$}1.22 & \phantom{$-$}1.22 & \phantom{$-$}4.06 & $-$0.32 & \phantom{$-$}0.88 \\
 $xz$ & \phantom{$-$}1.77 & \phantom{$-$}0.00 & \phantom{$-$}1.77 & $-$0.32 & \phantom{$-$}3.83 & \phantom{$-$}0.61 \\
 $xy$ & $-$0.64 & $-$0.64 & \phantom{$-$}0.00 & \phantom{$-$}0.88 & \phantom{$-$}0.61 & \phantom{$-$}5.30 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{2.99,\ 3.90,\ 5.44,\ 7.44,\ 10.98,\ 308.84\}$
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{3.02,\ 3.90,\ 5.44,\ 7.45,\ 10.98\}$, 1 bulk-hydrostatic $6.60$~GPa
 
-\vspace{6pt}
-\textbf{Far corner $(+,+,+)$} \quad $(i,j,k)=(47,47,57)$, $r=126.2$~mm, $\lambda=100$~kPa
-\begin{center}\small
+\textbf{Far corner $(+,+,+)$} \quad $(i,j,k)=(47,47,57)$, $r=126.2$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}107.08 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & $-$0.06 & $-$0.05 \\
-$yy$ & \phantom{$-$}100.00 & \phantom{$-$}107.08 & \phantom{$-$}100.00 & $-$0.06 & \phantom{$-$}0.00 & $-$0.05 \\
-$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}107.03 & $-$0.06 & $-$0.06 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}2,200,007 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & $-$0.06 & $-$0.05 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,007 & \phantom{$-$}2,200,000 & $-$0.06 & \phantom{$-$}0.00 & $-$0.05 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,007 & $-$0.06 & $-$0.06 & \phantom{$-$}0.00 \\
 $yz$ & \phantom{$-$}0.00 & $-$0.06 & $-$0.06 & \phantom{$-$}3.53 & $-$0.02 & $-$0.03 \\
 $xz$ & $-$0.06 & \phantom{$-$}0.00 & $-$0.06 & $-$0.02 & \phantom{$-$}3.53 & $-$0.03 \\
 $xy$ & $-$0.05 & $-$0.05 & \phantom{$-$}0.00 & $-$0.03 & $-$0.03 & \phantom{$-$}3.54 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.48,\ 3.55,\ 3.57,\ 7.05,\ 7.08,\ 307.06\}$
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{3.48,\ 3.55,\ 3.57,\ 7.05,\ 7.08\}$, 1 bulk-hydrostatic $6.60$~GPa
 
-\vspace{6pt}
-\textbf{Balloon interior (water, $\mu \approx 0$, $\lambda = 10$~MPa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
-\begin{center}\small
+\textbf{Balloon interior (water, $\mu \approx 0$, $\lambda = 2.2$~GPa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
-$yy$ & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
-$zz$ & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 $yz$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 $xz$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 $xy$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{0.00,\ 0.00,\ 0.00,\ 0.00,\ 0.00,\ 30000.00\}$
-
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{0.00,\ 0.00,\ 0.00,\ 0.00,\ 0.00\}$, 1 bulk-hydrostatic $6.60$~GPa
 \vspace{8pt}
-\begin{center}
-\small
+\begin{center}\small
 \textbf{Phantom P2 (matrix + power-law fibre, $\mu_0 = 3340$~Pa)}
 \end{center}
 
-\textbf{Cavity edge, $-z$ axis} \quad $(i,j,k)=(24,24,15)$, $r=43.6$~mm, $\lambda=100$~kPa
-\begin{center}\small
+\textbf{Cavity edge, $-z$ axis} \quad $(i,j,k)=(24,24,15)$, $r=43.6$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}114.85 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & $-$0.21 & $-$0.01 \\
-$yy$ & \phantom{$-$}100.00 & \phantom{$-$}114.85 & \phantom{$-$}100.00 & $-$0.21 & \phantom{$-$}0.00 & $-$0.01 \\
-$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}102.68 & $-$0.21 & $-$0.21 & \phantom{$-$}0.00 \\
-$yz$ & \phantom{$-$}0.00 & $-$0.21 & $-$0.21 & \phantom{$-$}4.38 & \phantom{$-$}0.00 & $-$0.11 \\
-$xz$ & $-$0.21 & \phantom{$-$}0.00 & $-$0.21 & \phantom{$-$}0.00 & \phantom{$-$}4.38 & $-$0.11 \\
+$xx$ & \phantom{$-$}2,200,015 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & $-$0.21 & $-$0.01 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,015 & \phantom{$-$}2,200,000 & $-$0.21 & \phantom{$-$}0.00 & $-$0.01 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,003 & $-$0.21 & $-$0.21 & \phantom{$-$}0.00 \\
+$yz$ & \phantom{$-$}0.00 & $-$0.21 & $-$0.21 & \phantom{$-$}4.38 & $-$0.00 & $-$0.11 \\
+$xz$ & $-$0.21 & \phantom{$-$}0.00 & $-$0.21 & $-$0.00 & \phantom{$-$}4.38 & $-$0.11 \\
 $xy$ & $-$0.01 & $-$0.01 & \phantom{$-$}0.00 & $-$0.11 & $-$0.11 & \phantom{$-$}7.43 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{4.36,\ 4.38,\ 6.63,\ 7.43,\ 14.86,\ 310.90\}$
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{4.36,\ 4.38,\ 6.74,\ 7.43,\ 14.86\}$, 1 bulk-hydrostatic $6.60$~GPa
 
-\vspace{6pt}
-\textbf{Mid-shell off-axis} \quad $(i,j,k)=(31,29,17)$, $r=44.4$~mm, $\lambda=100$~kPa
-\begin{center}\small
+\textbf{Mid-shell off-axis} \quad $(i,j,k)=(31,29,17)$, $r=44.4$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}111.77 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & \phantom{$-$}2.05 & $-$0.74 \\
-$yy$ & \phantom{$-$}100.00 & \phantom{$-$}112.88 & \phantom{$-$}100.00 & \phantom{$-$}1.42 & \phantom{$-$}0.00 & $-$0.74 \\
-$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}106.02 & \phantom{$-$}1.42 & \phantom{$-$}2.05 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}2,200,012 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}2.05 & $-$0.74 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,013 & \phantom{$-$}2,200,000 & \phantom{$-$}1.42 & \phantom{$-$}0.00 & $-$0.74 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,006 & \phantom{$-$}1.42 & \phantom{$-$}2.05 & \phantom{$-$}0.00 \\
 $yz$ & \phantom{$-$}0.00 & \phantom{$-$}1.42 & \phantom{$-$}1.42 & \phantom{$-$}4.73 & $-$0.37 & \phantom{$-$}1.03 \\
 $xz$ & \phantom{$-$}2.05 & \phantom{$-$}0.00 & \phantom{$-$}2.05 & $-$0.37 & \phantom{$-$}4.45 & \phantom{$-$}0.71 \\
 $xy$ & $-$0.74 & $-$0.74 & \phantom{$-$}0.00 & \phantom{$-$}1.03 & \phantom{$-$}0.71 & \phantom{$-$}6.16 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.47,\ 4.53,\ 6.32,\ 8.65,\ 12.76,\ 310.28\}$
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{3.51,\ 4.53,\ 6.32,\ 8.66,\ 12.76\}$, 1 bulk-hydrostatic $6.60$~GPa
 
-\vspace{6pt}
-\textbf{Far corner $(+,+,+)$} \quad $(i,j,k)=(47,47,57)$, $r=126.2$~mm, $\lambda=100$~kPa
-\begin{center}\small
+\textbf{Far corner $(+,+,+)$} \quad $(i,j,k)=(47,47,57)$, $r=126.2$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}106.73 & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}0.00 & $-$0.06 & $-$0.05 \\
-$yy$ & \phantom{$-$}100.00 & \phantom{$-$}106.73 & \phantom{$-$}100.00 & $-$0.06 & \phantom{$-$}0.00 & $-$0.05 \\
-$zz$ & \phantom{$-$}100.00 & \phantom{$-$}100.00 & \phantom{$-$}106.68 & $-$0.06 & $-$0.06 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}2,200,007 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & $-$0.06 & $-$0.05 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,007 & \phantom{$-$}2,200,000 & $-$0.06 & \phantom{$-$}0.00 & $-$0.05 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,007 & $-$0.06 & $-$0.06 & \phantom{$-$}0.00 \\
 $yz$ & \phantom{$-$}0.00 & $-$0.06 & $-$0.06 & \phantom{$-$}3.35 & $-$0.02 & $-$0.03 \\
 $xz$ & $-$0.06 & \phantom{$-$}0.00 & $-$0.06 & $-$0.02 & \phantom{$-$}3.35 & $-$0.03 \\
 $xy$ & $-$0.05 & $-$0.05 & \phantom{$-$}0.00 & $-$0.03 & $-$0.03 & \phantom{$-$}3.36 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.30,\ 3.37,\ 3.39,\ 6.70,\ 6.73,\ 306.71\}$
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{3.30,\ 3.37,\ 3.39,\ 6.70,\ 6.73\}$, 1 bulk-hydrostatic $6.60$~GPa
 
-\vspace{6pt}
-\textbf{Balloon interior (water, $\mu \approx 0$, $\lambda = 10$~MPa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
-\begin{center}\small
+\textbf{Balloon interior (water, $\mu \approx 0$, $\lambda = 2.2$~GPa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
+\begin{center}\scriptsize
 \begin{tabular}{r|rrrrrr}
 \toprule
  & $xx$ & $yy$ & $zz$ & $yz$ & $xz$ & $xy$ \\
 \midrule
-$xx$ & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
-$yy$ & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
-$zz$ & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}10000.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$xx$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$yy$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
+$zz$ & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}2,200,000 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 $yz$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 $xz$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 $xy$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{0.00,\ 0.00,\ 0.00,\ 0.00,\ 0.00,\ 30000.00\}$
+\vspace{-4pt}\noindent\hspace{1em}\scriptsize eigenvalues: 5 shear-related (kPa) $\{0.00,\ 0.00,\ 0.00,\ 0.00,\ 0.00\}$, 1 bulk-hydrostatic $6.60$~GPa
 
 \vspace{8pt}
 \noindent\normalsize Key patterns:
 \begin{itemize}
 \item \textbf{Top-left $3{\times}3$ block} (normal--normal): dominated by
-      $\lambda = 100$~kPa; diagonal entries are $\lambda + 2\mu_{ii}$
+      $\lambda = 2.2$~GPa (physical bulk modulus of both gel and water,
+      $K \approx 2.2$~GPa); diagonal entries are $\lambda + 2\mu_{ii}$
       and off-diagonals are exactly $\lambda$. This is the
-      near-incompressibility penalty.
+      real incompressibility.
 \item \textbf{Bottom-right $3{\times}3$ block} (shear--shear): the actual
       wave shear moduli. Diagonal entries are $(\mu_{ii}+\mu_{jj})/2$
       for each Voigt shear index — the mean of the two principal
@@ -897,7 +884,7 @@ $xy$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}
       with $\mu_{ij} = 1\,\delta_{ij}$~Pa (essentially zero — water
       cannot support shear), the top-left block is
       $\lambda + 2\mu \approx \lambda$ and the shear block is
-      $\sim 1$~Pa. With the global bulk penalty $\lambda = 10$~MPa,
+      $\sim 1$~Pa. With the global bulk penalty $\lambda = 2.2$~GPa,
       P-waves have negligible spatial variation inside the ball
       (quasi-static). Shear waves cannot propagate through; interface
       is a fluid-solid boundary (see \S\ref{par:balloon-model}).
@@ -1301,8 +1288,8 @@ Phantom & GT $\mu_{\theta\theta}$ & $\mu_{\mathrm{conv}}$
         & [\si{\kilo\pascal}]     & [\si{\kilo\pascal}]
         & [\si{\kilo\pascal}]     & — \\
 \midrule
-P1 & 6.02 & 1.13 & 2.86 & \textbf{2.53} \\
-P2 & 7.09 & 1.23 & 3.28 & \textbf{2.66} \\
+P1 & 6.02 & 0.68 & 1.27 & \textbf{1.86} \\
+P2 & 7.09 & 0.75 & 1.42 & \textbf{1.88} \\
 \midrule
 Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 \bottomrule
@@ -1311,8 +1298,8 @@ Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 Grid $(N_x,N_y,N_z) = (50,50,60)$ at $\Delta x = 3$~mm, container
 $15{\times}15{\times}18$~cm matching Yin exactly. Balloon modelled as
 water-filled incompressible fluid inclusion, $\mu_{\text{ball}} = 1$~Pa
-(near-zero shear), global bulk penalty $\lambda = 10$~MPa
-(\S\ref{par:balloon-model}).
+($\approx 0$), $\lambda = 2.2$~GPa (physical bulk modulus of both gel
+and water; \S\ref{par:balloon-model}).
 
 \begin{figure}[h]
 \centering
@@ -1356,8 +1343,8 @@ Phantom & GT $\mu_{\theta\theta}$ [\si{\kilo\pascal}]
         & $\mu_{\mathrm{conv}}$ & $\mu_{\mathrm{TSM}}$
         & TSM/conv & TSM/GT \\
 \midrule
-P1 (neo-Hookean, $\mu_0=3530$~Pa) & 6.02 & 1.13 & 2.86 & 2.53 & 0.47 \\
-P2 (matrix + power-law fibre)     & 7.09 & 1.23 & 3.28 & 2.66 & 0.46 \\
+P1 (neo-Hookean, $\mu_0=3530$~Pa) & 6.02 & 0.68 & 1.27 & 1.86 & 0.21 \\
+P2 (matrix + power-law fibre)     & 7.09 & 0.75 & 1.42 & 1.88 & 0.20 \\
 \midrule
 Yin measured (P1)    & --- & --- & $\sim$4.4 & 1.57 & --- \\
 \bottomrule
