@@ -1025,15 +1025,16 @@ clamped on the $z$-component (comp 2) to the same complex amplitude
 $u_z = \SI{1}{\micro\metre}$ (piston pushing upward). This is the
 setup a laboratory MRE run uses.
 
-\subsection{Multi-face broadband driver (for TSM MIP)}
+\subsection{Multi-face broadband driver (retained for reference)}
 \label{sec:driver-multiface}
-Five faces driven simultaneously (bottom face $k=0$ plus four side faces
-$i = 0, N_x-1$ and $j = 0, N_y-1$; top face $k = N_z-1$ left free), each
-with the same disk source ($r_d = \SI{37.5}{\milli\metre}$, amplitude
-\SI{1}{\micro\metre}). Each face is driven on its face-normal
-displacement component: bottom on $u_z$, $\pm x$ faces on $u_x$, $\pm y$
-faces on $u_y$. Rich direction content in the resulting wave field lets
-the $k$-space directional filter isolate 20 distinct propagation modes.
+An alternative driver where all five non-top faces are driven simultaneously
+(bottom face $k=0$ plus $\pm x$ and $\pm y$ sides), each on its face-normal
+displacement component, is retained in the code as \texttt{multi\_face\_vector\_sources()}.
+It was used earlier to inject rich directional wave content but was
+retired in favour of the bottom-face-only setup above, which matches
+Yin's physical piston. In our tests, the two produce nearly-identical
+ring-mean $\mu_{\text{TSM}}$ and TSM/conv values (within $\sim$10\%),
+confirming that the driver geometry is not the dominant factor.
 
 \section{Discretisation: vector Navier}
 \label{sec:discretisation}
@@ -1273,12 +1274,13 @@ with a 7-point centred Laplacian followed by a
 \section{Sample results}
 
 Vector Navier with the tensor stiffness $\mu_{ij}(\vect x)$ from
-(\ref{eq:rotation}), the multi-face broadband driver, proper
-traction-free top BC (\ref{eq:ghost}), on a $48^3$ grid at
-$\Delta x = \SI{3.75}{\milli\metre}$ (\SI{18.0}{\centi\metre} cube —
-Yin container size), followed by the curl→filter→DI→MIP pipeline of
-\S\ref{sec:inversion} at Yin's 80\,\si{\hertz}, using the fitted
-Sobh--Ehman material model of \S\ref{sec:material}:
+(\ref{eq:rotation}), the bottom-face-only piston driver
+(\S\ref{sec:driver}) matching Yin's setup, proper traction-free top
+BC (\ref{eq:ghost}), on the Yin-exact container grid $(N_x, N_y, N_z)
+= (50, 50, 60)$ at $\Delta x = \SI{3}{\milli\metre}$, followed by the
+curl→filter→DI→MIP pipeline of \S\ref{sec:inversion} at Yin's
+80\,\si{\hertz}, using the fitted Sobh--Ehman material model of
+\S\ref{sec:material}:
 
 \begin{center}
 \begin{tabular}{lcccc}
@@ -1288,18 +1290,20 @@ Phantom & GT $\mu_{\theta\theta}$ & $\mu_{\mathrm{conv}}$
         & [\si{\kilo\pascal}]     & [\si{\kilo\pascal}]
         & [\si{\kilo\pascal}]     & — \\
 \midrule
-P1 & 6.02 & 0.68 & 1.27 & \textbf{1.86} \\
-P2 & 7.09 & 0.75 & 1.42 & \textbf{1.88} \\
+P1 & 6.02 & 0.69 & 1.25 & \textbf{1.83} \\
+P2 & 7.09 & 0.70 & 1.29 & \textbf{1.85} \\
 \midrule
 Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
+Yin measured (P2) & — & — & $\sim$5.1 & ${\sim}1.57$ \\
 \bottomrule
 \end{tabular}
 \end{center}
-Grid $(N_x,N_y,N_z) = (50,50,60)$ at $\Delta x = 3$~mm, container
-$15{\times}15{\times}18$~cm matching Yin exactly. Balloon modelled as
-water-filled incompressible fluid inclusion, $\mu_{\text{ball}} = 1$~Pa
-($\approx 0$), $\lambda = 2.2$~GPa (physical bulk modulus of both gel
-and water; \S\ref{par:balloon-model}).
+Container $15{\times}15{\times}18$~cm matching Yin exactly. Balloon
+modelled as water-filled incompressible fluid inclusion,
+$\mu_{\text{ball}} = 1$~Pa ($\approx 0$), $\lambda = 2.2$~GPa
+(physical bulk modulus of both gel and water;
+\S\ref{par:balloon-model}). All parameters are physical measurements
+or model-derived; nothing is a numerical penalty.
 
 \begin{figure}[h]
 \centering
@@ -1332,9 +1336,9 @@ DI-recovery-vs-heterogeneity issue (see \S\ref{sec:openissues}).
 \section{Perilesional ring numbers}
 \label{sec:ring}
 
-Vector Navier with tensor $\mu_{ij}(\vect x)$, multi-face broadband
-driver, top-free BC, at Yin's 80\,\si{\hertz} on the 12\,\si{\milli\metre}
-perilesional shell:
+Vector Navier with tensor $\mu_{ij}(\vect x)$, bottom-face-only piston
+driver (matching Yin's setup), top-free BC, at Yin's 80\,\si{\hertz} on
+the 12\,\si{\milli\metre} perilesional shell:
 
 \begin{center}
 \begin{tabular}{lccccc}
@@ -1343,127 +1347,110 @@ Phantom & GT $\mu_{\theta\theta}$ [\si{\kilo\pascal}]
         & $\mu_{\mathrm{conv}}$ & $\mu_{\mathrm{TSM}}$
         & TSM/conv & TSM/GT \\
 \midrule
-P1 (neo-Hookean, $\mu_0=3530$~Pa) & 6.02 & 0.68 & 1.27 & 1.86 & 0.21 \\
-P2 (matrix + power-law fibre)     & 7.09 & 0.75 & 1.42 & 1.88 & 0.20 \\
+P1 (neo-Hookean, $\mu_0=3530$~Pa) & 6.02 & 0.69 & 1.25 & 1.83 & 0.21 \\
+P2 (matrix + power-law fibre)     & 7.09 & 0.70 & 1.29 & 1.85 & 0.18 \\
 \midrule
-Yin measured (P1)    & --- & --- & $\sim$4.4 & 1.57 & --- \\
+Yin measured (P1)    & --- & --- & $\sim$4.4 & $\sim 1.57$ & --- \\
+Yin measured (P2)    & --- & --- & $\sim$5.1 & $\sim 1.57$ & --- \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 Interpretation:
 \begin{itemize}
-\item The TSM/conv ratio $\sim 1.3$ is the direction-max signature
-that distinguishes TSM from conventional MRE. Yin's measured ratio
-is 1.57 (P1); the residual gap is addressable via the two upgrades
-noted in \S\ref{sec:openissues}.
-\item TSM/GT $\sim 0.6$ is the "measurement resolution ceiling":
-DI's kernel width smooths across the sharp $G(r)$ gradient at the
-balloon boundary, and no direction-max can undo that local averaging.
+\item The TSM/conv ratio $\sim 1.85$ overshoots Yin's $\sim 1.57$ by
+${\sim}18\%$. The overshoot reflects DI's isotropic-formula bias on
+our anisotropic wave field.
+\item TSM/GT $\sim 0.20$ is very low --- DI recovers only about 20\%
+of the true $\mu_{\theta\theta}$. This under-recovery is the largest
+remaining gap; the paper's \S 5.3 quantifies the same effect on the
+real acquisition (though Yin's real-experiment recovery is
+${\sim}$73\%, i.e.\ substantially better than ours).
 \end{itemize}
 
 \section{Open issues and follow-up work}
 \label{sec:openissues}
 
-At $N=48$ with the fitted material model the pipeline reproduces
-Yin's TSM/conv ratio $\approx 1.57$ (\S\ref{sec:ring}) but recovers
-$\mu_{\mathrm{TSM}} \approx 1.9$~kPa vs Yin's ${\sim}4.4$~kPa. The
-ratio and magnitude gaps have different physical explanations — this
-section separates them.
+\paragraph{Where we stand.}
+At the Yin-exact grid $(N_x, N_y, N_z) = (50, 50, 60)$ and
+$\Delta x = 3$~mm, with all material parameters set to their
+physical values (\S\ref{par:balloon-model}), the pipeline gives
+$\mu_{\mathrm{TSM}} \approx 1.25$~kPa (P1) and $1.29$~kPa (P2),
+against Yin's measurements of $\sim$4.4~kPa (P1) and $\sim$5.1~kPa
+(P2). The TSM/conv ratio comes out around 1.85, slightly above
+Yin's $\sim$1.57.
 
-\paragraph{Ratio (TSM/conv) — closed.}
-Two implementation choices moved the ratio from an early $1.31$--$1.32$
-up to Yin's $1.57$:
+\paragraph{What has been ruled out.}
 \begin{itemize}
-\item Proper $\sigma\cdot\vect n = 0$ top BC via the ghost-node
-      stencil (\S\ref{sec:bcs}, eq.~\ref{eq:ghost}) — replacing the
-      earlier $\partial u/\partial z=0$ ghost mirror. Impact was
-      small on its own (${\sim}1.31\to 1.32$) but corrected the
-      stress boundary structurally.
-\item Refining to $N=48$ ($\Delta x = 3.75$~mm, at the Yin voxel
-      scale) — the dominant lift. Resolves the sharp
-      $\mu_{ij}(\vect x)$ gradient across the perilesional shell.
-\end{itemize}
-Together these bring both phantoms to TSM/conv $\in \{1.587, 1.672\}$;
-P2 sits slightly above the P1 mark because the fibre-driven
-anisotropy is stronger there.
-
-\paragraph{Magnitude — open, and NOT a material-model issue.}
-Both phantoms give $\mu_{\mathrm{TSM}} \approx 1.9$~kPa despite very
-different ground-truth ring moduli ($6.1$~kPa for P1, $7.2$~kPa for
-P2). The most informative diagnostic came from swapping the
-constitutive model:
-
-\begin{center}
-\begin{tabular}{lcccc}
-\toprule
-Material model             & GT $\mu_{\theta\theta}$ (P1) & $\mu_{\mathrm{TSM}}$ (P1) & GT $\mu_{\theta\theta}$ (P2) & $\mu_{\mathrm{TSM}}$ (P2) \\
-\midrule
-Mean-of-band ($\mu = 2750$~Pa) & 4.74 kPa & 1.83 kPa & 5.79 kPa & 1.87 kPa \\
-Fitted (\S\ref{sec:material})  & 6.09 kPa & 1.86 kPa & 7.21 kPa & 1.93 kPa \\
-\midrule
-\emph{Ratio (fitted / mean-of-band)} & 1.28$\times$ & 1.02$\times$ & 1.25$\times$ & 1.03$\times$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Increasing the true ring modulus by ${\sim}28\%$ produced only a
-${\sim}2$--$3\%$ increase in the recovered $\mu_{\mathrm{TSM}}$.
-Absolute recovery is therefore \textbf{decoupled from the material
-magnitude} — the pipeline is \emph{not} reading back a true
-"averaged principal modulus" from the wave field. Adding more
-constants to the constitutive law (Murnaghan third-order terms,
-rank-4 acoustoelastic $C^{\text{eff}}_{ijkl}$, etc.) will not close
-this gap.
-
-\paragraph{Where the loss actually is.}
-Two mechanisms in the curl-filter-DI-MIP pipeline that together
-cap $\mu_{\mathrm{TSM}}$ at a level far below the true ring
-modulus:
-\begin{itemize}
-\item \textbf{DI kernel width vs shell thickness.} The direct
-      inversion uses a $3\times 3\times 3$ median filter (chosen
-      to suppress the wave field's near-source noise). The
-      $\SI{12}{\milli\metre}$ perilesional shell is only
-      $3.2\Delta x$ wide at $N = 48$. The median filter necessarily
-      averages the stiff ring with softer neighbours on both sides,
-      compressing the recovered peak.
-\item \textbf{Curl-based inversion loses the P-wave "geometric"
-      cross-coupling.} $\nabla\times\vect u$ removes the
-      compressional part exactly by construction, but the residual
-      shear field over the ring carries directional structure that
-      the isotropic direct inversion formula
-      $G = -\rho\omega^{2}\,U/\nabla^{2}U$ under-reads. The MIP over
-      20 directions rescues some of it (that is why $\mu_{\mathrm{TSM}}
-      > \mu_{\mathrm{conv}}$) but not to the level Yin's phantom
-      readings suggest.
+\item \textbf{Material model:} switching from the mean-of-band constants
+      to the fitted Sobh--Ehman model raised the true $\mu_{\theta\theta}$
+      by 28\% but $\mu_{\mathrm{TSM}}$ moved only 2--3\%. The
+      constitutive-law choice is not the bottleneck.
+\item \textbf{Bulk penalty $\lambda$:} swept from $10^{5}$~Pa (soft
+      numerical penalty) up to $2.2 \times 10^{9}$~Pa (real physical
+      $K$ of water/gel). Ring numbers essentially unchanged. Physical
+      $\lambda$ is now used throughout — nothing invented.
+\item \textbf{Balloon-interior model:} tried water inclusion
+      ($\mu = 1$~Pa, $\lambda = 2.2$~GPa), rigid inclusion
+      ($\mu = 10^{6}$~Pa), and a rubber shell of one voxel thickness
+      (isotropic $\mu = 3$~MPa and Ogden-anisotropic
+      $\mu_{\theta\theta} = 2.9$~MPa/$\mu_{rr} = 0.117$~MPa). The rigid
+      case reached $\mu_{\mathrm{TSM}} \approx 2.86$~kPa but is
+      unphysical for water; the shell reproduced the TSM/conv ratio
+      closely but complicated ring bookkeeping and gave essentially
+      identical numbers whether treated as isotropic or acoustoelastically
+      anisotropic. We adopted the physically-honest water model.
+\item \textbf{Driver geometry:} multi-face broadband vs bottom-face-only
+      piston (matching Yin's setup) gave nearly-identical results
+      (within 10\%). Driver geometry is not the bottleneck.
+\item \textbf{Axis convention, non-cubic grid, ghost-node top BC:}
+      all in place and physically correct.
 \end{itemize}
 
-\textbf{Follow-up.}
+\paragraph{What the remaining gap likely reflects.}
+The under-recovery is inherent to applying an \emph{isotropic}
+DI formula $G = -\rho\omega^{2}U/\nabla^{2} U$ to an
+\emph{anisotropic} wave field. Comparing at the ring:
 \begin{itemize}
-\item Remove or shrink the median filter and measure the peak-vs-average
-      compression across the shell. Cheap; can be done as a sweep
-      inside \texttt{curl\_mip}.
-\item Widen the shell definition (e.g.\ report a $\SI{6}{\milli\metre}$
-      inner-half-shell mean rather than the whole $\SI{12}{\milli\metre}$).
-\item Compare Yin's own DI kernel choices with ours — the phantom
-      paper may quote a $\mu_{\mathrm{TSM}}$ under a different DI
-      configuration.
-\item If the peak-vs-average compression is confirmed as the dominant
-      cause, augment the reported number with a peak
-      $\mu_{\mathrm{TSM}}$ (voxelwise maximum across the shell) in
-      addition to the mean.
+\item True principal $\mu_{\theta\theta}$: 6.02 kPa (P1), 7.09 kPa (P2).
+\item Voigt shear $C_{66} = \tfrac{1}{2}(\mu_{xx}+\mu_{yy})$: 4.46 kPa (P1), 5.23 kPa (P2).
+\item Our recovered $\mu_{\mathrm{TSM}}$: 1.25 kPa (P1), 1.29 kPa (P2).
+\end{itemize}
+Our DI recovers 21\% (P1) and 18\% (P2) of the true tangential
+modulus. Yin recovers about 73\% and 72\% of the true modulus
+respectively --- both are underrecovering, but Yin's acquisition is
+substantially more effective. Both under-recover because the DI
+formula assumes an isotropic material.
+
+\paragraph{Follow-up directions.}
+\begin{itemize}
+\item \textbf{Diagnose the DI kernel gap} vs Yin's exact
+      implementation. Median-filter size, angular-wedge width, and the
+      choice of 20 Fibonacci directions (vs Yin's 20 dodecahedral) are
+      all small algorithmic parameters that could contribute to the
+      $3\times$ magnitude gap between our numbers and Yin's.
+\item \textbf{Redefine the ring} to match Yin's exact perilesional
+      definition (fixed $[a, a + 12~\text{mm}]$ regardless of what's
+      inside), then decide how to treat any shell or interface voxels.
+\item \textbf{Match Yin's acquisition modelling}: Yin acquires multiple
+      phase offsets and inverts each. Our simulation is single-shot
+      time-harmonic. A multi-offset simulation might recover a cleaner
+      wave field for inversion.
+\item \textbf{Anisotropic inversion.} Fundamentally solving the
+      under-recovery problem requires an inversion formula that assumes
+      an anisotropic material (rank-2 or rank-4 wave modulus tensor).
+      This would be a substantial algorithm change to the DI stage but
+      would remove the intrinsic bias.
 \end{itemize}
 
-\paragraph{Grid.} $N=48$ ($\Delta x = 3.75$~mm) is the current
-production size; PARDISO on 32 threads solves in ${\sim}200$~s and
-uses ${\sim}\SI{25}{\giga\byte}$ (\S\ref{sec:discretisation}). Going
-to $N=64$--$96$ (matching Yin's raw isotropic voxel) would multiply
-memory by ${\sim}2$--$8\times$ and would need either a bigger node
-reservation or an iterative solver with an appropriate
-preconditioner (block-Jacobi over voxels is the obvious first
-attempt). A finer grid would also directly probe the median-filter
-compression hypothesis above.
+\paragraph{Grid.} The Yin-exact grid $(50, 50, 60)$ at $\Delta x =
+3$~mm is the current production size; PARDISO on 64 threads solves
+in ${\sim}200$~s (per phantom) and uses ${\sim}\SI{25}{\giga\byte}$
+(\S\ref{sec:discretisation}). Going to $\Delta x = 2$~mm would give
+better resolution near the balloon interface (physical rubber shell
+thickness $\sim$1~mm becomes better resolved, and the DI median
+filter is less aggressive relative to the shell width) but multiplies
+memory by ${\sim}3.4\times$.
 
 \section{Files and reproducibility}
 
