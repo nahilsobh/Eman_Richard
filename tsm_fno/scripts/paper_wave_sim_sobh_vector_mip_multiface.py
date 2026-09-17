@@ -73,6 +73,9 @@ P2_M   = 0.5791   # power-law fibre recruitment exponent    (dimensionless)
 # Real water: µ = 0, K = 2.2 GPa (captured by LAM_BALL above).
 G_BALL = 1.0
 
+# (Rubber shell modelling removed — it complicated both forward and inverse
+# without producing a clean improvement over the pure water inclusion.)
+
 N_DIRECTIONS = 20
 WEDGE_WIDTH = 0.35
 MEDIAN_FILTER = 3
@@ -100,7 +103,7 @@ def build_tensor_field(W1_fn):
     cx = (NX - 1) / 2.0; cy = (NY - 1) / 2.0; cz = (NZ - 1) / 2.0
     dx_c = (ii - cx) * DX; dy_c = (jj - cy) * DX; dz_c = (kk - cz) * DX
     r = np.sqrt(dx_c ** 2 + dy_c ** 2 + dz_c ** 2)
-    in_balloon = r < A_INFL_M
+    in_balloon = r < A_INFL_M         # water inside; gel outside
     r_safe = np.where(r < 1e-12, 1e-12, r)
 
     R_ref = np.cbrt(r_safe ** 3 - A_INFL_M ** 3 + A_REF_M ** 3)
@@ -110,12 +113,13 @@ def build_tensor_field(W1_fn):
     mu_tt = 2.0 * W1 * lam_theta ** 2
     mu_rr = 2.0 * W1 * lam_theta ** (-4)
 
+    # Water: near-zero shear (fluid).
     mu_tt = np.where(in_balloon, G_BALL, mu_tt)
     mu_rr = np.where(in_balloon, G_BALL, mu_rr)
 
-    # Variable Lamé λ: gel gets the soft-incompressibility penalty,
-    # ball gets water-scale incompressibility.
-    lam_field = np.where(in_balloon, LAM_BALL, LAM_GEL)
+    # λ field: uniform physical bulk (2.2 GPa) for gel, water, and rubber.
+    # (Rubber has real K also on the GPa scale — essentially incompressible.)
+    lam_field = np.full_like(r, LAM_GEL)
 
     # Cartesian components of r̂ in (x, y, z) ordering (matches solver axes).
     rhat_x = dx_c / r_safe
@@ -128,6 +132,22 @@ def build_tensor_field(W1_fn):
                     + mu_tt[..., None, None] * (dij - RR))
 
     return mu_tensor, in_balloon, mu_tt, lam_field
+
+
+def bottom_face_only_sources(radius_frac=DRIVER_R_FRAC, amp=DRIVER_AMP):
+    """Single-face driver at the bottom (k=0) only — matches Yin's physical piston.
+
+    Axis convention (i, j, k) = (x, y, z), z vertical.
+    """
+    src = []
+    cx = (NX - 1) / 2.0; cy = (NY - 1) / 2.0
+    ampC = complex(amp)
+    r_max = (min(NX, NY) / 2.0) * radius_frac
+    for i in range(NX):
+        for j in range(NY):
+            if (i - cx) ** 2 + (j - cy) ** 2 <= r_max ** 2:
+                src.append((i, j, 0, 2, ampC))
+    return src
 
 
 def multi_face_vector_sources(radius_frac=DRIVER_R_FRAC, amp=DRIVER_AMP):
@@ -253,7 +273,7 @@ def run_phantom(W1_fn, label, sources, out_dir):
 
 
 def main():
-    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_multiface_topfree_yindim_sce_rigidball"
+    out_dir = ROOT / "results" / "paper_wave_sim_sobh_vector_bottomonly_topfree_yindim_water"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Grid: (NX,NY,NZ) = ({NX},{NY},{NZ}) at dx = {DX*1000:.1f} mm "
@@ -261,21 +281,21 @@ def main():
           f"matches Yin's 15 x 15 x 18 cm)")
     print(f"Frequency: {FREQ_HZ} Hz (Yin's)")
     print(f"BCs: 5 walls fixed, top σ·n=0 (ghost-node at k=Nz-1)")
-    sources = multi_face_vector_sources()
-    print(f"Multi-face broadband source: {len(sources)} nodes across "
-          f"bottom + 4 sides, driven on face-normal component")
+    sources = bottom_face_only_sources()
+    print(f"Bottom-face-only driver (matches Yin's physical piston): "
+          f"{len(sources)} nodes at k=0, driven on u_z (comp 2)")
 
     r1 = run_phantom(_W1_P1, "P1", sources, out_dir)
     gc.collect()
     r2 = run_phantom(_W1_P2, "P2", sources, out_dir)
 
     lines = [
-        "Vector Navier + tensor µ_ij + multi-face broadband + top-free + curl→MIP",
+        "Vector Navier + tensor µ_ij + bottom-face-only driver + top-free + curl→MIP",
         f"at Yin's {FREQ_HZ} Hz on the Sobh-Ehman phantoms at 250 mL",
         "=" * 76,
         f"Grid: (NX,NY,NZ) = ({NX},{NY},{NZ}) at dx = {DX*1000:.1f} mm "
         f"({NX*DX*100:.1f} x {NY*DX*100:.1f} x {NZ*DX*100:.1f} cm, matches Yin)",
-        f"Driver: multi-face broadband at bottom + 4 sides, face-normal component",
+        f"Driver: bottom-face-only piston (matches Yin's setup), u_z on disk",
         f"BCs: 5 walls Dirichlet u=0, top σ·n=0 (ghost-node)",
         "",
         "12 mm perilesional ring means:",
