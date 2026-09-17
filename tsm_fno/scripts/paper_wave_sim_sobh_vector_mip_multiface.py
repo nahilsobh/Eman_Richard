@@ -47,7 +47,7 @@ DX  = 0.003
 FREQ_HZ = 80.0
 RHO = 1000.0
 DAMPING = 0.05
-LAM_C = 1.0e5
+LAM_C = 1.0e7   # 10 MPa — quasi-incompressible bulk (gel & water both K~GPa)
 DRIVER_AMP = 1.0e-6
 DRIVER_R_FRAC = 0.5
 
@@ -62,16 +62,16 @@ P1_MU0 = 3530.0   # Pa   — neo-Hookean matrix baseline
 P2_MU0 = 3340.0   # Pa   — matrix + fibre baseline
 P2_C   = 0.2728   # power-law fibre recruitment coefficient (dimensionless)
 P2_M   = 0.5791   # power-law fibre recruitment exponent    (dimensionless)
-# Balloon modelled as an approximately-rigid coupled inclusion, NOT as water.
-# Water has µ = 0; what makes the physical balloon act rigidly is the rubber
-# shell holding the incompressible water in shape.  Since perfect rigidity is
-# geometrically over-constrained when the gel wavelength is smaller than the
-# ball (25 mm << 78 mm), we allow slight elastic compliance by using a large
-# but finite µ.  At 1e6 Pa: shear wavelength inside = 395 mm (5× ball
-# diameter, deep in the small-inclusion regime); stiffness contrast vs
-# softest gel = ~3500× (well within PARDISO's safe range 1e8).  See
-# problem_formulation.tex §Balloon-model paragraph for physics discussion.
-G_BALL = 1.0e6
+# Balloon + water treated as a single incompressible fluid inclusion:
+#   µ = 0 (a fluid cannot support shear)
+#   K = large (water is incompressible, K ~ 2.2 GPa)
+# The high bulk stiffness is captured by the global LAM_C above (10 MPa is
+# sufficient for MRE at 80 Hz — P-wavelength >> domain — while keeping the
+# sparse-system conditioning well within PARDISO's safe range).
+# G_BALL is set slightly above zero for numerical stability (avoids exactly
+# singular shear operator inside the ball).  See problem_formulation.tex
+# §Balloon-model paragraph for physics discussion.
+G_BALL = 1.0
 
 N_DIRECTIONS = 20
 WEDGE_WIDTH = 0.35
