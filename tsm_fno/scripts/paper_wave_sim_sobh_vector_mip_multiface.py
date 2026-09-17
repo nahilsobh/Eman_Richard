@@ -47,12 +47,13 @@ DX  = 0.003
 FREQ_HZ = 80.0
 RHO = 1000.0
 DAMPING = 0.05
-# Bulk-penalty first Lamé (spatially variable):
-#   gel  →  LAM_GEL  = 100 kPa  (soft-incompressibility penalty, matches paper)
-#   ball →  LAM_BALL = 10 MPa   (water incompressibility, K much larger than gel)
-# Combined into a lam_field of shape (Nx, Ny, Nz) at run time.
-LAM_GEL  = 1.0e5
-LAM_BALL = 1.0e7
+# First Lamé constant — physical values, both media near-incompressible:
+#   gel   K ≈ 2.2 GPa  (gelatin is ~99% water)
+#   water K ≈ 2.2 GPa  (measured)
+# Both media have essentially the same real bulk modulus.  For small
+# deformation and µ << λ, λ ≈ K.
+LAM_GEL  = 2.2e9
+LAM_BALL = 2.2e9
 DRIVER_AMP = 1.0e-6
 DRIVER_R_FRAC = 0.5
 
@@ -67,15 +68,9 @@ P1_MU0 = 3530.0   # Pa   — neo-Hookean matrix baseline
 P2_MU0 = 3340.0   # Pa   — matrix + fibre baseline
 P2_C   = 0.2728   # power-law fibre recruitment coefficient (dimensionless)
 P2_M   = 0.5791   # power-law fibre recruitment exponent    (dimensionless)
-# Balloon + water treated as a single incompressible fluid inclusion:
-#   µ = 0 (a fluid cannot support shear)
-#   K = large (water is incompressible, K ~ 2.2 GPa)
-# The high bulk stiffness is captured by the global LAM_C above (10 MPa is
-# sufficient for MRE at 80 Hz — P-wavelength >> domain — while keeping the
-# sparse-system conditioning well within PARDISO's safe range).
-# G_BALL is set slightly above zero for numerical stability (avoids exactly
-# singular shear operator inside the ball).  See problem_formulation.tex
-# §Balloon-model paragraph for physics discussion.
+# Water shear modulus: physically zero (fluid).  Numerically set to
+# 1 Pa to avoid an exactly-singular shear operator inside the ball.
+# Real water: µ = 0, K = 2.2 GPa (captured by LAM_BALL above).
 G_BALL = 1.0
 
 N_DIRECTIONS = 20
