@@ -62,10 +62,16 @@ P1_MU0 = 3530.0   # Pa   — neo-Hookean matrix baseline
 P2_MU0 = 3340.0   # Pa   — matrix + fibre baseline
 P2_C   = 0.2728   # power-law fibre recruitment coefficient (dimensionless)
 P2_M   = 0.5791   # power-law fibre recruitment exponent    (dimensionless)
-# Balloon + water treated as one nearly-rigid inclusion.  At 1e6 Pa:
-# shear wavelength inside balloon = 395 mm (>> 78 mm ball diameter) → rigid;
-# stiffness contrast vs softest gel = ~3500× (well within PARDISO's safe range 1e8).
-G_WATER = 1.0e6
+# Balloon modelled as an approximately-rigid coupled inclusion, NOT as water.
+# Water has µ = 0; what makes the physical balloon act rigidly is the rubber
+# shell holding the incompressible water in shape.  Since perfect rigidity is
+# geometrically over-constrained when the gel wavelength is smaller than the
+# ball (25 mm << 78 mm), we allow slight elastic compliance by using a large
+# but finite µ.  At 1e6 Pa: shear wavelength inside = 395 mm (5× ball
+# diameter, deep in the small-inclusion regime); stiffness contrast vs
+# softest gel = ~3500× (well within PARDISO's safe range 1e8).  See
+# problem_formulation.tex §Balloon-model paragraph for physics discussion.
+G_BALL = 1.0e6
 
 N_DIRECTIONS = 20
 WEDGE_WIDTH = 0.35
@@ -104,8 +110,8 @@ def build_tensor_field(W1_fn):
     mu_tt = 2.0 * W1 * lam_theta ** 2
     mu_rr = 2.0 * W1 * lam_theta ** (-4)
 
-    mu_tt = np.where(in_balloon, G_WATER, mu_tt)
-    mu_rr = np.where(in_balloon, G_WATER, mu_rr)
+    mu_tt = np.where(in_balloon, G_BALL, mu_tt)
+    mu_rr = np.where(in_balloon, G_BALL, mu_rr)
 
     # Cartesian components of r̂ in (x, y, z) ordering (matches solver axes).
     rhat_x = dx_c / r_safe

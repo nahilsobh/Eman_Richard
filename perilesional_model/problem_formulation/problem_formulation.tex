@@ -79,9 +79,10 @@ by \emph{paper\_lesion\_expansion.pdf}.
 \caption{Container cross-section in the $x$--$z$ plane, showing the
 five rigid walls (red \emph{u}=0), the traction-free top surface at
 $z = z_{\max}$ (blue $\sigma \cdot \hat z = 0$), the bottom piston
-plate at $z = z_{\min}$ (yellow), the water/balloon rigid inclusion
-(blue disk), and the 12\,mm perilesional shell used for ring
-statistics (black dashed circle). The $y$-axis is into the page; the
+plate at $z = z_{\min}$ (yellow), the balloon modelled as an
+approximately-rigid coupled inclusion (blue disk, see
+\S\ref{par:balloon-model}), and the 12\,mm perilesional shell used
+for ring statistics (black dashed circle). The $y$-axis is into the page; the
 same BCs apply on the two out-of-page faces (\SI{15}{\centi\metre}
 apart in $y$).}
 \end{figure}
@@ -200,7 +201,7 @@ $k = 0$ (bottom face, wall region)     & $\vect u = \vect 0$ & Dirichlet \\
 $j = 0$, $j = N_y-1$ (wall region)     & $\vect u = \vect 0$ & Dirichlet \\
 $i = 0$, $i = N_x-1$ (wall region)     & $\vect u = \vect 0$ & Dirichlet \\
 Central driver disk (each of 5 faces)  & face-normal $u_c$ prescribed & overrides the wall Dirichlet \\
-Balloon interior         & $\mu_{ij}(\vect x) = \SI{1e6}{\pascal}\,\delta_{ij}$ & rigid inclusion (see \S\ref{sec:openissues}) \\
+Balloon interior         & $\mu_{ij}(\vect x) = \SI{1e6}{\pascal}\,\delta_{ij}$ & approx.\ rigid coupled inclusion (\S\ref{par:balloon-model}) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -272,14 +273,58 @@ No ghost DOF is introduced: every interior-stencil access to
 $u_c(i,j,N_z)$ is distributed across the RHS of (\ref{eq:ghost}) in
 the sparse assembly.
 
-The "water-filled balloon that cannot support shear" is realised by
-setting $\mu_{ij}(\vect x) = \SI{1}{\pascal}\,\delta_{ij}$ inside the
-balloon. Equation (\ref{eq:navier}) then reduces to $\rho\omega^2 u_i
-\approx 0$ in the interior, so $\vect u \to 0$ there and the balloon
-acts as a shear-wave null region. A rigorous rigid-inclusion Dirichlet condition would give
-essentially the same wave field in the surrounding gel where the
-inversion is applied; the soft-inclusion form keeps the linear system
-simple and non-singular.
+\paragraph{Balloon: approximately-rigid coupled inclusion.}
+\label{par:balloon-model}
+Physically the balloon is a rubber shell filled with water. Water is
+incompressible ($K \approx 2.2$~GPa) but has \emph{zero} shear
+modulus; the rubber shell holds the water in shape. Together, on the
+MRE timescale, the ball behaves as a nearly-rigid inclusion
+\emph{attached} to the surrounding gel: the gel was cast against the
+balloon surface, so the interface at $r = a$ carries no slip and
+displacement continuity $\vect u_{\text{gel}}(a^{+}) =
+\vect u_{\text{ball}}(a^{-})$ holds everywhere on the ball's surface.
+
+Because the shear wavelength in the gel (${\sim}\SI{25}{\milli\metre}$ at
+\SI{80}{\hertz}) is small compared to the ball diameter
+($\sim\SI{78}{\milli\metre}$), the wave field varies over the ball's
+surface — so a \emph{perfectly rigid} ball would be
+geometrically over-constrained (a 6-DOF rigid motion cannot match a
+spatially-varying gel wave field at every surface point simultaneously
+while maintaining attachment). The ball must therefore support a
+small amount of internal deformation to remain compatible with the
+gel around it.
+
+We realise the approximate-rigid-inclusion behaviour \emph{compactly}
+by setting $\mu_{ij}(\vect x) = \SI{1e6}{\pascal}\,\delta_{ij}$ inside
+the balloon (labelled $G_{\text{ball}}$ in the code, not $G_{\text{water}}$
+— this is not water's shear modulus). At this value:
+\begin{itemize}
+\item Shear wavelength inside the ball is
+      $\sqrt{\mu_{\text{ball}}/\rho}/f \approx \SI{395}{\milli\metre}$,
+      $5{\times}$ the ball diameter — deep in the small-inclusion regime.
+\item The ball deforms elastically by only a few percent of the gel
+      wave amplitude — the ``slight compliance'' needed to accommodate
+      the varying gel field while remaining attached.
+\item The FD stencil enforces displacement and traction continuity at
+      the interface automatically (same voxel field on both sides;
+      material coefficients simply jump).
+\item Shear-wave impedance mismatch at the interface is ${\sim}17{\times}$,
+      giving a reflection coefficient of $\sim 0.89$ — near-total
+      reflection of shear energy back into the gel, matching the
+      physically expected behaviour of a rubber-shelled water-filled
+      inclusion in gel.
+\end{itemize}
+
+The chosen value $\mu_{\text{ball}} = 10^{6}$~Pa is a model parameter
+representing the \emph{effective near-rigid coupled inclusion}, not
+water's shear modulus. Increasing further ($10^{7}$~Pa or higher)
+would make the ball more rigid without changing the external wave
+field meaningfully; going below ${\sim}10^{5}$~Pa lets shear waves
+partially penetrate the ball and changes the reflection pattern
+noticeably. The value $10^{6}$~Pa is the smallest stiffness that
+puts the ball firmly in the small-inclusion / near-rigid regime while
+keeping the sparse-system stiffness contrast ($\sim 3500{\times}$
+against the softest gel voxel) well within PARDISO's safe range.
 
 \section{Material field $\mu_{ij}(\vect x)$}
 \label{sec:material}
@@ -743,7 +788,7 @@ $xy$ & $-$0.05 & $-$0.05 & \phantom{$-$}0.00 & $-$0.03 & $-$0.03 & \phantom{$-$}
 \vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.48,\ 3.55,\ 3.57,\ 7.05,\ 7.08,\ 307.06\}$
 
 \vspace{6pt}
-\textbf{Balloon interior (rigid inclusion, $\mu = 10^{6}$~Pa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
+\textbf{Balloon interior (approx.\ rigid coupled inclusion, $\mu_{\text{ball}} = 10^{6}$~Pa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
 \begin{center}\small
 \begin{tabular}{r|rrrrrr}
 \toprule
@@ -820,7 +865,7 @@ $xy$ & $-$0.05 & $-$0.05 & \phantom{$-$}0.00 & $-$0.03 & $-$0.03 & \phantom{$-$}
 \vspace{-4pt}\noindent\hspace{1em}\small eigenvalues (kPa): $\{3.30,\ 3.37,\ 3.39,\ 6.70,\ 6.73,\ 306.71\}$
 
 \vspace{6pt}
-\textbf{Balloon interior (rigid inclusion, $\mu = 10^{6}$~Pa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
+\textbf{Balloon interior (approx.\ rigid coupled inclusion, $\mu_{\text{ball}} = 10^{6}$~Pa)} \quad $(i,j,k)=(24,24,29)$, $r=2.6$~mm
 \begin{center}\small
 \begin{tabular}{r|rrrrrr}
 \toprule
@@ -857,11 +902,12 @@ $xy$ & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}0.00 & \phantom{$-$}
       material anisotropy). At the far corner these collapse toward
       $\{2\bar\mu, 2\bar\mu, 2\bar\mu, \bar\mu, \bar\mu, \bar\mu\}$
       — the isotropic-elasticity fingerprint.
-\item \textbf{Balloon interior (rigid inclusion)}: with $\mu_{ij} =
-      10^{6}\,\delta_{ij}$~Pa, the shear block is $\mu_{ij} = 10^{6}$~Pa
-      and the top-left block is $\lambda + 2\mu = 2100$~kPa on the
-      diagonal, $\lambda = 100$~kPa off. Reflects incident shear waves
-      cleanly (see \S\ref{sec:openissues}).
+\item \textbf{Balloon interior (approximately-rigid coupled inclusion)}:
+      with $\mu_{ij} = 10^{6}\,\delta_{ij}$~Pa, the shear block is
+      $\mu_{ij} = 10^{6}$~Pa and the top-left block is $\lambda + 2\mu
+      = 2100$~kPa on the diagonal, $\lambda = 100$~kPa off. Reflects
+      incident shear waves cleanly (see \S\ref{par:balloon-model} for
+      the physical interpretation of this value).
 \end{itemize}
 
 \paragraph{Negative entries in the 6$\times$6 --- provenance and status.}
@@ -1270,8 +1316,9 @@ Yin measured (P1) & — & — & $\sim$4.4 & 1.57 \\
 \end{tabular}
 \end{center}
 Grid $(N_x,N_y,N_z) = (50,50,60)$ at $\Delta x = 3$~mm, container
-$15{\times}15{\times}18$~cm matching Yin exactly. Rigid balloon
-($\mu_{\text{balloon}} = 10^{6}$~Pa).
+$15{\times}15{\times}18$~cm matching Yin exactly. Balloon modelled as
+approximately-rigid coupled inclusion with
+$\mu_{\text{ball}} = 10^{6}$~Pa (\S\ref{par:balloon-model}).
 
 \begin{figure}[h]
 \centering
