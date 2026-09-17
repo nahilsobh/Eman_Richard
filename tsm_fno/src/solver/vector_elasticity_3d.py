@@ -332,7 +332,15 @@ def navier_solve_3d_tensor_mu(
         f"expected (Nx,Ny,Nz,3,3), got {mu_tensor.shape}"
     omega = 2.0 * np.pi * freq
     mu = mu_tensor.astype(complex) * (1.0 + 1j * float(damping))
-    lam_c = complex(lam)
+
+    # λ may be scalar (uniform) or a per-voxel field (Nx, Ny, Nz).
+    lam_arr = np.asarray(lam)
+    if lam_arr.ndim == 0:
+        lam_field = np.full((Nx, Ny, Nz), complex(lam_arr))
+    else:
+        assert lam_arr.shape == (Nx, Ny, Nz), \
+            f"expected lam scalar or shape (Nx,Ny,Nz), got {lam_arr.shape}"
+        lam_field = lam_arr.astype(complex)
 
     n_vox = Nx * Ny * Nz
     n_dof = 3 * n_vox
@@ -402,9 +410,11 @@ def navier_solve_3d_tensor_mu(
     # interior DOFs listed above.
 
     # Local isotropic-material factor at the top face (used only when
-    # unwrapping ghost accesses).
+    # unwrapping ghost accesses).  Averaged over the top slab so f_top
+    # is a single scalar even if µ or λ vary in-plane there.
     mu_bg_top = float(np.mean(np.trace(mu_tensor[:, :, Nz - 1].real, axis1=-2, axis2=-1)) / 3.0)
-    f_top = float(lam.real / (lam.real + 2.0 * mu_bg_top))
+    lam_bg_top = float(np.mean(lam_field[:, :, Nz - 1].real))
+    f_top = float(lam_bg_top / (lam_bg_top + 2.0 * mu_bg_top))
 
     def _expand_ghost(comp, ii, jj):
         """Return [(target_comp, ti, tj, tk, multiplier), ...] that replaces
@@ -500,13 +510,18 @@ def navier_solve_3d_tensor_mu(
 
                             # ── λ·δ_{c,j_ax}·div(u) term ──
                             if c == j_ax:
+                                # λ at neighbour voxel (top-ghost uses top-slab value)
+                                if top_free and i_j[2] == Nz:
+                                    lam_at = lam_field[i_j[0], i_j[1], Nz - 2]
+                                else:
+                                    lam_at = lam_field[i_j[0], i_j[1], i_j[2]]
                                 for l_ax in range(3):
                                     # ∂_l u_l at (x + sj·e_{j_ax})
                                     ip = i_j.copy(); im = i_j.copy()
                                     ip[l_ax] += 1; im[l_ax] -= 1
                                     coef_scale = (sj / (2.0 * dx)) * (0.5 / dx)
-                                    add_A(m, l_ax, *ip, +lam_c * coef_scale)
-                                    add_A(m, l_ax, *im, -lam_c * coef_scale)
+                                    add_A(m, l_ax, *ip, +lam_at * coef_scale)
+                                    add_A(m, l_ax, *im, -lam_at * coef_scale)
 
                             # ── μ_{c,k}·(∂_k u_{j_ax} + ∂_{j_ax} u_k)/2 term ──
                             # and μ_{j_ax,k}·(∂_k u_c + ∂_c u_k)/2  (symmetric)

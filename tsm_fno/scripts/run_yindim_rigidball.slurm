@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --account=bfid-delta-cpu
-#SBATCH --partition=cpu
+#SBATCH --partition=cpu-interactive
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
-#SBATCH --mem=200G
-#SBATCH --time=01:00:00
+#SBATCH --mem=100G
+#SBATCH --time=00:20:00
 #SBATCH --job-name=vec_yindim_rigidball
 #SBATCH --output=/u/sobh/Eman_Richard/tsm_fno/results/vec_yindim_rigidball_%j.log
 #SBATCH --error=/u/sobh/Eman_Richard/tsm_fno/results/vec_yindim_rigidball_%j.err

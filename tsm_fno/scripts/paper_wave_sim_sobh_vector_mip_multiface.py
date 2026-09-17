@@ -47,7 +47,12 @@ DX  = 0.003
 FREQ_HZ = 80.0
 RHO = 1000.0
 DAMPING = 0.05
-LAM_C = 1.0e7   # 10 MPa — quasi-incompressible bulk (gel & water both K~GPa)
+# Bulk-penalty first Lamé (spatially variable):
+#   gel  →  LAM_GEL  = 100 kPa  (soft-incompressibility penalty, matches paper)
+#   ball →  LAM_BALL = 10 MPa   (water incompressibility, K much larger than gel)
+# Combined into a lam_field of shape (Nx, Ny, Nz) at run time.
+LAM_GEL  = 1.0e5
+LAM_BALL = 1.0e7
 DRIVER_AMP = 1.0e-6
 DRIVER_R_FRAC = 0.5
 
@@ -113,6 +118,10 @@ def build_tensor_field(W1_fn):
     mu_tt = np.where(in_balloon, G_BALL, mu_tt)
     mu_rr = np.where(in_balloon, G_BALL, mu_rr)
 
+    # Variable Lamé λ: gel gets the soft-incompressibility penalty,
+    # ball gets water-scale incompressibility.
+    lam_field = np.where(in_balloon, LAM_BALL, LAM_GEL)
+
     # Cartesian components of r̂ in (x, y, z) ordering (matches solver axes).
     rhat_x = dx_c / r_safe
     rhat_y = dy_c / r_safe
@@ -123,7 +132,7 @@ def build_tensor_field(W1_fn):
     mu_tensor = (mu_rr[..., None, None] * RR
                     + mu_tt[..., None, None] * (dij - RR))
 
-    return mu_tensor, in_balloon, mu_tt
+    return mu_tensor, in_balloon, mu_tt, lam_field
 
 
 def multi_face_vector_sources(radius_frac=DRIVER_R_FRAC, amp=DRIVER_AMP):
@@ -216,12 +225,13 @@ def curl_mip(u_vec, ring_msk, label):
 
 def run_phantom(W1_fn, label, sources, out_dir):
     print(f"\n[{label}] tensor stiffness…")
-    mu_tensor, balloon, mu_tt = build_tensor_field(W1_fn)
+    mu_tensor, balloon, mu_tt, lam_field = build_tensor_field(W1_fn)
     print(f"  µ_θθ range {mu_tt.min()/1000:.2f} – {mu_tt.max()/1000:.2f} kPa")
+    print(f"  λ field:  gel {LAM_GEL/1000:.0f} kPa, ball {LAM_BALL/1000:.0f} kPa")
 
     print(f"[{label}] vector Navier at {FREQ_HZ} Hz, top_free=True…", flush=True)
     t0 = time.time()
-    u_vec = navier_solve_3d_tensor_mu(mu_tensor, lam=LAM_C, freq=FREQ_HZ,
+    u_vec = navier_solve_3d_tensor_mu(mu_tensor, lam=lam_field, freq=FREQ_HZ,
                                           rho=RHO, dx=DX, damping=DAMPING,
                                           sources=sources, top_free=True)
     print(f"  Navier: {time.time()-t0:.1f} s   |u|_max = "
